@@ -1,0 +1,24 @@
+node_modules/
+dist/
+test-server/
+reply.txt
+
+# Tooling / dev artifacts
+.agent-bridge/
+.claude/
+mcp/
+.mcp.json
+*.ps1
+file.txt
+nul
+*.local
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db
+*.crx
+*.zip
+*.log
+npm-debug.log*
+.vscode/

@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "AlgoVoi",
+  "version": "0.1.0",
+  "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_start"
+    }
+  ],
+  "devtools_page": "src/devtools/index.html",
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs",
+    "activeTab",
+    "notifications",
+    "windows"
+  ],
+  "host_permissions": [
+    "https://mainnet-api.algonode.cloud/*",
+    "https://mainnet-idx.algonode.cloud/*",
+    "https://mainnet-api.voi.nodely.dev/*",
+    "https://mainnet-idx.voi.nodely.dev/*",
+    "https://*.walletconnect.com/*",
+    "https://*.walletconnect.org/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/inpage/index.js", "icons/*"],
+      "matches": ["https://*/*"]
+    }
+  ]
+}
