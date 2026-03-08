@@ -21,8 +21,8 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getSuggestedParams, hasOptedIn, submitTransaction } from "./chain-clients";
-import { X402_VERSION, APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT } from "@shared/constants";
+import { getSuggestedParams, hasOptedIn, submitTransaction, getAccountState } from "./chain-clients";
+import { X402_VERSION, APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
 import type {
   PaymentRequired,
@@ -171,6 +171,21 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
     throw new Error(
       `Payment amount ${amount} microunits exceeds safety cap of ${cap}. ` +
       `Adjust the cap in settings or reject this payment.`
+    );
+  }
+
+  // Pre-flight balance check — surface a clear error before the node rejects.
+  // Fee is typically 1000 µ for a simple txn; use minFee from params if available.
+  const fee = BigInt((params as { minFee?: number }).minFee ?? 1000);
+  const accountState = await getAccountState(senderAddress, chain);
+  const spendable = accountState.balance - accountState.minBalance;
+  const needed = asaId !== 0 ? fee : amount + fee;
+  if (spendable < needed) {
+    const ticker = CHAINS[chain].ticker;
+    throw new Error(
+      `Insufficient ${ticker} balance. ` +
+      `Need ${needed} µ${ticker} but only ${spendable} µ${ticker} spendable ` +
+      `(balance: ${accountState.balance}, min balance: ${accountState.minBalance}).`
     );
   }
 

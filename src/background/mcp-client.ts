@@ -11,7 +11,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getSuggestedParams, submitTransaction } from "./chain-clients";
+import { getSuggestedParams, submitTransaction, getAccountState } from "./chain-clients";
 import { requestApproval } from "./approval-handler";
 import { randomId } from "@shared/utils/crypto";
 import { X402_VERSION } from "@shared/constants";
@@ -160,8 +160,23 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
     );
   }
 
-  const sk = await walletStore.getActiveSecretKey();
   const params = await getSuggestedParams("voi");
+
+  // Pre-flight balance check — gives a clear error before the node rejects with
+  // "underflow on subtracting N from sender amount M".
+  const fee = BigInt((params as { minFee?: number }).minFee ?? 1000);
+  const accountState = await getAccountState(activeAccount.address, "voi");
+  const spendable = accountState.balance - accountState.minBalance;
+  if (spendable < amount + fee) {
+    throw new Error(
+      `Insufficient VOI balance. ` +
+      `Need ${amount + fee} µVOI but only ${spendable} µVOI spendable ` +
+      `(balance: ${accountState.balance}, min balance: ${accountState.minBalance}). ` +
+      `Fund your Voi account and try again.`
+    );
+  }
+
+  const sk = await walletStore.getActiveSecretKey();
 
   const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
     sender: activeAccount.address,
