@@ -345,7 +345,8 @@ export async function handleX402(params: {
     );
   }
 
-  const requestId = params.inpageRequestId ?? randomId();
+  // Always generate our own internal ID — never trust the inpage-controlled value as a map key.
+  const requestId = randomId();
   const pending: PendingX402Request = {
     id: requestId,
     tabId: params.tabId,
@@ -355,6 +356,8 @@ export async function handleX402(params: {
     paymentRequirements: chosen,
     allRequirements: paymentRequired.accepts,
     timestamp: Date.now(),
+    // Store inpage-provided ID for tab routing only (see X402_RESULT in message-handler).
+    inpageRequestId: params.inpageRequestId,
   };
   _pendingRequests.set(requestId, pending);
 
