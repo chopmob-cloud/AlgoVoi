@@ -19,7 +19,8 @@ export default function WalletSetup({ onComplete }: { onComplete: () => void }) 
   const [importMnemonic, setImportMnemonic] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [confirmWords, setConfirmWords] = useState("");
+  const [confirmPositions, setConfirmPositions] = useState<number[]>([]);
+  const [confirmInputs, setConfirmInputs]       = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,15 +40,24 @@ export default function WalletSetup({ onComplete }: { onComplete: () => void }) 
   }
 
   function handleBackupConfirm() {
+    // HIGH-03: Pick 4 distinct random indices from 0–24, sort ascending for display.
+    const indices = new Set<number>();
+    while (indices.size < 4) {
+      indices.add(Math.floor(Math.random() * 25));
+    }
+    const sorted = [...indices].sort((a, b) => a - b);
+    setConfirmPositions(sorted);
+    setConfirmInputs(["", "", "", ""]);
     setStep("confirm");
   }
 
   async function handleConfirm(e: React.FormEvent) {
     e.preventDefault();
     const words = mnemonic.split(" ");
-    const typed = confirmWords.trim().split(/\s+/);
-    if (typed[0] !== words[0] || typed[typed.length - 1] !== words[words.length - 1]) {
-      return setError("Mnemonic verification failed — please check your backup");
+    for (let i = 0; i < confirmPositions.length; i++) {
+      if (confirmInputs[i].trim() !== words[confirmPositions[i]]) {
+        return setError("Mnemonic verification failed — please check your backup");
+      }
     }
     await finalize(mnemonic);
   }
@@ -211,15 +221,31 @@ export default function WalletSetup({ onComplete }: { onComplete: () => void }) 
         <form onSubmit={handleConfirm} className="flex flex-col gap-4 flex-1">
           <h2 className="text-lg font-semibold">Verify Backup</h2>
           <p className="text-sm text-gray-400">
-            Enter the first and last word of your mnemonic to confirm.
+            Enter the words at the positions shown to confirm your backup.
           </p>
-          <input
-            className="input"
-            placeholder="First word … last word"
-            value={confirmWords}
-            onChange={(e) => setConfirmWords(e.target.value)}
-            autoFocus
-          />
+          <div className="space-y-3">
+            {confirmPositions.map((pos, i) => (
+              <div key={pos}>
+                <label className="block text-xs text-gray-400 mb-1">
+                  Word #{pos + 1}
+                </label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={confirmInputs[i]}
+                  onChange={(e) => {
+                    const next = [...confirmInputs];
+                    next[i] = e.target.value;
+                    setConfirmInputs(next);
+                  }}
+                  autoFocus={i === 0}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2
+                             text-sm font-mono focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            ))}
+          </div>
           {error && <p className="text-red-400 text-sm">{error}</p>}
           <div className="flex gap-2 mt-auto">
             <button type="button" className="btn-secondary flex-1" onClick={() => setStep("backup")}>

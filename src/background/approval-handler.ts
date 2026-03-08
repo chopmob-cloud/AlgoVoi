@@ -93,6 +93,19 @@ export function rejectApproval(id: string, reason: string): void {
   resolver?.reject(new Error(reason));
 }
 
+/**
+ * Count how many pending approvals share the given origin.
+ * Only sign_txns and sign_bytes approvals carry an `origin` field;
+ * envoi_payment entries are excluded via the "origin" in approval guard.
+ */
+export function countPendingByOrigin(origin: string): number {
+  let count = 0;
+  for (const approval of _pending.values()) {
+    if ("origin" in approval && approval.origin === origin) count++;
+  }
+  return count;
+}
+
 // ── Main entry ────────────────────────────────────────────────────────────────
 
 /**
