@@ -2,6 +2,7 @@ node_modules/
 dist/
 test-server/
 reply.txt
+AlgoVoi/
 
 # Tooling / dev artifacts
 .agent-bridge/
