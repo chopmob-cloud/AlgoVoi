@@ -229,6 +229,33 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { txId };
     }
 
+    case "CHAIN_SEND_ASSET": {
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+      if (!algosdk.isValidAddress(msg.to)) throw new Error("Invalid destination address");
+      const chain = msg.chain as ChainId;
+      const meta = await walletStore.getMeta();
+      const senderAddress = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;
+      if (!senderAddress) throw new Error("No active account");
+      const sk = await walletStore.getActiveSecretKey();
+      const params = await getSuggestedParams(chain);
+      // Use msg.decimals passed by the frontend (frontend has full AccountAsset metadata)
+      const amountAtomic = parseDecimalToAtomic(msg.amount, msg.decimals);
+      const noteText = msg.note ? msg.note.slice(0, 1024) : undefined;
+      const note = noteText ? new TextEncoder().encode(noteText) : undefined;
+      const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: senderAddress,
+        receiver: msg.to,
+        assetIndex: msg.assetId,
+        amount: amountAtomic,
+        note,
+        suggestedParams: params,
+      });
+      const signedBytes = txn.signTxn(sk);
+      const txId = await submitTransaction(chain, signedBytes);
+      return { txId };
+    }
+
     // ── Submit pre-signed transaction (WalletConnect flow) ────────────────────
     case "CHAIN_SUBMIT_SIGNED": {
       // L5: Require wallet to be unlocked before submitting WC-signed transactions.

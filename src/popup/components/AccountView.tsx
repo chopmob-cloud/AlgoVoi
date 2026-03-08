@@ -436,6 +436,7 @@ export default function AccountView() {
           ticker={cfg.ticker}
           balance={chainState?.balance ?? 0n}
           decimals={cfg.decimals}
+          assets={chainState?.assets ?? []}
           activeAccount={activeAccount}
           onClose={() => setModal(null)}
           onSent={() => { setModal(null); setTimeout(loadState, 2000); }}
@@ -460,6 +461,7 @@ function SendModal({
   ticker,
   balance,
   decimals,
+  assets,
   activeAccount,
   onClose,
   onSent,
@@ -468,6 +470,7 @@ function SendModal({
   ticker: string;
   balance: bigint;
   decimals: number;
+  assets: AccountAsset[];
   activeAccount: Account;
   onClose: () => void;
   onSent: () => void;
@@ -479,6 +482,9 @@ function SendModal({
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
 
+  // Asset selector — null = native coin
+  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
+
   // enVoi name resolution (Voi only)
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
@@ -487,7 +493,15 @@ function SendModal({
   // WC signing (only used for walletconnect accounts)
   const { signTransaction } = useWalletConnect();
 
-  const availableDisplay = formatAmount(balance, decimals);
+  const selectedAsset = selectedAssetId !== null
+    ? assets.find((a) => a.assetId === selectedAssetId) ?? null
+    : null;
+  const sendBalance  = selectedAsset ? selectedAsset.amount   : balance;
+  const sendDecimals = selectedAsset ? selectedAsset.decimals : decimals;
+  const sendTicker   = selectedAsset
+    ? (selectedAsset.unitName || selectedAsset.name || `#${selectedAsset.assetId}`)
+    : ticker;
+  const availableDisplay = formatAmount(sendBalance, sendDecimals);
   const isWC = activeAccount.type === "walletconnect";
 
   /**
@@ -543,11 +557,20 @@ function SendModal({
       setError("Enter a valid amount greater than 0");
       return;
     }
-    const amtAtomic = BigInt(Math.round(amtNum * 10 ** decimals));
+    const amtAtomic = BigInt(Math.round(amtNum * 10 ** sendDecimals));
+    // For ASA: fee is paid in native coin, so the full ASA balance is sendable.
+    // For native coin: reserve 1000 atomic units for the minimum fee.
     const MIN_FEE = BigInt(1000);
-    if (amtAtomic + MIN_FEE > balance) {
-      setError(`Insufficient balance (available: ${availableDisplay} ${ticker})`);
-      return;
+    if (selectedAsset) {
+      if (amtAtomic > sendBalance) {
+        setError(`Insufficient ${sendTicker} balance (available: ${availableDisplay} ${sendTicker})`);
+        return;
+      }
+    } else {
+      if (amtAtomic + MIN_FEE > balance) {
+        setError(`Insufficient balance (available: ${availableDisplay} ${ticker})`);
+        return;
+      }
     }
 
     setSending(true);
@@ -575,13 +598,22 @@ function SendModal({
         const params = await algod.getTransactionParams().do();
         // 2. Build unsigned txn
         const noteBytes = note.trim() ? new TextEncoder().encode(note.trim()) : undefined;
-        const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          from: activeAccount.address,
-          to: trimTo,
-          amount: amtAtomic,
-          note: noteBytes,
-          suggestedParams: params,
-        });
+        const txn = selectedAsset
+          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              from: activeAccount.address,
+              to: trimTo,
+              assetIndex: selectedAsset.assetId,
+              amount: amtAtomic,
+              note: noteBytes,
+              suggestedParams: params,
+            })
+          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+              from: activeAccount.address,
+              to: trimTo,
+              amount: amtAtomic,
+              note: noteBytes,
+              suggestedParams: params,
+            });
         // 3. Sign on phone via WC — use accountChain (not chain) to guarantee the
         //    CAIP-2 chainId matches what the session was approved for.
         const signedBytes = await signTransaction(
@@ -599,13 +631,23 @@ function SendModal({
         setTxId(id);
       } else {
         // ── Mnemonic signing path (background holds the key) ─────────────────
-        const { txId: id } = await sendBg<{ txId: string }>({
-          type: "CHAIN_SEND_PAYMENT",
-          to: trimTo,
-          amount: trimAmt,
-          chain,
-          note: note.trim() || undefined,
-        });
+        const { txId: id } = selectedAsset
+          ? await sendBg<{ txId: string }>({
+              type: "CHAIN_SEND_ASSET",
+              to: trimTo,
+              amount: trimAmt,
+              assetId: selectedAsset.assetId,
+              decimals: selectedAsset.decimals,
+              chain,
+              note: note.trim() || undefined,
+            })
+          : await sendBg<{ txId: string }>({
+              type: "CHAIN_SEND_PAYMENT",
+              to: trimTo,
+              amount: trimAmt,
+              chain,
+              note: note.trim() || undefined,
+            });
         setTxId(id);
       }
     } catch (err) {
@@ -619,9 +661,33 @@ function SendModal({
     <ModalOverlay onClose={onClose}>
       <div className="bg-surface-1 rounded-2xl p-5 w-[320px] mx-auto shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold">Send {ticker}</h2>
+          <h2 className="text-base font-semibold">Send {sendTicker}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">×</button>
         </div>
+
+        {/* Asset selector — only shown when account holds ASAs */}
+        {assets.length > 0 && !txId && (
+          <div className="mb-3">
+            <label className="block text-xs text-gray-400 mb-1">Asset</label>
+            <select
+              value={selectedAssetId ?? "native"}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedAssetId(val === "native" ? null : Number(val));
+                setAmount("");
+                setError(null);
+              }}
+              className="w-full bg-surface-2 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-algo"
+            >
+              <option value="native">{ticker} (native)</option>
+              {assets.map((a) => (
+                <option key={a.assetId} value={a.assetId}>
+                  {a.unitName || a.name || `Asset #${a.assetId}`} (#{a.assetId})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {txId ? (
           /* ── Success state ── */
@@ -719,7 +785,7 @@ function SendModal({
             <label className="block text-xs text-gray-400 mb-1">
               Amount{" "}
               <span className="text-gray-600">
-                (available: {availableDisplay} {ticker})
+                (available: {availableDisplay} {sendTicker})
               </span>
             </label>
             <div className="relative mb-3">
@@ -736,9 +802,14 @@ function SendModal({
                 type="button"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-algo font-semibold px-1"
                 onClick={() => {
-                  // Max sendable = balance − minimum fee (1000 atomic units)
-                  const maxAtomic = balance > BigInt(1000) ? balance - BigInt(1000) : BigInt(0);
-                  setAmount((Number(maxAtomic) / 10 ** decimals).toFixed(decimals));
+                  if (selectedAsset) {
+                    // ASA: fee is in native coin — full ASA balance is sendable
+                    setAmount((Number(sendBalance) / 10 ** sendDecimals).toFixed(sendDecimals));
+                  } else {
+                    // Native coin: reserve min fee
+                    const maxAtomic = balance > BigInt(1000) ? balance - BigInt(1000) : BigInt(0);
+                    setAmount((Number(maxAtomic) / 10 ** decimals).toFixed(decimals));
+                  }
                 }}
               >
                 MAX
@@ -773,8 +844,8 @@ function SendModal({
                 </span>
               ) : (
                 isWC
-                  ? `Send ${ticker} via ${activeAccount.wcPeerName ?? "Mobile"}`
-                  : `Send ${ticker}`
+                  ? `Send ${sendTicker} via ${activeAccount.wcPeerName ?? "Mobile"}`
+                  : `Send ${sendTicker}`
               )}
             </button>
           </>
