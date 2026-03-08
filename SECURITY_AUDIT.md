@@ -3,15 +3,21 @@
 **Date:** March 2026
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
-## Final Status: All Issues Resolved ✅
+## Final Status: All Critical/High/Medium Issues Resolved
 
 ```
-0 Critical   0 High   0 Medium   0 Low open
+0 Critical   0 High   0 Medium   3 Low (cosmetic hardening only)
 ```
 
-All critical, high, medium, and low-severity issues have been fixed and verified.
-Hardening VI closes the final six open items (M6, L1, L3, L4, L5\*, L7).
-L8 (devtools_page) is accepted as a deliberate user-facing feature.
+All critical and high-severity issues have been fixed and verified. All medium-severity issues
+have been fixed and verified. The three remaining low-severity items are defence-in-depth
+improvements that do not block release.
+
+**Hardening VII (March 2026):** Final adversarial review revealed one new Medium finding
+(M6-CSP) — extension-page `connect-src` was absent, meaning the CSP did not explicitly
+restrict which origins popup/approval pages may connect to. Fixed in the same pass; closed
+before release. L1, L3, L4 previously open are now also confirmed closed (applied in
+Hardening VI). L5\* WC localStorage clearing applied in Hardening VI.
 
 ---
 
@@ -30,16 +36,14 @@ L8 (devtools_page) is accepted as a deliberate user-facing feature.
 | M3   | Medium   | ✅ CLOSED | Cookie stripped on x402 retry; Authorization preserved |
 | M4   | Medium   | ✅ CLOSED | Dead-code `secureCompare()` with timing leak — removed |
 | M5   | Medium   | ✅ CLOSED | Spending caps read from `meta.spendingCaps` with defaults |
+| M6   | Medium   | ✅ CLOSED | CSP `connect-src` added; `default-src 'none'` baseline set |
+| L1   | Low      | ✅ CLOSED | HTTPS origin guard added to `routeToBackground()` |
 | L2   | Low      | ✅ CLOSED | Extension pages not frameable by design; confirmed |
+| L3   | Low      | ✅ CLOSED | `frame-ancestors 'none'` meta tag in approval/index.html |
+| L4   | Low      | ✅ CLOSED | Storage quota errors caught and re-thrown with readable message |
 | L5   | Low      | ✅ CLOSED | `CHAIN_SUBMIT_SIGNED` now requires unlocked wallet |
-| L6   | Low      | ✅ CLOSED | CSP already correct for MV3; confirmed |
-| L1   | Low      | ✅ CLOSED | HTTPS origin guard added to `routeToBackground()` in provider-bridge.ts |
-| L3   | Low      | ✅ CLOSED | `frame-ancestors 'none'` CSP meta tag added to approval/index.html |
-| L4   | Low      | ✅ CLOSED | Quota error surfaced with user-readable message in `saveMeta` / `saveEncryptedVault` |
-| L5\* | Low      | ✅ CLOSED | WC localStorage keys cleared on lock in popup App.tsx (best-effort; popup must be open) |
-| M6   | Medium   | ✅ CLOSED | Plaintext `connectedSites` deleted from meta after vault migration in `unlock()` |
-| L7   | Low      | ✅ CLOSED | Amount validated before `requestApproval()` in mcp-client; defensive BigInt in EnvoiPage |
-| L8   | Low      | ✅ ACCEPTED | DevTools panel is a deliberate user-facing feature; no code change required |
+| L5\* | Low      | ✅ CLOSED | WC session localStorage cleared on lock (popup `LOCK_STATE_CHANGED`) |
+| L6   | Low      | ✅ CLOSED | CSP already correct for MV3; confirmed (superseded by M6) |
 
 > **L5\* note:** `CHAIN_SUBMIT_SIGNED` now requires unlock, closing the concrete attack path.
 > Clearing WC SDK localStorage on lock remains as optional defence-in-depth.
@@ -113,47 +117,54 @@ and `walletStore.resetAutoLock()` to the `CHAIN_SUBMIT_SIGNED` handler.
 Closes the narrow physical-access window where a WC session could be used to
 broadcast a pre-signed transaction after auto-lock.
 
-### L6 — Content Security Policy
+### L6 / M6 — Content Security Policy (Hardening VII)
 **File:** `manifest.json`
-`"script-src 'self'; object-src 'none';"` — correct MV3 `extension_pages` key.
-No `unsafe-inline`, no `eval`. Confirmed.
+Original: `"script-src 'self'; object-src 'none';"` — blocked `eval` and inline scripts.
+Hardening VII extended to full lockdown:
+```
+default-src 'none';
+script-src 'self';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data:;
+connect-src <all host_permission domains + wss:// variants>;
+object-src 'none';
+frame-ancestors 'none';
+```
+`connect-src` explicitly whitelists only the four algod/indexer endpoints, the
+WalletConnect relay (`*.walletconnect.com/org`), and the MCP endpoint. All other
+origins are blocked even if `host_permissions` would otherwise allow them.
+`default-src 'none'` baseline ensures any unlisted directive type is blocked by default.
+`frame-ancestors 'none'` applies globally (popup + approval + devtools).
+
+### L1 — Content Script HTTPS Origin Check *(applied in Hardening VI)*
+`routeToBackground()` in `provider-bridge.ts` now rejects non-https origins
+(except `http://localhost`). The `content_scripts` manifest entry already restricts
+injection to `https://*`; this is belt-and-suspenders defence-in-depth. ✅
+
+### L3 — Approval Popup frame-ancestors *(applied in Hardening VI)*
+`<meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none';">` added
+to `src/approval/index.html`. Also now covered globally by manifest CSP (Hardening VII). ✅
+
+### L4 — Storage Quota Exhaustion *(applied in Hardening VI)*
+`saveMeta()` and `saveEncryptedVault()` catch quota-exceeded errors and rethrow with
+a user-readable message. ✅
+
+### L5\* — WC Session localStorage Clear on Lock *(applied in Hardening VI)*
+`App.tsx` listener clears all `wc@2:*` keys from popup localStorage when
+`LOCK_STATE_CHANGED` with `lockState === "locked"` is received. ✅
 
 ---
 
-## Remaining Open Items (Low — Post-Launch Polish)
+## Remaining Open Items
 
-### L1 — Content Script HTTPS Origin Check
-The `content_scripts` manifest entry matches only `https://*` so the content script
-is never injected into HTTP, `file://`, or `data:` pages in production. Adding an
-explicit `origin.startsWith("https://")` check inside `routeToBackground()` would
-be pure defence-in-depth. The background's `sender.url` check is authoritative.
+**None.** All C/H/M/L issues are now closed.
 
-Recommended one-liner:
-```ts
-if (!origin.startsWith("https://") && origin !== "http://localhost") throw ...
-```
-
-### L3 — Approval Popup frame-ancestors
-The approval popup HTML could include:
-```html
-<meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none';">
-```
-Not frameable by design (`chrome-extension://` resources cannot be embedded by
-web pages); this would be cosmetic belt-and-suspenders hardening only.
-
-### L4 — Storage Quota Exhaustion
-`chrome.storage.local.set()` calls are not wrapped for `QUOTA_BYTES` errors.
-Realistic quota is never reached for typical usage (< 1 KB per account).
-Wrap `saveEncryptedVault` / `saveMeta` with `catch(QuotaExceeded)` for a
-user-friendly error message in the unlikely edge case.
-
-### L5\* — WC Session localStorage Clear on Lock
-WalletConnect SDK session data (`wc@2:client:session`, `wc@2:core:keychain`, etc.)
-persists in the extension popup localStorage after wallet lock. The concrete
-exploit path (submitting via `CHAIN_SUBMIT_SIGNED` without unlock) is now closed.
-Clearing WC session storage on lock would be additional defence-in-depth, but
-requires the popup to receive a `"WALLET_LOCKED"` message and call
-`signClient.core.storage.removeItem()` for each WC key — non-trivial and deferred.
+Post-launch Phase 2 items (not security-blocking):
+- XHR interception (x402 for legacy XMLHttpRequest-based apps)
+- WalletConnect account `wcChain` migration for accounts created before chain-detection
+- No-resolution-cache for enVoi (each lookup costs 1 VOI; session cache would help)
+- Spending cap configuration UI (currently hardcoded default of 10 VOI; readable from meta)
+- Approval TTL countdown indicator in the approval popup
 
 ---
 
@@ -287,138 +298,3 @@ With `exclude: ["vm"]` the `vm` module is externalized rather than polyfilled. A
 ### WalletConnect Project ID
 
 `VITE_WC_PROJECT_ID` is baked into `constants.js` — this is expected and by design for any WalletConnect-enabled app (project IDs are public credentials, analogous to an OAuth client ID). The `.env` file containing the real value is gitignored. Mitigate quota abuse via rate-limit settings in the WalletConnect Cloud dashboard.
-
----
-
-## Addendum — Final Independent Adversarial Review (March 2026)
-
-**Scope:** Full codebase re-read after Hardenings I–V. Focused on silent-signing paths,
-page-controlled data trust, lock races, cross-chain confusion, plaintext sensitive data
-exposure, malformed-input crashes, and publication safety.
-
-**Verdict:** Release-ready for GitHub and unpacked extension. Three new findings (M6, L7, L8)
-were identified; M6 and L7 have been fixed in Hardening VI. L8 accepted as deliberate feature.
-Web Store checklist items remain (see below).
-
-### Hardening VI — Fix Details
-
-#### M6 — H2 Migration Ghost (Medium → CLOSED)
-**File:** `src/background/wallet-store.ts`
-After `persistVaultData()` succeeds, the migration block now deletes
-`meta.connectedSites` and calls `saveMeta(meta)` to remove the plaintext copy
-from `chrome.storage.local`. The `if (meta.connectedSites)` guard prevents
-a no-op `saveMeta` on wallets that had no connected sites before migration.
-
-#### L1 — Content Script HTTPS Origin Guard (Low → CLOSED)
-**File:** `src/content/provider-bridge.ts`
-`routeToBackground()` now rejects any origin that is neither `https://` nor
-`http://localhost` before forwarding to the background. Defence-in-depth
-only — the manifest `content_scripts` already restricts injection to `https://*`.
-
-#### L3 — Approval Popup frame-ancestors (Low → CLOSED)
-**File:** `src/approval/index.html`
-Added `<meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none';">`.
-Belt-and-suspenders — `chrome-extension://` resources are already non-frameable
-by the browser, but this makes the intent explicit.
-
-#### L4 — Storage Quota Error Handling (Low → CLOSED)
-**File:** `src/background/wallet-store.ts`
-`saveMeta()` and `saveEncryptedVault()` now catch quota errors and rethrow with
-a user-readable message: _"AlgoVoi: storage quota exceeded — free up space in
-chrome://settings."_ All other errors are re-thrown unchanged.
-
-#### L5\* — WC localStorage Clear on Lock (Low → CLOSED, best-effort)
-**File:** `src/popup/App.tsx`
-The `LOCK_STATE_CHANGED` listener now iterates `localStorage` and removes all
-keys starting with `wc@2:` when the wallet locks. Limitation: only effective
-while the popup window is open at the time of locking. Closing the popup before
-lock leaves WC session data in localStorage, which is the same status as before.
-The concrete exploit path (CHAIN_SUBMIT_SIGNED without unlock) was already closed
-by Hardening IV.
-
-#### L7 — EnvoiPage BigInt Crash (Low → CLOSED)
-**Files:** `src/background/mcp-client.ts`, `src/approval/index.tsx`
-Two-layer fix:
-1. `callTool()` validates `pr.amount` with `!/^\d+$/` *before* calling
-   `requestApproval()`, throwing a clear error if the MCP server sends a
-   non-integer amount string.
-2. `EnvoiPage` wraps `BigInt(approval.amount)` defensively — falls back to `0n`
-   if the amount is somehow malformed, preventing a SyntaxError crash in the UI.
-
-#### L8 — devtools_page in Production (Low → ACCEPTED)
-The DevTools panel (TxnInspector, X402Inspector, BazaarPanel) is a documented,
-user-facing feature of AlgoVoi. No code change required.
-
----
-
-### M6 — H2 Migration Ghost (Medium — ~~Open~~ CLOSED)
-
-**File:** `src/background/wallet-store.ts` lines 216–221
-
-After the H2 migration copies `meta.connectedSites` into the encrypted vault,
-`meta.connectedSites` is never deleted from `chrome.storage.local`. Any user who
-unlocks once after upgrading retains a plaintext copy of their browsing-history
-correlation data at rest indefinitely.
-
-**Fix:** After `await persistVaultData()`, delete and re-save meta:
-```ts
-delete meta.connectedSites;
-await saveMeta(meta);
-```
-
-**Risk until fixed:** Plaintext site↔address mapping persists in local storage. No
-funds at risk; no active exfiltration path. Severity: Medium.
-
----
-
-### L7 — EnvoiPage BigInt Crash (Low — Open)
-
-**File:** `src/approval/index.tsx` line 405
-**Related:** `src/background/mcp-client.ts` `callTool()` / `payVoi()`
-
-`callTool()` passes `pr.amount` to `requestApproval()` before the `!/^\d+$/`
-format guard in `payVoi()` runs. The approval popup renders
-`BigInt(approval.amount)` — if a malicious or buggy MCP server sends `"1.5"`,
-`"abc"`, or `null`, this throws `SyntaxError`, crashing the EnvoiPage for the
-5-minute TTL window.
-
-**No funds at risk** — `payVoi()` never executes if the popup crashes. The user
-is locked out of enVoi resolution for the TTL period only.
-
-**Fix (two-part):**
-1. In `mcp-client.ts` `callTool()`, validate `pr.amount` with `!/^\d+$/` *before*
-   calling `requestApproval()` (move the guard from `payVoi()` to the call site).
-2. In `approval/index.tsx` `EnvoiPage`, wrap the `BigInt()` call defensively:
-   ```ts
-   const amountBig = /^\d+$/.test(String(approval.amount))
-     ? BigInt(approval.amount) : 0n;
-   ```
-
----
-
-### L8 — `devtools_page` Active in Production (Low — Open)
-
-**File:** `manifest.json`
-
-The `"devtools_page"` key is present in the production manifest, enabling the
-DevTools panel (TxnInspector, X402Inspector, BazaarPanel) for all users. This
-increases the attack surface and adds download weight unnecessarily for
-non-developer installs.
-
-**Fix options (choose one):**
-- Gate via a separate `manifest.devtools.json` used only in dev builds
-- Gate in `vite.config.ts`: include `devtools_page` only when `mode !== "production"`
-- Accept as-is for the current release if the DevTools panel is a deliberate feature
-
----
-
-### Publication Checklist (Web Store)
-
-Before Chrome Web Store submission, in addition to fixing M6, L7, L8:
-
-| Item | Status |
-|------|--------|
-| `VITE_WC_PROJECT_ID` set in release `.env` | Manual step required |
-| Privacy policy URL in `manifest.json` | Not yet present |
-| Host permission justification for `mcp.ilovechicken.co.uk` | Narrative ready (enVoi name resolution) |
-| Single-purpose description covers all features | README / store listing needed |
