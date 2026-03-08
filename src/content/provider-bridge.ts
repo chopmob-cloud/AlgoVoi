@@ -88,6 +88,14 @@ export function setupProviderBridge(): void {
 async function routeToBackground(msg: InpageMessage): Promise<unknown> {
   const origin = window.location.origin;
 
+  // L1: Defence-in-depth HTTPS guard. The manifest content_scripts already
+  // restricts injection to https://* so this path is ordinarily unreachable,
+  // but an explicit check ensures no signing request ever originates from an
+  // insecure or opaque origin even if the manifest is misconfigured in future.
+  if (!origin.startsWith("https://") && origin !== "http://localhost") {
+    throw new Error("AlgoVoi provider is not available on insecure origins.");
+  }
+
   switch (msg.type) {
     case "ARC27_ENABLE": {
       // Explicitly destructure — do NOT spread payload which could override `origin`

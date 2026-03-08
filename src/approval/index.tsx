@@ -402,7 +402,12 @@ function EnvoiPage({ requestId }: { requestId: string }) {
   if (!approval) return <ErrorScreen message={error || "Request not found"} />;
 
   const chainCfg = CHAINS["voi"];
-  const displayAmount = formatAmount(BigInt(approval.amount), chainCfg.decimals);
+  // L7: Defensive wrap — mcp-client validates the amount before opening this
+  // popup, but guard here too so a future code path can't crash the page.
+  const displayAmount = formatAmount(
+    /^\d+$/.test(String(approval.amount)) ? BigInt(approval.amount) : 0n,
+    chainCfg.decimals
+  );
 
   return (
     <div className="flex flex-col min-h-screen p-5 gap-4">

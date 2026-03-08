@@ -233,6 +233,16 @@ async function callTool(
       throw new Error(`Invalid x402 payment recipient: ${pr.payTo}`);
     }
 
+    // L7: Validate amount is a non-negative integer string BEFORE opening the
+    // approval popup. The approval page renders BigInt(approval.amount) — a
+    // decimal or non-numeric string would crash EnvoiPage with a SyntaxError,
+    // locking the user out of resolution for the TTL window with no clear error.
+    if (!/^\d+$/.test(String(pr.amount))) {
+      throw new Error(
+        `UluMCP returned a non-integer amount: "${pr.amount}" — aborting`
+      );
+    }
+
     // ── Gate: require explicit user approval before any VOI is spent ──────────
     // Shows the amount, recipient, and name being resolved in the approval popup.
     // payVoi() is only called if the user clicks Approve.

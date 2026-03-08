@@ -32,7 +32,7 @@ type View = "loading" | "setup" | "unlock" | "wallet";
 
 export default function App() {
   const [view, setView] = useState<View>("loading");
-  const [lockState, setLockState] = useState<LockState>("locked");
+  const [, setLockState] = useState<LockState>("locked");  // value unused; view drives rendering
 
   useEffect(() => {
     sendBg<{ lockState: LockState }>({ type: "WALLET_STATE" })
@@ -47,6 +47,15 @@ export default function App() {
     // Listen for lock state changes from background
     const listener = (msg: { type: string; lockState?: LockState }) => {
       if (msg.type === "LOCK_STATE_CHANGED" && msg.lockState) {
+        if (msg.lockState === "locked") {
+          // L5*: Best-effort — clear WC SDK session data from popup localStorage
+          // on lock so a physical-access attacker cannot read cached session keys
+          // from DevTools. Only effective while the popup is open; closing the
+          // popup without locking leaves the data intact (acceptable trade-off).
+          Object.keys(localStorage)
+            .filter((k) => k.startsWith("wc@2:"))
+            .forEach((k) => localStorage.removeItem(k));
+        }
         setLockState(msg.lockState);
         setView(msg.lockState === "unlocked" ? "wallet" : "unlock");
       }

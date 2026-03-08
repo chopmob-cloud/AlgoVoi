@@ -89,7 +89,16 @@ async function loadMeta(): Promise<WalletMeta> {
 }
 
 async function saveMeta(meta: WalletMeta): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY_META]: meta });
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY_META]: meta });
+  } catch (err: unknown) {
+    // L4: Surface quota errors with a user-readable message instead of a
+    // raw Chrome internal error that would be swallowed silently.
+    if (/quota/i.test(err instanceof Error ? err.message : String(err))) {
+      throw new Error("AlgoVoi: storage quota exceeded — free up space in chrome://settings.");
+    }
+    throw err;
+  }
 }
 
 async function loadEncryptedVault(): Promise<EncryptedVault | null> {
@@ -98,7 +107,15 @@ async function loadEncryptedVault(): Promise<EncryptedVault | null> {
 }
 
 async function saveEncryptedVault(vault: EncryptedVault): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY_VAULT]: vault });
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY_VAULT]: vault });
+  } catch (err: unknown) {
+    // L4: Surface quota errors with a user-readable message.
+    if (/quota/i.test(err instanceof Error ? err.message : String(err))) {
+      throw new Error("AlgoVoi: storage quota exceeded — free up space in chrome://settings.");
+    }
+    throw err;
+  }
 }
 
 // ── Auto-lock ─────────────────────────────────────────────────────────────────
@@ -219,6 +236,12 @@ export const walletStore = {
       const meta = await loadMeta();
       _vaultData.connectedSites = meta.connectedSites ?? {};
       await persistVaultData(); // re-encrypt with migrated data
+      // M6: Remove the plaintext copy so site↔address mapping is no longer
+      // readable from chrome.storage.local after migration completes.
+      if (meta.connectedSites) {
+        delete meta.connectedSites;
+        await saveMeta(meta);
+      }
     }
 
     startAutoLockTimer();
