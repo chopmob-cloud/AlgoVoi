@@ -55,6 +55,15 @@ vi.mock("../src/background/chain-clients", () => ({
     minFee: 1000n,
   })),
   submitTransaction: vi.fn(async () => "FAKETXID1234567890ABCD"),
+  // Pre-flight balance check (payVoi) calls getAccountState — provide enough
+  // balance (100 VOI spendable) so cap/balance checks pass in payment tests.
+  getAccountState: vi.fn(async () => ({
+    address: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    chain: "voi",
+    balance: 100_100_000n, // 100.1 VOI total
+    minBalance: 100_000n,  // spendable = 100 VOI — covers all test amounts
+    assets: [],
+  })),
 }));
 
 // Approval-handler is mocked so requestApproval resolves immediately.
@@ -316,9 +325,10 @@ describe("AUTO-01: spending cap enforcement", () => {
 
   it("throws for a negative amount string in the 402 response", async () => {
     stubFetch(initResp(), resp402("-1"));
-    // BigInt("-1") is -1n which is ≤ 0n
+    // "-1" contains a dash so it fails the ^\d+$ check in callTool() (L7)
+    // before reaching payVoi() — caught as a non-integer string.
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
-      "Invalid payment amount"
+      "non-integer amount"
     );
   });
 
@@ -528,38 +538,44 @@ describe("AUTO-02: SSE response shape parsing", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AUTO-11: M1 — BigInt format guard (decimal / non-numeric MCP amount)
+// AUTO-11: M1+L7 — BigInt format guard (decimal / non-numeric MCP amount)
 // ══════════════════════════════════════════════════════════════════════════════
+//
+// After Hardening VI (L7), callTool() validates amount format BEFORE opening
+// the approval popup so EnvoiPage can't crash on BigInt(non-integer).
+// The check fires earlier than the payVoi() M1 guard and uses a different
+// message: "UluMCP returned a non-integer amount: '...' — aborting".
+// All four cases below are caught by the callTool() L7 check.
 
-describe("AUTO-11: MCP payment amount format guard (M1)", () => {
+describe("AUTO-11: MCP payment amount format guard (M1+L7)", () => {
   // All these amounts would cause BigInt() to throw a SyntaxError without the guard.
 
-  it("throws 'Invalid payment amount from MCP server' for a decimal string (e.g. '1.5')", async () => {
+  it("throws for a decimal string (e.g. '1.5') — caught by callTool L7 check", async () => {
     stubFetch(initResp(), resp402("1.5"));
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
-      "Invalid payment amount from MCP server"
+      "non-integer amount"
     );
   });
 
-  it("throws for scientific notation amount (e.g. '1e6')", async () => {
+  it("throws for scientific notation amount (e.g. '1e6') — caught by callTool L7 check", async () => {
     stubFetch(initResp(), resp402("1e6"));
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
-      "Invalid payment amount from MCP server"
+      "non-integer amount"
     );
   });
 
-  it("throws for an amount with leading whitespace (e.g. ' 1000000')", async () => {
+  it("throws for an amount with leading whitespace (e.g. ' 1000000') — caught by callTool L7 check", async () => {
     // String(" 1000000") has a leading space, doesn't match ^\d+$
     stubFetch(initResp(), resp402(" 1000000"));
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
-      "Invalid payment amount from MCP server"
+      "non-integer amount"
     );
   });
 
-  it("throws for a non-numeric string amount (e.g. 'abc')", async () => {
+  it("throws for a non-numeric string amount (e.g. 'abc') — caught by callTool L7 check", async () => {
     stubFetch(initResp(), resp402("abc"));
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
-      "Invalid payment amount from MCP server"
+      "non-integer amount"
     );
   });
 });
