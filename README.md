@@ -158,6 +158,7 @@ Supported payment assets:
 | Project | Network | Description |
 |---------|---------|-------------|
 | [UluMCP](https://github.com/MaidToShelly/UluMCP) | Algorand + **Voi** | MCP server for AI agents — tokens, NFTs, DEX swaps, marketplace. Supports x402 payment gating and WAD metered billing |
+| [x402 test site](https://x402.ilovechicken.co.uk) | Algorand + **Voi** | Live demo — browse gated content with AlgoVoi paying automatically |
 
 UluMCP is a working example of x402 on Voi — deploy it with `X402_AVM_PAY_TO` and `X402_AVM_PRICE` set and AlgoVoi will automatically handle the 402 payment flow when an AI agent hits a gated tool endpoint.
 
