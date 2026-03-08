@@ -156,14 +156,18 @@ All other configuration (MCP endpoint, spending caps, chain genesis hashes) is b
 
 The resolved address is always validated with `algosdk.isValidAddress` before display. A server-attribution warning is shown below the confirmed address.
 
+### Live x402 Test Site
+
+[https://x402.ilovechicken.co.uk](https://x402.ilovechicken.co.uk) is a live demo site for testing AlgoVoi's x402 automatic payment flow end-to-end. Load the page with the extension installed and unlocked — it returns a 402 on the first request, triggering the approval popup. Approve to see the payment confirmed and the protected content delivered.
+
 ---
 
 ## Security
 
 See [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for a full audit report covering all source files, manifest permissions, bundle analysis, and the enVoi integration trust model.
 
-**Summary (March 2026 independent adversarial review):**
-- 0 Critical · 0 High · 1 Medium open (migration ghost — no funds at risk)
+**Summary (Hardening I–VI complete, March 2026):**
+- 0 Critical · 0 High · 0 Medium · 0 Low open
 - Vault encrypted with PBKDF2 (600k iterations) → AES-GCM 256-bit
 - No `eval()` in the production bundle (vm polyfill excluded)
 - Strict CSP: `script-src 'self'; object-src 'none';`
