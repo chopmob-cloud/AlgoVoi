@@ -70,6 +70,7 @@ vi.mock("../src/background/x402-handler", () => ({
 
 vi.mock("../src/background/approval-handler", () => ({
   requestApproval: vi.fn().mockResolvedValue(true),
+  countPendingByOrigin: vi.fn(() => 0),
 }));
 
 vi.mock("../src/background/mcp-client", () => ({
@@ -80,7 +81,7 @@ vi.mock("../src/background/mcp-client", () => ({
 import algosdk from "algosdk";
 import { walletStore } from "../src/background/wallet-store";
 import { buildAndSignPayment, getPendingRequest, resolveChain } from "../src/background/x402-handler";
-import { requestApproval } from "../src/background/approval-handler";
+import { requestApproval, countPendingByOrigin } from "../src/background/approval-handler";
 import { mcpResolveEnvoi } from "../src/background/mcp-client";
 import type { PendingX402Request } from "../src/shared/types/x402";
 
@@ -421,5 +422,81 @@ describe("AUTO-06: X402_RESULT tab message routing", () => {
       req.tabId,
       expect.objectContaining({ type: "X402_RESULT", requestId: "inpage-reject-789" })
     );
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-07: ARC27_ENABLE account validation (MED-01)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-07: ARC27_ENABLE account validation", () => {
+  const UNKNOWN_ADDR = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"; // 58 B's
+
+  it("throws 'Requested accounts not found in wallet' when msg.accounts contains an unknown address", async () => {
+    // FAKE_ADDR is in wallet; UNKNOWN_ADDR is not
+    vi.mocked(walletStore.getMeta).mockResolvedValue(makeMeta());
+
+    const resp = await sendMessage(
+      { type: "ARC27_ENABLE", accounts: [UNKNOWN_ADDR] } as BgRequest,
+      { url: "https://example.com/page" }
+    );
+
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Requested accounts not found in wallet");
+    expect(vi.mocked(walletStore.addConnectedSite)).not.toHaveBeenCalled();
+  });
+
+  it("calls addConnectedSite when msg.accounts contains only known addresses", async () => {
+    vi.mocked(walletStore.getMeta).mockResolvedValue(makeMeta());
+
+    const resp = await sendMessage(
+      { type: "ARC27_ENABLE", accounts: [FAKE_ADDR] } as BgRequest,
+      { url: "https://example.com/page" }
+    );
+
+    expect(resp.ok).toBe(true);
+    expect(vi.mocked(walletStore.addConnectedSite)).toHaveBeenCalledWith(
+      "https://example.com",
+      [FAKE_ADDR]
+    );
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-08: ARC27 per-origin signing cap (INFO-05)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-08: ARC27 per-origin signing cap", () => {
+  beforeEach(() => {
+    vi.mocked(walletStore.getConnectedAddresses).mockResolvedValue([FAKE_ADDR]);
+  });
+
+  it("ARC27_SIGN_TXNS: throws 'Too many pending signing requests' when cap is reached", async () => {
+    vi.mocked(countPendingByOrigin).mockReturnValue(5);
+
+    const resp = await sendMessage(
+      { type: "ARC27_SIGN_TXNS", txns: [] } as BgRequest,
+      { url: "https://example.com/dapp" }
+    );
+
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Too many pending signing requests from this site");
+    // Cap fires before approval queue — requestApproval must not be called
+    expect(vi.mocked(requestApproval)).not.toHaveBeenCalled();
+  });
+
+  it("ARC27_SIGN_BYTES: throws 'Too many pending signing requests' when cap is reached", async () => {
+    vi.mocked(countPendingByOrigin).mockReturnValue(5);
+    // signer must match active account so signer-validation passes first
+    vi.mocked(walletStore.getMeta).mockResolvedValue(makeMeta());
+
+    const resp = await sendMessage(
+      { type: "ARC27_SIGN_BYTES", data: btoa("hello"), signer: FAKE_ADDR } as BgRequest,
+      { url: "https://example.com/dapp" }
+    );
+
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Too many pending signing requests from this site");
+    expect(vi.mocked(requestApproval)).not.toHaveBeenCalled();
   });
 });

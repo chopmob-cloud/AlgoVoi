@@ -23,6 +23,7 @@ import {
   requestApproval,
   resolveApproval,
   rejectApproval,
+  countPendingByOrigin,
 } from "./approval-handler";
 import type { TxnSummary, PendingSignTxnsApproval, PendingSignBytesApproval } from "@shared/types/approval";
 import type { X402PaymentPayload } from "@shared/types/x402";
@@ -261,6 +262,20 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const address = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;
       if (!address) throw new Error("No active account");
       const addresses = msg.accounts ?? [address];
+
+      // ── Validate requested accounts exist in this wallet ─────────────────────
+      // MED-01: msg.accounts is dApp-controlled; reject unknown addresses before
+      // they are registered, so connected-site state only holds real accounts.
+      if (msg.accounts) {
+        const knownAddresses = new Set(meta.accounts.map((a) => a.address));
+        const unknown = msg.accounts.filter((addr) => !knownAddresses.has(addr));
+        if (unknown.length > 0) {
+          throw new Error(
+            `Requested accounts not found in wallet: ${unknown.join(", ")}`
+          );
+        }
+      }
+
       await walletStore.addConnectedSite(senderOrigin, addresses);
       return { accounts: addresses };
     }
@@ -279,6 +294,16 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         throw new Error(
           `${signOrigin} is not connected. ` +
           `The site must call window.algorand.enable() before requesting signatures.`
+        );
+      }
+
+      // ── Per-origin pending cap (mirrors x402-handler PENDING_CAP_PER_ORIGIN) ─
+      // INFO-05: prevents a single dApp from flooding the approval queue.
+      const SIGN_CAP_PER_ORIGIN = 5;
+      if (countPendingByOrigin(signOrigin) >= SIGN_CAP_PER_ORIGIN) {
+        throw new Error(
+          "Too many pending signing requests from this site. " +
+          "Please wait for existing requests to complete."
         );
       }
 
@@ -392,6 +417,16 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         throw new Error(
           `Signer address does not match the active account. ` +
           `Requested: ${msg.signer}, Active: ${activeForBytes.address}`
+        );
+      }
+
+      // ── Per-origin pending cap ────────────────────────────────────────────────
+      // INFO-05: prevents a single dApp from flooding the approval queue.
+      const SIGN_BYTES_CAP_PER_ORIGIN = 5;
+      if (countPendingByOrigin(bytesOrigin) >= SIGN_BYTES_CAP_PER_ORIGIN) {
+        throw new Error(
+          "Too many pending signing requests from this site. " +
+          "Please wait for existing requests to complete."
         );
       }
 
