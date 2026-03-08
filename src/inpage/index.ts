@@ -238,36 +238,13 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   const retryHeaders = new Headers(init?.headers);
   retryHeaders.delete("Cookie");
   if (retryHeaders.has("Authorization")) {
-    console.warn(
-      "[AlgoVoi] x402 retry: forwarding Authorization header to",
-      url,
-      "— verify this is the intended endpoint."
-    );
+    // Authorization header is forwarded to the retry; dApp developers should verify
+    // this endpoint is the intended recipient before enabling x402 payments.
+    console.warn("[AlgoVoi] x402 retry: Authorization header forwarded — verify endpoint.");
   }
   retryHeaders.set(HEADER_PAYMENT_SIGNATURE, paymentSignature);
   return _originalFetch(input, { ...init, headers: retryHeaders });
 };
 
-// XHR interceptor (for legacy code)
-const _OriginalXHR = window.XMLHttpRequest;
-class InterceptedXHR extends _OriginalXHR {
-  private _method = "GET";
-  private _url = "";
-  private _initHeaders: Record<string, string> = {};
-
-  open(method: string, url: string | URL, ...args: unknown[]) {
-    this._method = method;
-    this._url = typeof url === "string" ? url : url.href;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return super.open(method, url, ...(args as any));
-  }
-
-  setRequestHeader(name: string, value: string) {
-    this._initHeaders[name] = value;
-    super.setRequestHeader(name, value);
-  }
-}
-// XHR full intercept is complex; for Phase 1 the fetch wrapper covers most use cases.
-// Full XHR proxy is a Phase 2 item.
-
-console.log("[AlgoVoi] Inpage provider loaded ✓");
+// XHR interception is deferred to Phase 2; the fetch wrapper above covers all
+// modern use cases.  Legacy XMLHttpRequest calls will not be intercepted.

@@ -622,7 +622,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "X402_GET_HISTORY":
-      // TODO: persist payment records in chrome.storage.session
+      // Phase 2: payment history persistence is deferred; returns empty list for now.
       return { records: [] };
 
     // ── enVoi name resolution ─────────────────────────────────────────────────

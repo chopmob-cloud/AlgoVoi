@@ -122,18 +122,17 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
       return sendToBg({ type: "ARC27_SIGN_BYTES", origin, data, signer });
     }
 
-    case "ARC27_POST_TXNS": {
-      // TODO: submit raw signed txns via algod
+    case "ARC27_POST_TXNS":
+      // Phase 2: direct algod submission via postTransactions is not yet implemented.
       throw new Error("postTransactions not yet implemented");
-    }
 
     case "ARC27_SIGN_AND_SEND": {
+      // Phase 2: signing works but algod submission is deferred; txnIDs is empty.
       const result = await sendToBg<{ stxns: (string | null)[] }>({
         type: "ARC27_SIGN_TXNS",
         origin,
         txns: (msg.payload as { txns: { txn: string }[] }).txns.map((t) => t.txn),
       });
-      // TODO: submit and return txnIDs
       return { stxns: result.stxns, txnIDs: [] };
     }
 
