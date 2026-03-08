@@ -277,8 +277,14 @@ export const walletStore = {
     name: string,
     address: string,
     sessionTopic: string,
-    peerName: string
+    peerName: string,
+    chain?: ChainId
   ): Promise<Account> {
+    // M3: Validate the address before storing it. A compromised WC relay could
+    // send a malformed address; this ensures only valid Algorand addresses are saved.
+    if (!algosdk.isValidAddress(address)) {
+      throw new Error("Invalid Algorand address — cannot add WalletConnect account");
+    }
     const id = randomId();
     const account: Account = {
       id,
@@ -287,6 +293,7 @@ export const walletStore = {
       type: "walletconnect",
       wcSessionTopic: sessionTopic,
       wcPeerName: peerName,
+      ...(chain ? { wcChain: chain } : {}),
     };
     const meta = await loadMeta();
     meta.accounts.push(account);

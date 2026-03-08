@@ -2,13 +2,18 @@ import { useEffect, useState } from "react";
 import WalletSetup from "./components/WalletSetup";
 import AccountView from "./components/AccountView";
 import WalletConnectModal from "./components/WalletConnectModal";
+import { CHAINS } from "@shared/constants";
 import type { LockState } from "@shared/types/wallet";
 import type { ChainId } from "@shared/types/chain";
 
 // Detect whether this window was opened for WalletConnect pairing
 const _wcParams = new URLSearchParams(window.location.search);
 const WC_PAIR_MODE = _wcParams.get("wcpair") === "1";
-const WC_PAIR_CHAIN = (_wcParams.get("chain") ?? "algorand") as ChainId;
+// H2: Validate the chain param at runtime — a TypeScript cast alone won't catch
+// garbage values injected via URL manipulation. Fall back to "algorand" if the
+// value is not a key in the supported CHAINS map.
+const _rawWCChain = _wcParams.get("chain") ?? "algorand";
+const WC_PAIR_CHAIN: ChainId = _rawWCChain in CHAINS ? (_rawWCChain as ChainId) : "algorand";
 
 
 function sendBg<T = unknown>(msg: object): Promise<T> {

@@ -14,6 +14,21 @@ type Tab = "assets" | "history" | "apps";
 type Modal = "send" | "receive" | null;
 
 /**
+ * Parse a decimal string to atomic BigInt without float rounding errors.
+ * H1: Mirrors background parseDecimalToAtomic — used in the WalletConnect signing
+ * path where the frontend builds the unsigned txn directly (amtAtomic is passed to
+ * algosdk, not re-parsed by the background).  Float math (10 ** 18) loses precision
+ * for ≥16-decimal tokens.
+ */
+function parseDecimalAmount(amount: string, decimals: number): bigint {
+  const clean = amount.trim();
+  if (!/^\d+(\.\d+)?$/.test(clean)) throw new Error("Invalid amount");
+  const [intStr, fracStr = ""] = clean.split(".");
+  const fracPadded = fracStr.slice(0, decimals).padEnd(decimals, "0");
+  return BigInt(intStr) * BigInt(10 ** decimals) + BigInt(fracPadded);
+}
+
+/**
  * Open WalletConnect pairing in a dedicated browser tab so the WC relay
  * WebSocket survives focus loss (Chrome auto-closes action popups on blur).
  *
@@ -550,7 +565,11 @@ function SendModal({
       setError("Enter a valid amount greater than 0");
       return;
     }
-    const amtAtomic = BigInt(Math.round(amtNum * 10 ** sendDecimals));
+    // H1: Use string-based parser (no float rounding) for the atomic amount.
+    // This matters most in the WC path where amtAtomic is passed directly to algosdk.
+    // The mnemonic path sends trimAmt as a string to the background (background re-parses),
+    // but using the same helper keeps both paths consistent.
+    const amtAtomic = parseDecimalAmount(trimAmt, sendDecimals);
     // For ASA: fee is paid in native coin, so the full ASA balance is sendable.
     // For native coin: reserve 1000 atomic units for the minimum fee.
     const MIN_FEE = BigInt(1000);
