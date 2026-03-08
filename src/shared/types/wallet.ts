@@ -11,6 +11,13 @@ export interface Account {
   wcSessionTopic?: string;
   /** Display name of the connected wallet app, e.g. "Pera Wallet" */
   wcPeerName?: string;
+  /**
+   * Chain this WC account was paired on (walletconnect accounts only).
+   * WC sessions are chain-specific — a Pera/Algorand session cannot sign
+   * Voi transactions and vice versa.  Defaults to "algorand" when absent
+   * (pre-existing accounts created before this field was introduced).
+   */
+  wcChain?: ChainId;
 }
 
 /** The plaintext vault stored in memory only when unlocked */

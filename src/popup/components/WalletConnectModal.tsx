@@ -38,6 +38,10 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
   const { qrDataUrl, wcUri, session, error, startPairing, reset } =
     useWalletConnect();
 
+  // User-selected chain — may differ from the prop if they switch mid-flow.
+  // This is the authoritative chain stored on the account (wcChain).
+  const [activeChain, setActiveChain] = useState<ChainId>(chain);
+
   const [accountName, setAccountName] = useState("");
   const [selectedAddress, setSelectedAddress] = useState("");
   const [saving, setSaving] = useState(false);
@@ -46,10 +50,19 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
 
   // Start pairing automatically when the tab opens
   useEffect(() => {
-    startPairing(chain);
+    startPairing(activeChain);
     return () => reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Switch to a different chain: reset WC state and re-initiate pairing. */
+  function handleSwitchChain(newChain: ChainId) {
+    if (newChain === activeChain) return;
+    reset();
+    setActiveChain(newChain);
+    // Small delay so reset() clears state before startPairing() sets it again
+    setTimeout(() => startPairing(newChain), 50);
+  }
 
   // Pre-select first address when session arrives
   useEffect(() => {
@@ -91,6 +104,7 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
         type: "walletconnect",
         wcSessionTopic: session.topic,
         wcPeerName: session.peerName,
+        wcChain: activeChain,  // chain explicitly selected by user in this modal
       };
 
       // Use callback-based storage API with timeout — surfaces errors instead of
@@ -174,8 +188,8 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
     qrDataUrl ? "qr" :
     "waiting";
 
-  const chainLabel = chain === "voi" ? "Voi" : "Algorand";
-  const walletLabel = WALLET_LABELS[chain] ?? WALLET_LABELS["algorand"];
+  const chainLabel = activeChain === "voi" ? "Voi" : "Algorand";
+  const walletLabel = WALLET_LABELS[activeChain] ?? WALLET_LABELS["algorand"];
 
   return (
     <div
@@ -193,7 +207,7 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
           <div className="flex items-center gap-2">
             {/* Chain badge */}
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-              chain === "voi"
+              activeChain === "voi"
                 ? "bg-purple-500/10 text-purple-300 border-purple-500/30"
                 : "bg-algo/10 text-algo border-algo/30"
             }`}>
@@ -206,6 +220,31 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
         {/* ── Step: QR code ── */}
         {step === "qr" && (
           <div className="text-center">
+            {/* Explicit chain selector — user must confirm which chain before scanning */}
+            <p className="text-xs text-gray-400 mb-2">Select the chain for this wallet</p>
+            <div className="flex gap-2 justify-center mb-3">
+              <button
+                onClick={() => handleSwitchChain("algorand")}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  activeChain === "algorand"
+                    ? "bg-algo/20 text-algo border-algo/40"
+                    : "bg-surface-2 text-gray-400 border-surface-3 hover:text-white"
+                }`}
+              >
+                Algorand
+              </button>
+              <button
+                onClick={() => handleSwitchChain("voi")}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  activeChain === "voi"
+                    ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                    : "bg-surface-2 text-gray-400 border-surface-3 hover:text-white"
+                }`}
+              >
+                Voi
+              </button>
+            </div>
+
             <p className="text-xs text-gray-400 mb-3">
               Open your wallet app and scan this QR code
             </p>
@@ -215,7 +254,7 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
 
             {/* Supported wallets chips */}
             <div className="flex flex-wrap gap-1.5 justify-center mb-3">
-              {chain === "algorand" ? (
+              {activeChain === "algorand" ? (
                 <>
                   <WalletChip name="Pera" color="blue" />
                   <WalletChip name="Defly" color="green" />
@@ -371,7 +410,7 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
               {error}
             </p>
             <button
-              onClick={() => { reset(); startPairing(chain); }}
+              onClick={() => { reset(); startPairing(activeChain); }}
               className="w-full py-2.5 rounded-xl bg-surface-2 text-sm font-medium hover:bg-white/10 transition-colors"
             >
               Try again
