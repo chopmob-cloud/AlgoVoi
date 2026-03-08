@@ -10,6 +10,7 @@
 import type { Account, WalletMeta, LockState } from "./wallet";
 import type { ChainId, AccountState } from "./chain";
 import type { PaymentRequirements, PendingX402Request, PaymentRecord } from "./x402";
+import type { PendingApproval } from "./approval";
 
 // ── Window message types (inpage ↔ content) ──────────────────────────────────
 
@@ -47,10 +48,12 @@ export type BgRequest =
   | { type: "CHAIN_GET_ASSET_INFO"; assetId: number; chain: ChainId }
   // Native coin send
   | { type: "CHAIN_SEND_PAYMENT"; to: string; amount: string; chain: ChainId; note?: string }
+  // ASA token send (mnemonic path; WalletConnect uses CHAIN_SUBMIT_SIGNED)
+  | { type: "CHAIN_SEND_ASSET"; to: string; amount: string; assetId: number; decimals: number; chain: ChainId; note?: string }
   // Submit an already-signed transaction (used by WalletConnect flow where popup signs)
   | { type: "CHAIN_SUBMIT_SIGNED"; signedTxn: string; chain: ChainId }
   // Add a WalletConnect-linked account (no mnemonic stored)
-  | { type: "WC_ADD_ACCOUNT"; name: string; address: string; sessionTopic: string; peerName: string }
+  | { type: "WC_ADD_ACCOUNT"; name: string; address: string; sessionTopic: string; peerName: string; chain?: ChainId }
   // ARC-0027 dApp connector
   | { type: "ARC27_ENABLE"; origin: string; accounts?: string[] }
   | { type: "ARC27_SIGN_TXNS"; origin: string; txns: string[]; indexesToSign?: number[] }
@@ -63,7 +66,13 @@ export type BgRequest =
   | { type: "X402_REJECT"; requestId: string }
   | { type: "X402_GET_HISTORY" }
   /** Sent by the approval popup after the user approved signing in their WC wallet */
-  | { type: "X402_WC_SIGNED"; requestId: string; signedTxnB64: string };
+  | { type: "X402_WC_SIGNED"; requestId: string; signedTxnB64: string }
+  // enVoi name resolution via UluMCP (Voi only)
+  | { type: "VOI_RESOLVE_NAME"; name: string }
+  // Unified approval flow (sign_txns, sign_bytes, envoi_payment)
+  | { type: "APPROVAL_GET_PENDING"; requestId: string }
+  | { type: "APPROVAL_APPROVE";     requestId: string }
+  | { type: "APPROVAL_REJECT";      requestId: string };
 
 export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_STATE" ? { lockState: LockState; meta: WalletMeta | null } :
@@ -75,6 +84,7 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_IMPORT_ACCOUNT" ? { account: Account; error?: string } :
   T extends "CHAIN_GET_ACCOUNT_STATE" ? { state: AccountState | null; error?: string } :
   T extends "CHAIN_SEND_PAYMENT" ? { txId: string } :
+  T extends "CHAIN_SEND_ASSET" ? { txId: string } :
   T extends "CHAIN_SUBMIT_SIGNED" ? { txId: string } :
   T extends "WC_ADD_ACCOUNT" ? { account: Account } :
   T extends "ARC27_ENABLE" ? { accounts: string[]; error?: string } :
@@ -87,6 +97,10 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "X402_REJECT" ? { success: boolean } :
   T extends "X402_GET_HISTORY" ? { records: PaymentRecord[] } :
   T extends "X402_WC_SIGNED" ? { paymentHeader: string; txId?: string } :
+  T extends "VOI_RESOLVE_NAME" ? { address: string; displayName: string } :
+  T extends "APPROVAL_GET_PENDING" ? { approval: PendingApproval | null } :
+  T extends "APPROVAL_APPROVE"     ? { success: boolean } :
+  T extends "APPROVAL_REJECT"      ? { success: boolean } :
   { success: boolean; error?: string };
 
 // Notification pushed from background to content/tabs
