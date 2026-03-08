@@ -1,19 +1,22 @@
 # AlgoVoi
 
-A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** with native [x402 HTTP payment](https://x402.org) support and on-chain `.voi` name resolution via [enVoi](https://envoi.sh).
+A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** networks with built-in [x402](https://x402.org) HTTP micropayment support.
+
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue?logo=googlechrome)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
 
 ---
 
 ## Features
 
-- **Dual-chain wallet** — Algorand mainnet and Voi mainnet from a single popup; switch chains instantly with a toggle
-- **ARC-0027 provider** — injects `window.algorand` into every HTTPS page; compatible with Pera, Defly, and Lute dApps
-- **x402 automatic payments** — intercepts HTTP 402 responses, prompts user approval, signs and submits the payment transaction, then retries the original request transparently
-- **WalletConnect v2** — pair with Pera, Defly, or Voi Wallet; chain-specific sessions detected automatically from CAIP-10 account namespaces; chain selector lets you confirm Algorand vs Voi before scanning
-- **enVoi name resolution** — type `shelly.voi` in the Send modal; the extension resolves it to a Voi address via UluMCP (costs ~1 VOI, paid automatically within your spending cap)
-- **Spending caps** — configurable per-payment ceiling (default 10 ALGO / 10 VOI / 10 USDC) enforced before any automatic payment is signed
-- **Hardware-wallet-ready architecture** — Ledger support stubbed; vault is ARC-0047-style PBKDF2 → AES-GCM 256-bit encrypted at rest
-- **DevTools panel** — inspect live x402 payment flows, transaction history, and Bazaar listings from Chrome DevTools
+- **Multi-chain wallet** — Algorand mainnet and Voi mainnet from a single extension
+- **ARC-0027 provider** — `window.algorand` injected into every page, compatible with Pera, Defly, and Lute dApps
+- **WalletConnect v2** — Pair with any WalletConnect-compatible mobile wallet
+- **x402 micropayments** — Automatic HTTP 402 payment handling; pay for API calls and content without leaving the page
+- **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
+- **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
 
 ---
 
@@ -21,39 +24,37 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** with
 
 ```
 src/
-├── background/        Service worker — wallet-store, chain-clients, x402-handler,
-│   │                  message-handler, mcp-client
-│   ├── wallet-store.ts      PBKDF2 + AES-GCM vault; in-memory key after unlock
-│   ├── chain-clients.ts     Algorand + Voi algosdk clients (shared surface)
-│   ├── x402-handler.ts      x402 payment queue, approval popup, signing
-│   ├── mcp-client.ts        enVoi name resolution via UluMCP (x402 gated)
-│   └── message-handler.ts   Chrome runtime message router
-├── content/           Content script — bridges inpage ↔ background messages
-├── inpage/            Injected into pages — window.algorand provider + fetch intercept
-├── popup/             React wallet UI (360 px) — accounts, send, receive, settings
-├── approval/          x402 payment approval popup (400 px)
-└── devtools/          Chrome DevTools panel — TxnInspector, X402Inspector, BazaarPanel
+├── background/     Service worker: wallet store, chain clients, x402 handler, message router
+├── content/        Content script: bridges inpage ↔ background messages
+├── inpage/         Injected into pages: window.algorand provider + fetch x402 intercept
+├── popup/          React wallet UI (360 × 600 px)
+├── approval/       x402 payment approval popup
+├── devtools/       Chrome DevTools panel (TxnInspector, X402Inspector, BazaarPanel)
+└── shared/         Types, constants, crypto utils, debug logger
 ```
 
 **Message flow:**
 ```
-inpage  ←→  content   (window.postMessage, source: "algovou-inpage/content")
-content ←→  background (chrome.runtime.sendMessage, returns { ok, data, error })
+Page (dApp)
+  └─ window.postMessage ──► content script
+                               └─ chrome.runtime.sendMessage ──► background service worker
+                                                                      └─ algosdk / WC SDK
 ```
 
 **x402 flow:**
 ```
-page fetch → 402 → content → background queues request → approval popup opens
-→ user approves → background signs + submits txn → notifies inpage → fetch retried
+fetch() → 402 response → inpage intercepts → approval popup → user approves
+  → background signs + submits txn → retry fetch with X-PAYMENT header
 ```
 
-**enVoi resolution flow:**
-```
-Send modal → VOI_RESOLVE_NAME → message-handler (chain + lock checks)
-  → mcp-client → POST /mcp (init session) → POST /mcp (tools/call)
-  → 402 → pay 1 VOI on-chain → retry with PAYMENT-SIGNATURE
-  → SSE result → algosdk.isValidAddress → { address, displayName }
-```
+---
+
+## Supported Networks
+
+| Network | Node | Genesis ID |
+|---------|------|------------|
+| Algorand Mainnet | `mainnet-api.algonode.cloud` | `mainnet-v1.0` |
+| Voi Mainnet | `mainnet-api.voi.nodely.dev` | `voimain-v1.0` |
 
 ---
 
@@ -62,120 +63,134 @@ Send modal → VOI_RESOLVE_NAME → message-handler (chain + lock checks)
 ### Prerequisites
 
 - Node.js 18+
-- Chrome 120+ (Manifest V3 service worker required)
+- npm 9+
+- A WalletConnect Project ID from [cloud.walletconnect.com](https://cloud.walletconnect.com)
 
-### Install and build
+### Setup
 
 ```bash
-git clone https://github.com/MaidToShelly/algovou
+git clone https://github.com/MaidToShelly/algovou.git
 cd algovou
 npm install
-cp .env.example .env     # fill in your WalletConnect project ID
-npm run build
+cp .env.example .env
 ```
+
+Edit `.env` and fill in your values:
+
+```env
+VITE_WC_PROJECT_ID=your_walletconnect_project_id
+VITE_WC_APP_URL=https://your-public-url.com
+```
+
+### Build
+
+```bash
+# Production build
+npm run build
+
+# Development build with watch
+npm run dev
+```
+
+The extension is built to `dist/`.
 
 ### Load in Chrome
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked** → select the `dist/` folder
-
-### Development watch mode
-
-```bash
-npm run dev   # rebuilds on every file save
-```
-
----
-
-## Testing
-
-```bash
-npm test               # run all tests once
-npm run test:watch     # watch mode
-npm run test:coverage  # lcov coverage report
-```
-
-Tests live in `tests/` and use [Vitest](https://vitest.dev) with Node environment. All
-Chrome extension APIs are stubbed per-test with `vi.stubGlobal`; fetch is mocked with
-`vi.stubGlobal("fetch", ...)` response queues. No network calls are made during tests.
-
-**Coverage target files:** `src/background/mcp-client.ts`, `src/background/message-handler.ts`
-
----
-
-## Configuration
-
-Copy `.env.example` to `.env` and fill in the required values:
-
-```env
-# WalletConnect v2 — register a free project at https://cloud.walletconnect.com
-VITE_WC_PROJECT_ID=your_project_id_here
-
-# Public HTTPS URL shown to mobile wallets in WalletConnect session metadata.
-# Must be https:// — chrome-extension:// URLs are rejected by Pera/Defly/Lute.
-VITE_WC_APP_URL=https://your-app-domain.example
-
-# Optional: override default node URLs
-VITE_ALGORAND_NODE_URL=https://mainnet-api.algonode.cloud
-VITE_ALGORAND_INDEXER_URL=https://mainnet-idx.algonode.cloud
-VITE_VOI_NODE_URL=https://mainnet-api.voi.nodely.dev
-VITE_VOI_INDEXER_URL=https://mainnet-idx.voi.nodely.dev
-```
-
-All other configuration (MCP endpoint, spending caps, chain genesis hashes) is baked into
-`src/shared/constants.ts` and verified at build time.
-
----
-
-## Manifest Permissions
-
-| Permission | Purpose |
-|---|---|
-| `storage` | Encrypted vault + wallet metadata |
-| `alarms` | Auto-lock timer |
-| `tabs` + `activeTab` | x402 payment approval context; chain-change broadcast |
-| `notifications` | Payment confirmation notifications |
-| `windows` | WalletConnect pairing popup |
-
-**Host permissions** are scoped to the specific node URLs, WalletConnect relay domains, and the UluMCP enVoi endpoint. No `<all_urls>`. Content scripts run on `https://*/*` at `document_start` — necessary for universal `window.algorand` provider injection.
-
----
-
-## Ecosystem
-
-### UluMCP — enVoi Name Resolution
-
-[UluMCP](https://github.com/MaidToShelly/algovou) is the x402-gated MCP server that powers `.voi` name resolution in the Send modal. When you type `shelly.voi` and click **Resolve**, the extension:
-
-1. Opens an MCP session with `mcp.ilovechicken.co.uk/mcp`
-2. Calls the `envoi_resolve_address` tool
-3. Receives a 402 — pays ~1 VOI on-chain (within your spending cap)
-4. Retries with the signed `PAYMENT-SIGNATURE` header
-5. Receives the resolved Voi address from the [enVoi](https://envoi.sh) registry
-
-The resolved address is always validated with `algosdk.isValidAddress` before display. A server-attribution warning is shown below the confirmed address.
-
-### Live x402 Test Site
-
-[https://x402.ilovechicken.co.uk](https://x402.ilovechicken.co.uk) is a live demo site for testing AlgoVoi's x402 automatic payment flow end-to-end. Load the page with the extension installed and unlocked — it returns a 402 on the first request, triggering the approval popup. Approve to see the payment confirmed and the protected content delivered.
+1. Open Chrome and go to `chrome://extensions`
+2. Enable **Developer mode** (top right)
+3. Click **Load unpacked**
+4. Select the `dist/` folder
 
 ---
 
 ## Security
 
-See [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for a full audit report covering all source files, manifest permissions, bundle analysis, and the enVoi integration trust model.
+The vault uses a session-key pattern:
 
-**Summary (Hardening I–VI complete, March 2026):**
-- 0 Critical · 0 High · 0 Medium · 0 Low open
-- Vault encrypted with PBKDF2 (600k iterations) → AES-GCM 256-bit
-- No `eval()` in the production bundle (vm polyfill excluded)
-- Strict CSP: `script-src 'self'; object-src 'none';`
-- Genesis hash verified on every chain switch
-- Chrome Web Store submission requires 3 additional steps (see SECURITY_AUDIT.md)
+1. On **unlock** — PBKDF2 derives a `CryptoKey` from the user's password (never stored)
+2. The `CryptoKey` is held in service-worker memory only
+3. All vault reads/writes use AES-GCM-256 with a fresh random IV per write
+4. On **lock** or service-worker suspension — the key is wiped from memory
+
+See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–VII complete).
+
+---
+
+## ARC-0027 Provider API
+
+AlgoVoi injects `window.algorand` into every page:
+
+```typescript
+// Connect and get accounts
+const { accounts } = await window.algorand.enable({ genesisID: "mainnet-v1.0" });
+
+// Sign transactions
+const signedTxns = await window.algorand.signTransactions([txnBase64]);
+
+// Sign arbitrary bytes
+const { sig } = await window.algorand.signBytes({ data: new Uint8Array([...]) });
+```
+
+---
+
+## x402 Automatic Payments
+
+AlgoVoi intercepts `fetch()` calls that return HTTP 402 and handles payment automatically:
+
+```typescript
+// This fetch will trigger a payment approval popup if the server returns 402
+const response = await fetch("https://api.example.com/premium-data");
+const data = await response.json(); // resolves after payment is approved
+```
+
+Supported payment assets:
+- **ALGO** (native)
+- **USDC** (ASA 31566704 on Algorand)
+- **aUSDC** (ASA 302190 on Voi)
+
+---
+
+## Ecosystem
+
+### Compatible x402 Services
+
+| Project | Network | Description |
+|---------|---------|-------------|
+| [UluMCP](https://github.com/MaidToShelly/UluMCP) | Algorand + **Voi** | MCP server for AI agents — tokens, NFTs, DEX swaps, marketplace. Supports x402 payment gating and WAD metered billing |
+
+UluMCP is a working example of x402 on Voi — deploy it with `X402_AVM_PAY_TO` and `X402_AVM_PRICE` set and AlgoVoi will automatically handle the 402 payment flow when an AI agent hits a gated tool endpoint.
+
+The AlgoVoi **Bazaar DevTools panel** is designed to surface marketplace listings from services like UluMCP (`mp_listings`, `mp_sales`).
+
+---
+
+## Development
+
+```bash
+# Type check
+npm run typecheck
+
+# Lint
+npm run lint
+
+# Build for development (with sourcemaps)
+NODE_ENV=development npm run build
+```
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Commit your changes
+4. Open a pull request
+
+Please review [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) before contributing changes to the vault, signing, or payment handling code.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT
