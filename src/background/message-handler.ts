@@ -490,7 +490,11 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "ARC27_DISCONNECT": {
-      const disconnectOrigin = sender.url ? new URL(sender.url).origin : msg.origin;
+      // H1: Use only the Chrome-provided sender.url — never trust msg.origin (dApp-controlled).
+      // If sender.url is absent (non-content-script caller), return a no-op success rather
+      // than allowing an unverifiable origin string to delete another site's connection record.
+      if (!sender.url) return { success: true };
+      const disconnectOrigin = new URL(sender.url).origin;
       await walletStore.removeConnectedSite(disconnectOrigin);
       return { success: true };
     }

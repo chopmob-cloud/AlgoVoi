@@ -540,3 +540,32 @@ describe("AUTO-09: CHAIN_SEND_ASSET decimals bounds check", () => {
     expect(resp.error).toMatch("Invalid decimals");
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-10: ARC27_DISCONNECT fail-closed (H1 Hardening IV)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-10: ARC27_DISCONNECT fail-closed (H1)", () => {
+  const DISCONNECT_MSG = { type: "ARC27_DISCONNECT" } as BgRequest;
+
+  it("returns no-op success and does NOT call removeConnectedSite when sender.url is absent", async () => {
+    // Simulate a message from a context that has no URL (e.g. direct runtime message
+    // without a content-script sender.url).
+    const resp = await sendMessage(DISCONNECT_MSG, { url: undefined });
+
+    expect(resp.ok).toBe(true);
+    expect(vi.mocked(walletStore.removeConnectedSite)).not.toHaveBeenCalled();
+  });
+
+  it("calls removeConnectedSite with the correct origin when sender.url is present", async () => {
+    const resp = await sendMessage(
+      DISCONNECT_MSG,
+      { url: "https://app.tinyman.org/swap" }
+    );
+
+    expect(resp.ok).toBe(true);
+    expect(vi.mocked(walletStore.removeConnectedSite)).toHaveBeenCalledWith(
+      "https://app.tinyman.org"
+    );
+  });
+});

@@ -56,6 +56,16 @@ function sendToContent<T = unknown>(type: string, payload: unknown): Promise<T> 
 interface EnableResult { accounts: string[]; genesisHash: string; genesisId: string }
 interface SignTxnsResult { stxns: (string | null)[] }
 
+// H2: WeakMap to track the native EventListener wrapper registered for each
+// (listener, eventName) pair.  Without this, off() tried to remove the original
+// `listener` reference which never matches the wrapper closure created in on(),
+// so listeners would accumulate forever and could never be detached.
+// Outer key = listener fn; inner Map key = event name.
+const _listenerWrappers = new WeakMap<
+  (...args: unknown[]) => void,
+  Map<string, EventListener>
+>();
+
 const provider = {
   id: PROVIDER_ID,
   version: PROVIDER_VERSION,
@@ -93,14 +103,31 @@ const provider = {
   },
 
   on(event: string, listener: (...args: unknown[]) => void) {
-    window.addEventListener(`algovou:${event}`, (e: Event) => {
-      listener((e as CustomEvent).detail);
-    });
+    // H2: Store the wrapper so off() can look it up and remove the correct function.
+    let eventMap = _listenerWrappers.get(listener);
+    if (!eventMap) {
+      eventMap = new Map<string, EventListener>();
+      _listenerWrappers.set(listener, eventMap);
+    }
+    // Only register once per (listener, event) pair to prevent duplicate wrappers.
+    if (!eventMap.has(event)) {
+      const wrapper: EventListener = (e: Event) => { listener((e as CustomEvent).detail); };
+      eventMap.set(event, wrapper);
+      window.addEventListener(`algovou:${event}`, wrapper);
+    }
     return this;
   },
 
   off(event: string, listener: (...args: unknown[]) => void) {
-    window.removeEventListener(`algovou:${event}`, listener as EventListener);
+    // H2: Look up the registered wrapper and remove it, not the original listener.
+    const eventMap = _listenerWrappers.get(listener);
+    if (eventMap) {
+      const wrapper = eventMap.get(event);
+      if (wrapper) {
+        window.removeEventListener(`algovou:${event}`, wrapper);
+        eventMap.delete(event);
+      }
+    }
     return this;
   },
 };
