@@ -3,16 +3,17 @@
 **Date:** March 2026
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
-## Final Status: All Critical/High/Medium Issues Resolved
+## Final Status: Release-Ready (GitHub / Unpacked)
 
 ```
-0 Critical   0 High   0 Medium   4 Low (cosmetic hardening only)
+0 Critical   0 High   1 Medium open   6 Low open
 ```
 
-All critical and high-severity issues have been fixed and verified. All medium-severity issues
-have been fixed and verified, including the newly discovered M4 dead-code timing leak (function
-removed). The four remaining low-severity items are defence-in-depth improvements that do not
-block release.
+All critical and high-severity issues have been fixed and verified. All previously identified
+medium-severity issues are closed. One new medium (M6 — migration ghost) and two new low items
+(L7, L8) were found during the final independent adversarial review in March 2026 and are
+tracked below. The remaining open items do not block release for GitHub publication or unpacked
+extension use.
 
 ---
 
@@ -38,6 +39,9 @@ block release.
 | L3   | Low      | 🔵 OPEN  | Approval popup `frame-ancestors` header (not frameable) |
 | L4   | Low      | 🔵 OPEN  | Storage quota exhaustion handling (not realistic) |
 | L5\* | Low      | 🔵 OPEN  | WC session localStorage clear on lock (partial — see note) |
+| M6   | Medium   | 🔵 OPEN  | H2 migration ghost — plaintext `connectedSites` not deleted after vault migration |
+| L7   | Low      | 🔵 OPEN  | EnvoiPage BigInt crash — non-integer MCP amount causes SyntaxError in approval popup |
+| L8   | Low      | 🔵 OPEN  | `devtools_page` active in production manifest (increases attack surface) |
 
 > **L5\* note:** `CHAIN_SUBMIT_SIGNED` now requires unlock, closing the concrete attack path.
 > Clearing WC SDK localStorage on lock remains as optional defence-in-depth.
@@ -285,3 +289,86 @@ With `exclude: ["vm"]` the `vm` module is externalized rather than polyfilled. A
 ### WalletConnect Project ID
 
 `VITE_WC_PROJECT_ID` is baked into `constants.js` — this is expected and by design for any WalletConnect-enabled app (project IDs are public credentials, analogous to an OAuth client ID). The `.env` file containing the real value is gitignored. Mitigate quota abuse via rate-limit settings in the WalletConnect Cloud dashboard.
+
+---
+
+## Addendum — Final Independent Adversarial Review (March 2026)
+
+**Scope:** Full codebase re-read after Hardenings I–V. Focused on silent-signing paths,
+page-controlled data trust, lock races, cross-chain confusion, plaintext sensitive data
+exposure, malformed-input crashes, and publication safety.
+
+**Verdict:** Release-ready for GitHub and unpacked extension. Three new findings (M6, L7, L8)
+require attention before Chrome Web Store submission.
+
+### M6 — H2 Migration Ghost (Medium — Open)
+
+**File:** `src/background/wallet-store.ts` lines 216–221
+
+After the H2 migration copies `meta.connectedSites` into the encrypted vault,
+`meta.connectedSites` is never deleted from `chrome.storage.local`. Any user who
+unlocks once after upgrading retains a plaintext copy of their browsing-history
+correlation data at rest indefinitely.
+
+**Fix:** After `await persistVaultData()`, delete and re-save meta:
+```ts
+delete meta.connectedSites;
+await saveMeta(meta);
+```
+
+**Risk until fixed:** Plaintext site↔address mapping persists in local storage. No
+funds at risk; no active exfiltration path. Severity: Medium.
+
+---
+
+### L7 — EnvoiPage BigInt Crash (Low — Open)
+
+**File:** `src/approval/index.tsx` line 405
+**Related:** `src/background/mcp-client.ts` `callTool()` / `payVoi()`
+
+`callTool()` passes `pr.amount` to `requestApproval()` before the `!/^\d+$/`
+format guard in `payVoi()` runs. The approval popup renders
+`BigInt(approval.amount)` — if a malicious or buggy MCP server sends `"1.5"`,
+`"abc"`, or `null`, this throws `SyntaxError`, crashing the EnvoiPage for the
+5-minute TTL window.
+
+**No funds at risk** — `payVoi()` never executes if the popup crashes. The user
+is locked out of enVoi resolution for the TTL period only.
+
+**Fix (two-part):**
+1. In `mcp-client.ts` `callTool()`, validate `pr.amount` with `!/^\d+$/` *before*
+   calling `requestApproval()` (move the guard from `payVoi()` to the call site).
+2. In `approval/index.tsx` `EnvoiPage`, wrap the `BigInt()` call defensively:
+   ```ts
+   const amountBig = /^\d+$/.test(String(approval.amount))
+     ? BigInt(approval.amount) : 0n;
+   ```
+
+---
+
+### L8 — `devtools_page` Active in Production (Low — Open)
+
+**File:** `manifest.json`
+
+The `"devtools_page"` key is present in the production manifest, enabling the
+DevTools panel (TxnInspector, X402Inspector, BazaarPanel) for all users. This
+increases the attack surface and adds download weight unnecessarily for
+non-developer installs.
+
+**Fix options (choose one):**
+- Gate via a separate `manifest.devtools.json` used only in dev builds
+- Gate in `vite.config.ts`: include `devtools_page` only when `mode !== "production"`
+- Accept as-is for the current release if the DevTools panel is a deliberate feature
+
+---
+
+### Publication Checklist (Web Store)
+
+Before Chrome Web Store submission, in addition to fixing M6, L7, L8:
+
+| Item | Status |
+|------|--------|
+| `VITE_WC_PROJECT_ID` set in release `.env` | Manual step required |
+| Privacy policy URL in `manifest.json` | Not yet present |
+| Host permission justification for `mcp.ilovechicken.co.uk` | Narrative ready (enVoi name resolution) |
+| Single-purpose description covers all features | README / store listing needed |
