@@ -383,13 +383,6 @@ export default function AccountView() {
           >
             Receive
           </button>
-          <button
-            className="flex-1 bg-white/10 hover:bg-white/15 rounded-lg py-1.5 text-xs font-medium transition-colors opacity-40 cursor-not-allowed"
-            title="Coming in Phase 2"
-            disabled
-          >
-            Swap
-          </button>
         </div>
       </div>
 
