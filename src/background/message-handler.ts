@@ -233,6 +233,12 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       walletStore.resetAutoLock();
       if (!algosdk.isValidAddress(msg.to)) throw new Error("Invalid destination address");
+      // M2: Bounds-check decimals — must be an integer in [0, 19].
+      // Prevents parseDecimalToAtomic from receiving garbage that could cause
+      // silent truncation, a 10**decimals explosion, or a uint64 overflow bypass.
+      if (!Number.isInteger(msg.decimals) || msg.decimals < 0 || msg.decimals > 19) {
+        throw new Error("Invalid decimals: must be an integer between 0 and 19");
+      }
       const chain = msg.chain as ChainId;
       const meta = await walletStore.getMeta();
       const senderAddress = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;

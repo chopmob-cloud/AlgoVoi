@@ -118,6 +118,7 @@ const mockChrome = {
   tabs: {
     query: vi.fn(),
     sendMessage: vi.fn(),
+    get: vi.fn().mockRejectedValue(new Error("Tab not found")), // safe default; tests override as needed
   },
 };
 
@@ -498,5 +499,44 @@ describe("AUTO-08: ARC27 per-origin signing cap", () => {
     expect(resp.ok).toBe(false);
     expect(resp.error).toMatch("Too many pending signing requests from this site");
     expect(vi.mocked(requestApproval)).not.toHaveBeenCalled();
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-09: CHAIN_SEND_ASSET decimals bounds check (M2)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-09: CHAIN_SEND_ASSET decimals bounds check", () => {
+  const BASE_MSG = {
+    type: "CHAIN_SEND_ASSET",
+    to: FAKE_ADDR,
+    amount: "1",
+    assetId: 12345,
+    decimals: 6,
+    chain: "algorand",
+  } as BgRequest;
+
+  it("rejects when decimals is negative", async () => {
+    const resp = await sendMessage(
+      { ...BASE_MSG, decimals: -1 } as unknown as BgRequest
+    );
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Invalid decimals");
+  });
+
+  it("rejects when decimals exceeds 19", async () => {
+    const resp = await sendMessage(
+      { ...BASE_MSG, decimals: 20 } as unknown as BgRequest
+    );
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Invalid decimals");
+  });
+
+  it("rejects when decimals is not an integer", async () => {
+    const resp = await sendMessage(
+      { ...BASE_MSG, decimals: 6.5 } as unknown as BgRequest
+    );
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Invalid decimals");
   });
 });

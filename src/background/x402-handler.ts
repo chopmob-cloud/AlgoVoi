@@ -326,17 +326,31 @@ export async function handleX402(params: {
 
   // H3: Per-origin queue cap — prevents a site from flooding the approval queue.
   const PENDING_CAP_PER_ORIGIN = 5;
+  // M1: Derive the request origin from the Chrome-provided tab URL (unforgeable),
+  // not from params.url which is controlled by the inpage script.  An attacker could
+  // set params.url = "https://trusted.com/foo" to count their requests against
+  // trusted.com's cap, starving it, or to bypass their own cap entirely.
+  // chrome.tabs.get(tabId) returns the real URL that Chrome navigated to.
   let requestOrigin: string;
   try {
-    requestOrigin = new URL(params.url).origin;
+    const tab = await chrome.tabs.get(params.tabId);
+    requestOrigin = tab.url ? new URL(tab.url).origin : new URL(params.url).origin;
   } catch {
-    requestOrigin = params.url; // fallback for malformed URLs
+    // Tab closed or no tabs permission; fall back to inpage URL as a best-effort.
+    try {
+      requestOrigin = new URL(params.url).origin;
+    } catch {
+      requestOrigin = "unknown";
+    }
   }
   let originPendingCount = 0;
   for (const req of _pendingRequests.values()) {
-    try {
-      if (new URL(req.url).origin === requestOrigin) originPendingCount++;
-    } catch { /* skip malformed queued URLs */ }
+    // Prefer the stored tabOrigin (Chrome-verified); fall back to URL-derived origin
+    // for requests created before this field was introduced.
+    const storedOrigin = req.tabOrigin ?? (() => {
+      try { return new URL(req.url).origin; } catch { return null; }
+    })();
+    if (storedOrigin === requestOrigin) originPendingCount++;
   }
   if (originPendingCount >= PENDING_CAP_PER_ORIGIN) {
     throw new Error(
@@ -356,6 +370,8 @@ export async function handleX402(params: {
     paymentRequirements: chosen,
     allRequirements: paymentRequired.accepts,
     timestamp: Date.now(),
+    // M1: Store the Chrome-verified origin so the cap counter uses it on subsequent requests.
+    tabOrigin: requestOrigin,
     // Store inpage-provided ID for tab routing only (see X402_RESULT in message-handler).
     inpageRequestId: params.inpageRequestId,
   };

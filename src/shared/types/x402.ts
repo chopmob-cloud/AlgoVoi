@@ -94,6 +94,12 @@ export interface PendingX402Request {
    * which is what the inpage's _pendingX402 Map was stored under.
    */
   inpageRequestId?: string;
+  /**
+   * The origin of the tab that triggered the payment, derived from
+   * chrome.tabs.get (unforgeable) instead of params.url (inpage-controlled).
+   * M1: Used for per-origin cap counting to prevent origin spoofing.
+   */
+  tabOrigin?: string;
 }
 
 /** Result of a completed payment signing */
