@@ -18,9 +18,13 @@ export default defineConfig({
   plugins: [
     // WalletConnect Sign Client requires Node.js built-ins (buffer, events,
     // process, crypto) that aren't available in the browser. This polyfills them.
+    // vm is explicitly excluded: its polyfill contains eval() which violates the
+    // MV3 service-worker CSP (script-src 'self') and would be flagged in a review.
+    // Nothing in the extension actually calls vm.Script.runInThisContext at runtime.
     nodePolyfills({
       globals: { Buffer: true, global: true, process: true },
       protocolImports: true,
+      exclude: ["vm"],
     }),
     react(),
     webExtension({
