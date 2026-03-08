@@ -16,7 +16,15 @@ import {
   resolveChain,
 } from "./x402-handler";
 import { mcpResolveEnvoi } from "./mcp-client";
-import { base64ToBytes } from "@shared/utils/crypto";
+import { base64ToBytes, randomId } from "@shared/utils/crypto";
+import { formatAmount } from "@shared/utils/format";
+import {
+  getPendingApproval,
+  requestApproval,
+  resolveApproval,
+  rejectApproval,
+} from "./approval-handler";
+import type { TxnSummary, PendingSignTxnsApproval, PendingSignBytesApproval } from "@shared/types/approval";
 import type { X402PaymentPayload } from "@shared/types/x402";
 import type { BgRequest } from "@shared/types/messages";
 import type { ChainId } from "@shared/types/chain";
@@ -258,24 +266,96 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "ARC27_SIGN_TXNS": {
+      // ── Pre-conditions (fail fast before touching the approval queue) ────────
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       walletStore.resetAutoLock();
-      const signMeta = await walletStore.getMeta();
+
+      // Require an explicit enable() call before any signing request.
+      // sender.url is Chrome-provided and unforgeable; msg.origin is ignored.
+      const signOrigin = sender.url ? new URL(sender.url).origin : null;
+      if (!signOrigin) throw new Error("Cannot determine requesting site origin");
+      const signConnected = await walletStore.getConnectedAddresses(signOrigin);
+      if (signConnected.length === 0) {
+        throw new Error(
+          `${signOrigin} is not connected. ` +
+          `The site must call window.algorand.enable() before requesting signatures.`
+        );
+      }
+
+      const signMeta    = await walletStore.getMeta();
       const activeChain = signMeta.activeChain as ChainId;
-      const expectedGenesisId = CHAINS[activeChain].genesisId;
+      const chainCfg    = CHAINS[activeChain];
+
+      // Pre-decode transactions to build display summaries AND run genesis checks
+      // early, so the popup is never shown for a request that would fail to sign.
+      const txnSummaries: TxnSummary[] = msg.txns.map((b64, i) => {
+        const skipped = !!(msg.indexesToSign && !msg.indexesToSign.includes(i));
+        if (skipped) return { type: "skip", sender: "", skipped: true };
+        try {
+          const txnBytes = base64ToBytes(b64);
+          const txn = algosdk.decodeUnsignedTransaction(txnBytes);
+          // C1 pre-check: reject wrong-chain transactions before opening popup
+          const txnGenesisId = (txn as unknown as { genesisID?: string }).genesisID ?? "";
+          if (txnGenesisId && txnGenesisId !== chainCfg.genesisId) {
+            throw new Error(
+              `Transaction ${i} genesisID "${txnGenesisId}" does not match ` +
+              `active chain "${chainCfg.genesisId}". Switch chains before signing.`
+            );
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const t = txn as unknown as Record<string, any>;
+          const type: string   = t.type ?? "unknown";
+          const sender: string = t.from?.toString?.() ?? t.sender?.toString?.() ?? "";
+          const receiver: string | undefined = t.to?.toString?.() ?? t.receiver?.toString?.();
+          let amount: string | undefined;
+          if (typeof t.amount === "bigint" || typeof t.amount === "number") {
+            try {
+              amount = `${formatAmount(BigInt(t.amount), chainCfg.decimals)} ${chainCfg.ticker}`;
+            } catch { amount = String(t.amount); }
+          }
+          const assetId: number | undefined = t.assetIndex || undefined;
+          return { type, sender, receiver, amount, assetId };
+        } catch (err) {
+          // Re-throw genesis mismatch errors; wrap decode errors as unknown
+          if (err instanceof Error && err.message.includes("genesisID")) throw err;
+          return { type: "unknown", sender: "" };
+        }
+      });
+
+      // ── Queue approval — the message channel stays open until this resolves ──
+      const signTxnsId = randomId();
+      const signTxnsApproval: PendingSignTxnsApproval = {
+        kind: "sign_txns",
+        id: signTxnsId,
+        origin: signOrigin,
+        tabId,
+        txns: msg.txns,
+        indexesToSign: msg.indexesToSign,
+        txnSummaries,
+        timestamp: Date.now(),
+      };
+      // Throws if user rejects, TTL fires, or popup fails to open.
+      await requestApproval(signTxnsApproval);
+
+      // ── Post-approval: re-verify lock (user may have locked during popup) ────
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet locked during approval");
+      walletStore.resetAutoLock();
+
+      // ── Sign (re-runs genesis check as defence-in-depth) ────────────────────
+      const freshMeta  = await walletStore.getMeta();
+      const freshChain = freshMeta.activeChain as ChainId;
+      const freshGenId = CHAINS[freshChain].genesisId;
       const sk = await walletStore.getActiveSecretKey();
       const stxns = msg.txns.map((b64, i) => {
-        if (msg.indexesToSign && !msg.indexesToSign.includes(i)) {
-          return null; // caller will fill this slot
-        }
+        if (msg.indexesToSign && !msg.indexesToSign.includes(i)) return null;
         const txnBytes = base64ToBytes(b64);
         const txn = algosdk.decodeUnsignedTransaction(txnBytes);
-        // C1: Reject transactions targeting the wrong chain (genesisID mismatch)
+        // C1: defence-in-depth genesis check post-approval
         const txnGenesisId = (txn as unknown as { genesisID?: string }).genesisID ?? "";
-        if (txnGenesisId && txnGenesisId !== expectedGenesisId) {
+        if (txnGenesisId && txnGenesisId !== freshGenId) {
           throw new Error(
             `Transaction genesisID "${txnGenesisId}" does not match active chain ` +
-            `"${expectedGenesisId}". Switch to the correct chain before signing.`
+            `"${freshGenId}". Switch to the correct chain before signing.`
           );
         }
         return btoa(String.fromCharCode(...txn.signTxn(sk)));
@@ -284,8 +364,55 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "ARC27_SIGN_BYTES": {
+      // ── Pre-conditions ───────────────────────────────────────────────────────
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       walletStore.resetAutoLock();
+
+      const bytesOrigin = sender.url ? new URL(sender.url).origin : null;
+      if (!bytesOrigin) throw new Error("Cannot determine requesting site origin");
+      const bytesConnected = await walletStore.getConnectedAddresses(bytesOrigin);
+      if (bytesConnected.length === 0) {
+        throw new Error(
+          `${bytesOrigin} is not connected. ` +
+          `The site must call window.algorand.enable() before requesting signatures.`
+        );
+      }
+
+      // ── Validate signer matches active account ────────────────────────────
+      // ARC-0027: the wallet must sign with the requested signer. If the dApp
+      // passes a signer the active account cannot satisfy, reject immediately
+      // so the popup never shows a misleading "approving address X" prompt while
+      // the actual key belongs to address Y.
+      const signBytesMeta = await walletStore.getMeta();
+      const activeForBytes = signBytesMeta.accounts.find(
+        (a) => a.id === signBytesMeta.activeAccountId
+      );
+      if (!activeForBytes) throw new Error("No active account");
+      if (msg.signer !== activeForBytes.address) {
+        throw new Error(
+          `Signer address does not match the active account. ` +
+          `Requested: ${msg.signer}, Active: ${activeForBytes.address}`
+        );
+      }
+
+      // ── Queue approval ───────────────────────────────────────────────────────
+      const signBytesId = randomId();
+      const signBytesApproval: PendingSignBytesApproval = {
+        kind: "sign_bytes",
+        id: signBytesId,
+        origin: bytesOrigin,
+        tabId,
+        data: msg.data,
+        signer: msg.signer,
+        timestamp: Date.now(),
+      };
+      await requestApproval(signBytesApproval);
+
+      // ── Post-approval: re-verify lock ────────────────────────────────────────
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet locked during approval");
+      walletStore.resetAutoLock();
+
+      // ── Sign (MX prefix applied here — never before approval) ───────────────
       const sk = await walletStore.getActiveSecretKey();
       const dataBytes = base64ToBytes(msg.data);
       // Prefix with "MX" per ARC-1
@@ -308,9 +435,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         method: msg.method,
         // The inpage script passes rawPaymentRequired (base64 PAYMENT-REQUIRED value)
         rawPaymentRequired: msg.paymentRequirements as unknown as string,
-        // Reuse the inpage's requestId so X402_RESULT is keyed the same way
-        // as the _pendingX402 map entry — without this the inpage fetch promise
-        // never resolves and the page stays stuck at step 3.
+        // Pass the inpage-generated requestId for tab routing only.
+        // x402-handler always generates its own internal ID as the map key.
         inpageRequestId: msg.requestId,
       });
       return { requestId };
@@ -324,6 +450,15 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     case "X402_APPROVE": {
       const req = getPendingRequest(msg.requestId);
       if (!req) throw new Error("Pending request not found");
+
+      // ── Post-approval lock re-check ───────────────────────────────────────
+      // Auto-lock may have fired between popup open and user clicking Approve
+      // (up to APPROVAL_TTL_MS = 5 min). Fail-closed: reject rather than
+      // attempt to sign with a missing or stale key.
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet locked during approval");
+      }
+      walletStore.resetAutoLock();
 
       // Check if active account is WalletConnect — can't sign in background
       const approveMeta = await walletStore.getMeta();
@@ -359,7 +494,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       clearPendingRequest(msg.requestId);
       chrome.tabs.sendMessage(req.tabId, {
         type: "X402_RESULT",
-        requestId: msg.requestId,
+        // Use inpageRequestId so the inpage _pendingX402 Map can resolve the
+        // pending fetch. Falls back to req.id for requests predating this fix.
+        requestId: req.inpageRequestId ?? req.id,
         approved: true,
         paymentHeader,
         txId,
@@ -392,7 +529,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       chrome.tabs.sendMessage(req.tabId, {
         type: "X402_RESULT",
-        requestId: msg.requestId,
+        requestId: req.inpageRequestId ?? req.id,
         approved: true,
         paymentHeader,
       });
@@ -405,7 +542,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         clearPendingRequest(msg.requestId);
         chrome.tabs.sendMessage(req.tabId, {
           type: "X402_RESULT",
-          requestId: msg.requestId,
+          requestId: req.inpageRequestId ?? req.id,
           approved: false,
         });
       }
@@ -428,6 +565,31 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       }
       const { address, displayName } = await mcpResolveEnvoi(msg.name);
       return { address, displayName };
+    }
+
+    // ── Unified approval flow ─────────────────────────────────────────────────
+    // Handled by approval-handler.ts; used by ARC-0027 and enVoi popups.
+
+    case "APPROVAL_GET_PENDING": {
+      const approval = getPendingApproval(msg.requestId);
+      return { approval };
+    }
+
+    case "APPROVAL_APPROVE": {
+      // Only settle if the request is still pending (idempotent if already gone)
+      const approvalForApprove = getPendingApproval(msg.requestId);
+      if (!approvalForApprove) {
+        throw new Error("Approval request not found — it may have already been settled or timed out");
+      }
+      resolveApproval(msg.requestId);
+      return { success: true };
+    }
+
+    case "APPROVAL_REJECT": {
+      // Fail-open: don't throw if the request isn't found (popup may close late
+      // after TTL already fired, or user double-clicked Reject).
+      rejectApproval(msg.requestId, "User rejected the request");
+      return { success: true };
     }
 
     default:
