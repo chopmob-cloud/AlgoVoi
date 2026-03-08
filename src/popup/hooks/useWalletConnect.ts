@@ -39,6 +39,8 @@ export interface WCSession {
   peerName: string;
   peerIcon?: string;
   addresses: string[];
+  /** Actual chain the wallet approved the session for, derived from session namespaces */
+  chain: ChainId;
 }
 
 export interface UseWalletConnectReturn {
@@ -56,6 +58,19 @@ export interface UseWalletConnectReturn {
   ) => Promise<Uint8Array>;
   reset: () => void;
 }
+
+/**
+ * Reverse map: WC chain reference → ChainId.
+ * Built from WC_CHAIN_ID at module load so it stays in sync automatically.
+ * e.g. "wGHE2Pwdvd7S12BL5FaOP20EGYesN73k" → "algorand"
+ *      "r20fSQI8gWe_kFZziNonSPCXLwcQmH_n"  → "voi"
+ */
+const WC_REF_TO_CHAIN: Record<string, ChainId> = Object.fromEntries(
+  Object.entries(WC_CHAIN_ID).map(([chainId, wcChain]) => [
+    wcChain.split(":")[1], // reference part after "algorand:"
+    chainId as ChainId,
+  ])
+);
 
 export function useWalletConnect(): UseWalletConnectReturn {
   const clientRef = useRef<InstanceType<typeof SignClient> | null>(null);
@@ -348,12 +363,19 @@ export function useWalletConnect(): UseWalletConnectReturn {
         .map((a: string) => a.split(":").pop()!)
         .filter(Boolean);
 
+      // Derive the actual approved chain from the first CAIP-10 account.
+      // The chain reference in "algorand:CHAIN_REF:ADDRESS" is the authoritative
+      // source — the wallet decided which chain to approve, not our UI prop.
+      const firstAccount: string = nsAccounts[0] ?? "";
+      const chainRef = firstAccount.split(":")[1] ?? "";
+      const approvedChain: ChainId = WC_REF_TO_CHAIN[chainRef] ?? chain;
 
       setSession({
         topic: approved.topic,
         peerName: peerMeta.name ?? "Mobile Wallet",
         peerIcon: peerMeta.icons?.[0],
         addresses,
+        chain: approvedChain,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
