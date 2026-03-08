@@ -192,3 +192,96 @@ src/shared/utils/crypto.ts
 src/shared/types/wallet.ts
 src/shared/types/messages.ts
 ```
+
+---
+
+## Addendum — enVoi Name Resolution via UluMCP (March 2026)
+
+**Scope:** `src/background/mcp-client.ts`, `src/background/message-handler.ts`,
+`src/shared/types/messages.ts`, `src/popup/components/AccountView.tsx`
+
+### Architecture
+
+- Resolution of `.voi` names is handled entirely inside the background service worker
+  (`mcp-client.ts`). The popup only sends a typed `VOI_RESOLVE_NAME` message and
+  receives `{ address, displayName }` — it never touches MCP session IDs, payment
+  headers, or private keys.
+- All chain/payment logic follows the same path as existing x402 payments, reusing
+  `getSuggestedParams`, `submitTransaction`, and the vault key from `walletStore`.
+
+### Security properties
+
+| Property | Implementation |
+|---|---|
+| Vault key only | `payVoi()` rejects WalletConnect accounts explicitly — no auto-signing with external wallets |
+| Spending cap enforced | Amount validated against `meta.spendingCaps.nativeMicrounits` (default 10 VOI) before the transaction is built |
+| Chain guard | `message-handler.ts` checks `activeChain === "voi"` and `lockState === "unlocked"` before delegating to `mcpResolveEnvoi` |
+| Address validation | Resolved address is validated with `algosdk.isValidAddress` before being returned; untrusted JSON shapes are rejected |
+| No silent send | `handleSend` blocks if a `.voi` name is present but unresolved — the raw name string can never reach the transaction builder |
+| Cost visibility | User sees **"Resolve via enVoi (1 VOI)"** button label before any payment is triggered |
+| Sensitive values | `Mcp-Session-Id` and `PAYMENT-SIGNATURE` are used only within `mcp-client.ts` and never logged or exposed to the UI |
+
+### Trust boundaries
+
+```
+popup (UI only)
+  │  VOI_RESOLVE_NAME { name }
+  ▼
+message-handler (chain + lock checks)
+  │
+  ▼
+mcp-client (MCP session + x402 payment + tool call)
+  │  HTTPS only
+  ▼
+mcp.ilovechicken.co.uk/mcp  (UluMCP — x402 gated, Voi mainnet)
+  │
+  ▼
+api.envoi.sh  (enVoi name registry)
+```
+
+### Residual risks / Phase 2 items
+
+- **WalletConnect resolution** not yet supported; users on WC accounts see a clear
+  error message rather than a silent failure.
+- **No resolution caching** — each call costs 1 VOI. A session-scoped cache would
+  reduce unnecessary payments for repeated lookups of the same name.
+- **enVoi API availability** — if `api.envoi.sh` is unreachable, the tool returns an
+  error; no fallback resolver is implemented.
+
+---
+
+## Addendum — Bundle Security Review (March 2026)
+
+**Scope:** Compiled `dist/` output after the enVoi integration and vm-polyfill fix.
+
+### Findings resolved
+
+| Finding | Severity | Resolution |
+|---|---|---|
+| `eval()` in background service-worker bundle | Medium | Excluded `vm` from `vite-plugin-node-polyfills` via `exclude: ["vm"]`; `eval()` count in bundle: 3 → **0** |
+| `https://mcp.ilovechicken.co.uk` missing from `host_permissions` | Medium | Added `"https://mcp.ilovechicken.co.uk/*"` to `manifest.json`; Chrome MV3 service-worker cross-origin fetch no longer relies on server-side CORS headers |
+
+### Root cause — eval() in vm polyfill
+
+`asn1.js` (an algosdk transitive dependency) uses a `try { vm.runInThisContext(...) } catch { fallback }` pattern to create named constructor functions. When `vite-plugin-node-polyfills` bundled the `vm` module, this path executed `eval()` at runtime, violating the MV3 service-worker CSP (`script-src 'self'`).
+
+With `exclude: ["vm"]` the `vm` module is externalized rather than polyfilled. At runtime in Chrome, `vm.runInThisContext(...)` throws a TypeError, the `catch` fallback fires, and anonymous constructors are used instead. Behaviour is functionally identical; `eval()` is never invoked.
+
+### Confirmed clean — production bundle
+
+| Category | Status |
+|---|---|
+| Source maps (.map files) | ❌ None present |
+| Inline `sourceMappingURL` | ❌ None present |
+| `eval()` occurrences | **0** (all bundles) |
+| Hardcoded API keys / secrets | ❌ Not found |
+| Hardcoded private keys / mnemonics | ❌ Not found |
+| `.env` files in dist/ | ❌ None present |
+| `dangerouslySetInnerHTML` | ❌ Not found |
+| `unsafe-inline` / `unsafe-eval` in CSP | ❌ `script-src 'self'; object-src 'none';` ✓ |
+| `<all_urls>` in host_permissions | ❌ Not present |
+| `externally_connectable` (other-extension messaging) | ❌ Not defined |
+
+### WalletConnect Project ID
+
+`VITE_WC_PROJECT_ID` is baked into `constants.js` — this is expected and by design for any WalletConnect-enabled app (project IDs are public credentials, analogous to an OAuth client ID). The `.env` file containing the real value is gitignored. Mitigate quota abuse via rate-limit settings in the WalletConnect Cloud dashboard.

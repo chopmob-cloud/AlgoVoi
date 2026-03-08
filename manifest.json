@@ -42,7 +42,8 @@
     "https://mainnet-api.voi.nodely.dev/*",
     "https://mainnet-idx.voi.nodely.dev/*",
     "https://*.walletconnect.com/*",
-    "https://*.walletconnect.org/*"
+    "https://*.walletconnect.org/*",
+    "https://mcp.ilovechicken.co.uk/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none';"

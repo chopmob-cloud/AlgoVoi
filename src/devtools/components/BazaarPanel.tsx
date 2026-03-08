@@ -21,43 +21,20 @@ interface BazaarListing {
   facilitator?: string;
 }
 
-// Example listings — will be replaced by live @x402-avm/extensions withBazaar() API
+// Known x402-compatible services — extended by live @x402-avm/extensions withBazaar() in Phase 2
 const EXAMPLE_LISTINGS: BazaarListing[] = [
   {
-    id: "1",
-    name: "Algorand Analytics API",
-    description: "Real-time on-chain analytics, portfolio tracking, and market data for Algorand.",
-    url: "https://example-api.algonode.cloud/analytics",
-    chain: "algorand",
-    asset: "31566704",
-    assetTicker: "USDC",
-    pricePerRequest: "10000",
-    decimals: 6,
-    category: "Analytics",
-  },
-  {
-    id: "2",
-    name: "Voi NFT Marketplace API",
-    description: "Query NFT listings, sales history, and floor prices across Voi collections.",
-    url: "https://api.voinetwork.example/nft",
+    id: "ulumcp-voi",
+    name: "UluMCP — AVM Smart Contract MCP Server",
+    description:
+      "MCP server for AI agents: tokens, NFTs, DEX swaps (SnowballSwap), marketplace listings, and enVoi name resolution on Algorand and Voi. Supports x402 payment gating and WAD metered billing.",
+    url: "https://mcp.ilovechicken.co.uk/mcp",
     chain: "voi",
     asset: "0",
     assetTicker: "VOI",
-    pricePerRequest: "500000",
+    pricePerRequest: "1000000",
     decimals: 6,
-    category: "NFT",
-  },
-  {
-    id: "3",
-    name: "AVM Price Oracle",
-    description: "Aggregated price feeds for ALGO, VOI, and top ASAs. Updated every 30 seconds.",
-    url: "https://oracle.example/price",
-    chain: "algorand",
-    asset: "31566704",
-    assetTicker: "USDC",
-    pricePerRequest: "5000",
-    decimals: 6,
-    category: "DeFi",
+    category: "AI",
   },
 ];
 
@@ -124,10 +101,10 @@ export default function BazaarPanel() {
       </div>
 
       {/* Notice */}
-      <div className="mx-4 mt-3 bg-algo/10 border border-algo/30 rounded-xl px-3 py-2">
-        <p className="text-xs text-algo">
+      <div className="mx-4 mt-3 bg-voi/10 border border-voi/30 rounded-xl px-3 py-2">
+        <p className="text-xs text-voi">
           Live Bazaar discovery via @x402-avm/extensions coming in Phase 2.
-          Showing example listings.
+          Showing known x402-compatible services.
         </p>
       </div>
 
