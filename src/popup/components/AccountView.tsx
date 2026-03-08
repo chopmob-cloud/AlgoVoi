@@ -29,6 +29,19 @@ function parseDecimalAmount(amount: string, decimals: number): bigint {
 }
 
 /**
+ * Convert an atomic BigInt balance to a decimal string without floating-point loss.
+ * M3: Replaces Number(atomic) / 10**dec which loses precision for balances > 2^53
+ * (e.g. a token with 18 decimals and a large balance).
+ */
+function bigIntToDecimalStr(atomic: bigint, dec: number): string {
+  if (dec === 0) return atomic.toString();
+  const divisor = BigInt(10 ** dec);
+  const intPart = atomic / divisor;
+  const fracPart = atomic % divisor;
+  return `${intPart}.${fracPart.toString().padStart(dec, "0")}`;
+}
+
+/**
  * Open WalletConnect pairing in a dedicated browser tab so the WC relay
  * WebSocket survives focus loss (Chrome auto-closes action popups on blur).
  *
@@ -815,12 +828,14 @@ function SendModal({
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-algo font-semibold px-1"
                 onClick={() => {
                   if (selectedAsset) {
-                    // ASA: fee is in native coin — full ASA balance is sendable
-                    setAmount((Number(sendBalance) / 10 ** sendDecimals).toFixed(sendDecimals));
+                    // ASA: fee is in native coin — full ASA balance is sendable.
+                    // M3: Use BigInt arithmetic to avoid precision loss for large balances.
+                    setAmount(bigIntToDecimalStr(sendBalance, sendDecimals));
                   } else {
-                    // Native coin: reserve min fee
+                    // Native coin: reserve min fee.
+                    // M3: Use BigInt arithmetic to avoid precision loss for large balances.
                     const maxAtomic = balance > BigInt(1000) ? balance - BigInt(1000) : BigInt(0);
-                    setAmount((Number(maxAtomic) / 10 ** decimals).toFixed(decimals));
+                    setAmount(bigIntToDecimalStr(maxAtomic, decimals));
                   }
                 }}
               >

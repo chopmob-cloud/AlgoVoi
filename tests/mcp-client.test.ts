@@ -526,3 +526,40 @@ describe("AUTO-02: SSE response shape parsing", () => {
     await expect(mcpResolveEnvoi("shelly")).rejects.toThrow("MCP tool call failed with status 500");
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-11: M1 — BigInt format guard (decimal / non-numeric MCP amount)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-11: MCP payment amount format guard (M1)", () => {
+  // All these amounts would cause BigInt() to throw a SyntaxError without the guard.
+
+  it("throws 'Invalid payment amount from MCP server' for a decimal string (e.g. '1.5')", async () => {
+    stubFetch(initResp(), resp402("1.5"));
+    await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
+      "Invalid payment amount from MCP server"
+    );
+  });
+
+  it("throws for scientific notation amount (e.g. '1e6')", async () => {
+    stubFetch(initResp(), resp402("1e6"));
+    await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
+      "Invalid payment amount from MCP server"
+    );
+  });
+
+  it("throws for an amount with leading whitespace (e.g. ' 1000000')", async () => {
+    // String(" 1000000") has a leading space, doesn't match ^\d+$
+    stubFetch(initResp(), resp402(" 1000000"));
+    await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
+      "Invalid payment amount from MCP server"
+    );
+  });
+
+  it("throws for a non-numeric string amount (e.g. 'abc')", async () => {
+    stubFetch(initResp(), resp402("abc"));
+    await expect(mcpResolveEnvoi("shelly")).rejects.toThrow(
+      "Invalid payment amount from MCP server"
+    );
+  });
+});

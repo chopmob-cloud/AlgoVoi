@@ -67,8 +67,17 @@ export function setupProviderBridge(): void {
       );
     }
     if (msg.type === "CHAIN_CHANGED" || msg.type === "ACCOUNT_CHANGED") {
+      // L1: Use an explicit map rather than string manipulation.
+      // `.replace("_", "")` only removes the FIRST underscore, producing
+      // "chainchanged"/"accountchanged" — neither matches what dApps expect.
+      // ARC-0027 event names: chainChanged, accountsChanged.
+      const ARC27_EVENT: Record<string, string> = {
+        CHAIN_CHANGED: "chainChanged",
+        ACCOUNT_CHANGED: "accountsChanged",
+      };
+      const eventName = ARC27_EVENT[msg.type];
       window.dispatchEvent(
-        new CustomEvent(`algovou:${msg.type.toLowerCase().replace("_", "")}`, {
+        new CustomEvent(`algovou:${eventName}`, {
           detail: msg,
         })
       );
@@ -93,11 +102,17 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
       return sendToBg({ type: "ARC27_DISCONNECT", origin });
 
     case "ARC27_SIGN_TXNS": {
-      const { txns, indexesToSign } = msg.payload as { txns: { txn: string }[]; indexesToSign?: number[] };
+      const { txns, indexesToSign } = (msg.payload ?? {}) as {
+        txns?: unknown;
+        indexesToSign?: number[];
+      };
+      // M2: Validate txns is an array before mapping — a malformed postMessage (missing or
+      // non-array txns) would otherwise throw TypeError inside .map(), crashing the bridge.
+      if (!Array.isArray(txns)) throw new Error("ARC27_SIGN_TXNS: txns must be an array");
       return sendToBg({
         type: "ARC27_SIGN_TXNS",
         origin,
-        txns: txns.map((t) => t.txn),
+        txns: (txns as { txn: string }[]).map((t) => t.txn),
         indexesToSign,
       });
     }

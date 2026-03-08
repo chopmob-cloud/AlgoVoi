@@ -133,6 +133,15 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
     throw new Error("WalletConnect accounts cannot auto-pay name resolution yet");
   }
 
+  // M1: Validate that pr.amount is a non-negative integer string before BigInt conversion.
+  // BigInt("1.5") and BigInt("abc") both throw SyntaxError; the MCP server response is
+  // untrusted input and could contain a decimal or non-numeric string.
+  if (!/^\d+$/.test(String(pr.amount))) {
+    throw new Error(
+      `Invalid payment amount from MCP server: "${pr.amount}" ` +
+      `(expected a non-negative integer string)`
+    );
+  }
   // Reject non-positive amounts before any cap or transaction logic.
   const amount = BigInt(pr.amount);
   if (amount <= 0n) {
