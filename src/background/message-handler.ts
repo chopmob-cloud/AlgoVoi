@@ -15,6 +15,7 @@ import {
   clearPendingRequest,
   resolveChain,
 } from "./x402-handler";
+import { mcpResolveEnvoi } from "./mcp-client";
 import { base64ToBytes } from "@shared/utils/crypto";
 import type { X402PaymentPayload } from "@shared/types/x402";
 import type { BgRequest } from "@shared/types/messages";
@@ -237,7 +238,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         msg.name,
         msg.address,
         msg.sessionTopic,
-        msg.peerName
+        msg.peerName,
+        msg.chain as ChainId | undefined
       );
       return { account };
     }
@@ -328,6 +330,22 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const activeAccount = approveMeta.accounts.find((a) => a.id === approveMeta.activeAccountId);
 
       if (activeAccount?.type === "walletconnect") {
+        // Guard: WC sessions are chain-specific — reject before touching the WC SDK
+        // if the payment's chain differs from the chain the session was approved for.
+        const paymentChain = resolveChain(req.paymentRequirements.network);
+        const accountChain = (activeAccount.wcChain ?? paymentChain ?? "algorand") as ChainId;
+        // Only block when wcChain is explicitly recorded and mismatches the payment chain.
+        // Accounts created before this field was added (wcChain undefined) skip the guard
+        // and let the WC SDK validate the session namespaces directly.
+        if (paymentChain && activeAccount.wcChain !== undefined && accountChain !== paymentChain) {
+          throw new Error(
+            `This payment requires ${CHAINS[paymentChain].name} but your wallet ` +
+            `(${activeAccount.wcPeerName ?? "mobile wallet"}) was connected on ` +
+            `${CHAINS[accountChain].name}.\n\n` +
+            `To fix: remove this account (✕ next to the name), switch to the ` +
+            `${CHAINS[paymentChain].name} chain, then use + Connect to re-pair your wallet.`
+          );
+        }
         // Build unsigned txn and return params to the approval popup.
         // The pending request is intentionally NOT cleared here —
         // it will be cleared by X402_WC_SIGNED once signing completes.
@@ -397,6 +415,20 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     case "X402_GET_HISTORY":
       // TODO: persist payment records in chrome.storage.session
       return { records: [] };
+
+    // ── enVoi name resolution ─────────────────────────────────────────────────
+    case "VOI_RESOLVE_NAME": {
+      // Guard: only available on Voi chain with an unlocked wallet
+      const resolveMeta = await walletStore.getMeta();
+      if (resolveMeta.activeChain !== "voi") {
+        throw new Error("Name service is only available on the Voi chain");
+      }
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet is locked — unlock before resolving .voi names");
+      }
+      const { address, displayName } = await mcpResolveEnvoi(msg.name);
+      return { address, displayName };
+    }
 
     default:
       throw new Error(`Unknown message type: ${(msg as { type: string }).type}`);

@@ -337,6 +337,11 @@ export default function AccountView() {
               {activeAccount?.type === "walletconnect" && (
                 <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1 py-0 leading-4">
                   {activeAccount.wcPeerName ?? "WC"}
+                  {activeAccount.wcChain && (
+                    <span className={`ml-1 ${activeAccount.wcChain === "voi" ? "text-voi" : "text-algo"}`}>
+                      · {CHAINS[activeAccount.wcChain].name}
+                    </span>
+                  )}
                 </span>
               )}
               <button
@@ -474,20 +479,60 @@ function SendModal({
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
 
+  // enVoi name resolution (Voi only)
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
   // WC signing (only used for walletconnect accounts)
   const { signTransaction } = useWalletConnect();
 
   const availableDisplay = formatAmount(balance, decimals);
   const isWC = activeAccount.type === "walletconnect";
 
+  /**
+   * Match a .voi name on the Voi chain.
+   * Accepts both bare labels ("shelly") and fully-qualified names ("shelly.voi").
+   * A plain 58-char address is never treated as a name.
+   */
+  function isVoiName(s: string): boolean {
+    if (chain !== "voi") return false;
+    const t = s.trim();
+    if (/^[A-Z2-7]{58}$/.test(t)) return false; // plain address — skip
+    return /^[a-zA-Z0-9-]+(\.voi)?$/i.test(t);
+  }
+
   function validateAddress(addr: string): boolean {
     return /^[A-Z2-7]{58}$/.test(addr);
   }
 
+  async function handleResolve() {
+    setResolveError(null);
+    setResolvedAddress(null);
+    setResolving(true);
+    try {
+      const { address } = await sendBg<{ address: string; displayName: string }>({
+        type: "VOI_RESOLVE_NAME",
+        name: to.trim(),
+      });
+      setResolvedAddress(address);
+    } catch (err) {
+      setResolveError(err instanceof Error ? err.message : "Resolution failed");
+    } finally {
+      setResolving(false);
+    }
+  }
+
   async function handleSend() {
     setError(null);
-    const trimTo = to.trim();
+    const trimTo = resolvedAddress ?? to.trim();
     const trimAmt = amount.trim();
+
+    // If the user typed a .voi name but hasn't resolved it yet, block send
+    if (isVoiName(to.trim()) && !resolvedAddress) {
+      setError("Resolve the .voi name before sending");
+      return;
+    }
 
     if (!trimTo || !validateAddress(trimTo)) {
       setError("Invalid recipient address (must be a 58-character Algorand/Voi address)");
@@ -509,6 +554,21 @@ function SendModal({
     try {
       if (isWC && activeAccount.wcSessionTopic) {
         // ── WalletConnect signing path ────────────────────────────────────────
+        // WC sessions are chain-specific: a session approved for Algorand cannot
+        // sign Voi transactions (the WC SDK rejects the chainId).
+        // wcChain records which chain the session was established on; fall back
+        // to "algorand" for accounts created before this field was added.
+        const accountChain = (activeAccount.wcChain ?? chain) as ChainId;
+        // Only block when wcChain is explicitly recorded and mismatches the active chain.
+        // Accounts created before this field was added (wcChain undefined) skip the guard
+        // and let the WC SDK validate the session namespaces directly.
+        if (activeAccount.wcChain !== undefined && accountChain !== chain) {
+          setError(
+            `This account was connected on ${CHAINS[accountChain].name}. ` +
+            `Use the chain toggle (top right) to switch to ${CHAINS[accountChain].name} before sending.`
+          );
+          return;
+        }
         // 1. Get suggested params via algod (popup calls algonode directly)
         const cfg = CHAINS[chain];
         const algod = new algosdk.Algodv2("", cfg.algod.url, cfg.algod.port);
@@ -522,10 +582,11 @@ function SendModal({
           note: noteBytes,
           suggestedParams: params,
         });
-        // 3. Sign on phone via WC (pass chain so correct CAIP-2 id is used)
+        // 3. Sign on phone via WC — use accountChain (not chain) to guarantee the
+        //    CAIP-2 chainId matches what the session was approved for.
         const signedBytes = await signTransaction(
           activeAccount.wcSessionTopic,
-          chain,
+          accountChain,
           txn,
           activeAccount.address
         );
@@ -533,7 +594,7 @@ function SendModal({
         const { txId: id } = await sendBg<{ txId: string }>({
           type: "CHAIN_SUBMIT_SIGNED",
           signedTxn: btoa(String.fromCharCode(...signedBytes)),
-          chain,
+          chain: accountChain,
         });
         setTxId(id);
       } else {
@@ -581,15 +642,78 @@ function SendModal({
         ) : (
           <>
             {/* Recipient */}
-            <label className="block text-xs text-gray-400 mb-1">Recipient address</label>
+            <label className="block text-xs text-gray-400 mb-1">
+              Recipient
+              {chain === "voi" && (
+                <span className="text-gray-600 ml-1">or .voi name</span>
+              )}
+            </label>
             <input
-              className="w-full bg-surface-2 rounded-xl px-3 py-2 text-xs font-mono mb-3 outline-none focus:ring-1 focus:ring-algo placeholder-gray-600"
-              placeholder="AAAA…AAAA (58 characters)"
+              className="w-full bg-surface-2 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-voi placeholder-gray-600"
+              placeholder={chain === "voi" ? "AAAA…AAAA or shelly.voi" : "AAAA…AAAA (58 characters)"}
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => {
+                setTo(e.target.value);
+                // Clear resolved address whenever the input changes
+                setResolvedAddress(null);
+                setResolveError(null);
+              }}
               autoComplete="off"
               spellCheck={false}
             />
+
+            {/* enVoi resolve row — only shown when a .voi name is detected */}
+            {isVoiName(to) && !resolvedAddress && (
+              <div className="mt-1.5 mb-1">
+                <button
+                  type="button"
+                  onClick={handleResolve}
+                  disabled={resolving}
+                  className="flex items-center gap-1.5 text-xs text-voi font-medium bg-voi/10 border border-voi/30 rounded-lg px-2.5 py-1 hover:bg-voi/20 transition-colors disabled:opacity-50"
+                >
+                  {resolving ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-voi border-t-transparent rounded-full animate-spin" />
+                      Resolving…
+                    </>
+                  ) : (
+                    <>
+                      <span>🔍</span>
+                      Resolve via enVoi <span className="text-gray-500 font-normal">(1 VOI)</span>
+                    </>
+                  )}
+                </button>
+                {resolveError && (
+                  <p className="text-xs text-red-400 mt-1">{resolveError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Resolved address confirmation */}
+            {resolvedAddress && (
+              <div className="mt-1.5 mb-1">
+                <div className="flex items-start gap-1.5 bg-voi/10 border border-voi/30 rounded-lg px-2.5 py-1.5">
+                  <span className="text-voi text-xs mt-0.5">✓</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-voi font-medium">{to.trim()}</p>
+                    <p className="text-[10px] text-gray-400 font-mono truncate">{resolvedAddress}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setResolvedAddress(null); setResolveError(null); }}
+                    className="text-gray-500 hover:text-white text-xs ml-1 shrink-0"
+                  >
+                    ×
+                  </button>
+                </div>
+                {/* Security notice: address originates from a third-party service */}
+                <p className="text-[10px] text-gray-600 mt-1 px-1">
+                  ⚠ Address provided by mcp.ilovechicken.co.uk — verify before sending.
+                </p>
+              </div>
+            )}
+
+            <div className="mb-3" />
 
             {/* Amount */}
             <label className="block text-xs text-gray-400 mb-1">
