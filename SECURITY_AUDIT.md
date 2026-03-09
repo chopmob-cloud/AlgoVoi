@@ -263,6 +263,60 @@ api.envoi.sh  (enVoi name registry)
 
 ---
 
+## Addendum — x402 Production Retry Contract (March 2026)
+
+**Scope:** `src/shared/types/x402.ts`, `src/background/x402-handler.ts`,
+`src/background/message-handler.ts`, `src/inpage/index.ts`,
+`tests/x402-handler.test.ts`, `tests/message-handler.test.ts`
+
+### Change Summary
+
+Production x402 servers require the client to:
+1. Echo the exact `PAYMENT-REQUIRED` challenge header on retry (server correlation)
+2. Carry a txId-based on-chain proof in `PAYMENT-SIGNATURE` instead of raw signed tx bytes
+
+This patch implements both requirements with minimal scope — no approval UX changes,
+no refactoring of unrelated wallet logic, no relaxation of existing hardening.
+
+### Protocol changes
+
+| Component | Before | After |
+|-----------|--------|-------|
+| `PAYMENT-SIGNATURE` payload | `{ transaction: base64(signedBytes) }` | `{ txId, payer, transaction? }` |
+| Retry headers | `PAYMENT-SIGNATURE` only | `PAYMENT-REQUIRED` (echoed) + `PAYMENT-SIGNATURE` |
+| `PendingX402Request` | no raw header stored | `rawPaymentRequired` stored after validation |
+
+`transaction` field retained during rollout for backward compat with pre-production servers.
+
+### Security properties verified
+
+| Property | Result |
+|----------|--------|
+| `rawPaymentRequired` validated via `parsePaymentRequired()` before storage | ✅ Fail-closed |
+| `rawPaymentRequired` sourced from `response.headers` (network), not page DOM | ✅ Not page-controlled |
+| echoed header set from locally-scoped variable in fetch interceptor closure | ✅ No round-trip through inpage message payload |
+| `txId` from `txn.txID()` (vault) / `submitTransaction()` return (WC) — never empty | ✅ |
+| `payer` resolved from `walletStore.getMeta()` active account — fail-closed guard if absent | ✅ |
+| Lock race: `getLockState()` re-checked after pending request found, before signing | ✅ Unchanged |
+| Per-origin queue cap (H3), spending cap (M5), balance preflight: all preserved | ✅ Unchanged |
+| Cookie strip on retry (M3), request-id isolation (H4), origin cap (H3): all preserved | ✅ Unchanged |
+| `clearPendingRequest()` called before `tabs.sendMessage` — double-spend prevention | ✅ Unchanged |
+| WC path: payer fail-closed guard added (`Cannot determine payer address`) | ✅ New |
+| txId sent in `X402_RESULT` for both vault and WC paths | ✅ New |
+
+**Verdict: SAFE TO MERGE — all 10 audit checklist items PASS.**
+
+### Tests added
+
+- `tests/x402-handler.test.ts` — 23 new tests (AUTO-11: `parsePaymentRequired`,
+  AUTO-12: `pickAVMOption`, AUTO-13: `buildAndSignPayment` txId+payer payload)
+- `tests/message-handler.test.ts` — 8 new tests (AUTO-06 extended: WC txId contract,
+  WC payer fail-closed guard; AUTO-14: vault path txId in `X402_RESULT`)
+
+121/121 tests passing after patch.
+
+---
+
 ## Addendum — Bundle Security Review (March 2026)
 
 **Scope:** Compiled `dist/` output after the enVoi integration and vm-polyfill fix.

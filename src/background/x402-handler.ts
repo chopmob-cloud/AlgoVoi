@@ -225,11 +225,16 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
 /**
  * Build, sign (vault key), and encode the AVM x402 payment.
  * Used when the active account is a mnemonic/vault account.
+ *
+ * The PAYMENT-SIGNATURE payload includes:
+ *   - txId:  the submitted transaction ID (production proof)
+ *   - payer: the sender address
+ *   - transaction: legacy base64 signed bytes (compat; remove after server migration)
  */
 export async function buildAndSignPayment(
   req: PendingX402Request
 ): Promise<{ paymentHeader: string; txId: string }> {
-  const { txn, chain } = await buildPaymentTransaction(req);
+  const { txn, chain, senderAddress } = await buildPaymentTransaction(req);
   const pr = req.paymentRequirements;
 
   const sk = await walletStore.getActiveSecretKey();
@@ -240,7 +245,13 @@ export async function buildAndSignPayment(
     x402Version: X402_VERSION,
     scheme: pr.scheme,
     network: pr.network,
-    payload: { transaction: btoa(String.fromCharCode(...signedBytes)) },
+    payload: {
+      txId,
+      payer: senderAddress,
+      // Included during rollout for backward compat with pre-production servers.
+      // Remove once all servers verify via txId only.
+      transaction: btoa(String.fromCharCode(...signedBytes)),
+    },
   };
   const paymentHeader = btoa(JSON.stringify(payload));
 
@@ -389,6 +400,9 @@ export async function handleX402(params: {
     tabOrigin: requestOrigin,
     // Store inpage-provided ID for tab routing only (see X402_RESULT in message-handler).
     inpageRequestId: params.inpageRequestId,
+    // Validated above via parsePaymentRequired(); stored verbatim so it can be
+    // echoed as the PAYMENT-REQUIRED header on retry for server-side correlation.
+    rawPaymentRequired: params.rawPaymentRequired,
   };
   _pendingRequests.set(requestId, pending);
 

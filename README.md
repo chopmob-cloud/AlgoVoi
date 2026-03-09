@@ -43,8 +43,10 @@ Page (dApp)
 
 **x402 flow:**
 ```
-fetch() → 402 response → inpage intercepts → approval popup → user approves
-  → background signs + submits txn → retry fetch with X-PAYMENT header
+fetch() → 402 response (PAYMENT-REQUIRED header)
+  → inpage intercepts → approval popup → user approves
+  → background signs + submits txn → txId captured
+  → retry fetch with PAYMENT-REQUIRED echoed + PAYMENT-SIGNATURE (txId proof)
 ```
 
 ---

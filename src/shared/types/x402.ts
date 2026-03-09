@@ -52,11 +52,24 @@ export interface PaymentRequired {
 
 /**
  * AVM-specific payment payload (analogous to EVM's EIP-3009 authorization).
- * The signed AVM transaction group encodes the payment atomically.
+ *
+ * Production format (v2 contract):
+ *   The client submits the transaction to the chain first, then proves
+ *   payment by sending the resulting txId + payer address.  The server
+ *   verifies the on-chain state rather than processing raw tx bytes.
  */
 export interface AVMPaymentPayloadInner {
-  /** Base64-encoded signed transaction bytes (algosdk msgpack) */
-  transaction: string;
+  /** Transaction ID of the submitted on-chain payment (production proof). */
+  txId: string;
+  /** Payer AVM address (base32) that funded the payment. */
+  payer: string;
+  /**
+   * @deprecated Legacy: base64-encoded signed transaction msgpack bytes.
+   * Included during rollout for backward compatibility with pre-production
+   * servers that still inspect raw tx bytes.
+   * Remove this field after all servers have migrated to txId verification.
+   */
+  transaction?: string;
   /** Optional nonce/context echoed from the server's PaymentRequirements */
   context?: string;
 }
@@ -100,6 +113,13 @@ export interface PendingX402Request {
    * M1: Used for per-origin cap counting to prevent origin spoofing.
    */
   tabOrigin?: string;
+  /**
+   * The exact raw base64 value of the PAYMENT-REQUIRED response header,
+   * validated via parsePaymentRequired() before storage.
+   * Stored so the retry can echo it verbatim as the PAYMENT-REQUIRED
+   * request header, allowing the server to correlate retry ↔ challenge.
+   */
+  rawPaymentRequired?: string;
 }
 
 /** Result of a completed payment signing */
