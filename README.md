@@ -164,6 +164,20 @@ UluMCP is a working example of x402 on Voi — deploy it with `X402_AVM_PAY_TO` 
 
 The AlgoVoi **Bazaar DevTools panel** is designed to surface marketplace listings from services like UluMCP (`mp_listings`, `mp_sales`).
 
+### Live x402 Endpoints (AVM)
+
+Public endpoints for testing x402 clients against real on-chain payments:
+
+| Endpoint | Network | Asset | Price |
+|----------|---------|-------|-------|
+| `GET https://api.ilovechicken.co.uk/api/premium` | Algorand mainnet | USDC (ASA 31566704) | 0.01 USDC |
+| `GET https://api.ilovechicken.co.uk/api/voi-premium` | Voi mainnet | aUSDC (ASA 302190) | 0.01 aUSDC |
+| `GET https://api.ilovechicken.co.uk/api/config` | — | — | Public (no payment) |
+
+Both endpoints implement the full x402 server contract: HMAC-signed intent tokens,
+single-use replay protection, and on-chain verification via the Algorand/Voi indexer.
+Open for any x402 client to test against — each call costs the caller real USDC/aUSDC.
+
 ---
 
 ## Development
