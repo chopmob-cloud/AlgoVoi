@@ -83,6 +83,7 @@ import { walletStore } from "../src/background/wallet-store";
 import { buildAndSignPayment, getPendingRequest, resolveChain } from "../src/background/x402-handler";
 import { requestApproval, countPendingByOrigin } from "../src/background/approval-handler";
 import { mcpResolveEnvoi } from "../src/background/mcp-client";
+import { submitTransaction } from "../src/background/chain-clients";
 import type { PendingX402Request } from "../src/shared/types/x402";
 
 // ── Chrome global stub ─────────────────────────────────────────────────────────
@@ -538,6 +539,90 @@ describe("AUTO-09: CHAIN_SEND_ASSET decimals bounds check", () => {
     );
     expect(resp.ok).toBe(false);
     expect(resp.error).toMatch("Invalid decimals");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-06 (extended): X402_WC_SIGNED sends txId in X402_RESULT
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-06 (extended): X402_WC_SIGNED txId-based retry contract", () => {
+  it("sends X402_RESULT with txId captured from submitTransaction", async () => {
+    vi.mocked(submitTransaction).mockResolvedValue("WC_TXID_ABC123");
+    const req = { ...FAKE_X402_REQ, inpageRequestId: "inpage-wc-txid" };
+    vi.mocked(getPendingRequest).mockReturnValue(req);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(resolveChain).mockReturnValue("voi" as any);
+
+    await sendMessage({
+      type: "X402_WC_SIGNED",
+      requestId: "bg-req-txid",
+      signedTxnB64: btoa("fakesigned"),
+    } as BgRequest);
+
+    expect(mockChrome.tabs.sendMessage).toHaveBeenCalledWith(
+      req.tabId,
+      expect.objectContaining({ type: "X402_RESULT", txId: "WC_TXID_ABC123" })
+    );
+  });
+
+  it("X402_WC_SIGNED returns { paymentHeader, txId } to caller", async () => {
+    vi.mocked(submitTransaction).mockResolvedValue("WC_TXID_RETURN");
+    const req = { ...FAKE_X402_REQ, inpageRequestId: "inpage-wc-ret" };
+    vi.mocked(getPendingRequest).mockReturnValue(req);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(resolveChain).mockReturnValue("voi" as any);
+
+    const resp = await sendMessage({
+      type: "X402_WC_SIGNED",
+      requestId: "bg-req-ret",
+      signedTxnB64: btoa("fakesigned"),
+    } as BgRequest);
+
+    expect(resp.ok).toBe(true);
+    expect((resp.data as { txId?: string }).txId).toBe("WC_TXID_RETURN");
+  });
+
+  it("X402_WC_SIGNED fails closed when active account cannot be resolved for payer", async () => {
+    vi.mocked(submitTransaction).mockResolvedValue("WC_TXID_PAYER_ERR");
+    vi.mocked(getPendingRequest).mockReturnValue(FAKE_X402_REQ);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(resolveChain).mockReturnValue("voi" as any);
+    // No account matches activeAccountId
+    vi.mocked(walletStore.getMeta).mockResolvedValue(
+      makeMeta({ activeAccountId: "nonexistent" })
+    );
+
+    const resp = await sendMessage({
+      type: "X402_WC_SIGNED",
+      requestId: "bg-req-payer-err",
+      signedTxnB64: btoa("fakesigned"),
+    } as BgRequest);
+
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toMatch("Cannot determine payer address");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUTO-14: X402_APPROVE vault path sends txId in X402_RESULT
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe("AUTO-14: X402_APPROVE vault path sends txId in X402_RESULT", () => {
+  it("sends X402_RESULT with txId from buildAndSignPayment", async () => {
+    const req = { ...FAKE_X402_REQ, inpageRequestId: "inpage-vault-txid" };
+    vi.mocked(getPendingRequest).mockReturnValue(req);
+    vi.mocked(buildAndSignPayment).mockResolvedValue({
+      paymentHeader: "ph-vault",
+      txId: "VAULT_TXID_XYZ",
+    });
+
+    await sendMessage({ type: "X402_APPROVE", requestId: "bg-vault-1" } as BgRequest);
+
+    expect(mockChrome.tabs.sendMessage).toHaveBeenCalledWith(
+      req.tabId,
+      expect.objectContaining({ type: "X402_RESULT", txId: "VAULT_TXID_XYZ" })
+    );
   });
 });
 

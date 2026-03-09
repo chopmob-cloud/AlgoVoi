@@ -242,6 +242,11 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
     // this endpoint is the intended recipient before enabling x402 payments.
     console.warn("[AlgoVoi] x402 retry: Authorization header forwarded — verify endpoint.");
   }
+  // Echo the exact PAYMENT-REQUIRED value from the original 402 response so the
+  // server can correlate this retry with the payment challenge it issued.
+  // rawPaymentRequired is derived from response.headers (network-provided, not
+  // page-controlled) and was validated by the background before approval.
+  retryHeaders.set(HEADER_PAYMENT_REQUIRED, rawPaymentRequired);
   retryHeaders.set(HEADER_PAYMENT_SIGNATURE, paymentSignature);
   return _originalFetch(input, { ...init, headers: retryHeaders });
 };

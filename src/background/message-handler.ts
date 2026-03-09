@@ -586,17 +586,31 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       const signedBytes = base64ToBytes(msg.signedTxnB64);
 
+      // Submit and capture the on-chain txId for the proof payload.
+      const txId = await submitTransaction(chain, signedBytes);
+
+      // Resolve the payer address from the active account.
+      // Fail closed if the account cannot be identified — never send an empty proof.
+      const wcMeta = await walletStore.getMeta();
+      const payer = wcMeta.accounts.find((a) => a.id === wcMeta.activeAccountId)?.address;
+      if (!payer) throw new Error("Cannot determine payer address for WC payment proof");
+
       // Re-encode as standard base64 in case Defly/Pera returned URL-safe base64
       const signedTxnStdB64 = btoa(String.fromCharCode(...signedBytes));
       const wcPayload: X402PaymentPayload = {
         x402Version: X402_VERSION,
         scheme: pr.scheme,
         network: pr.network,
-        payload: { transaction: signedTxnStdB64 },
+        payload: {
+          txId,
+          payer,
+          // Included during rollout for backward compat with pre-production servers.
+          // Remove once all servers verify via txId only.
+          transaction: signedTxnStdB64,
+        },
       };
       const paymentHeader = btoa(JSON.stringify(wcPayload));
 
-      await submitTransaction(chain, signedBytes);
       clearPendingRequest(msg.requestId);
 
       chrome.tabs.sendMessage(req.tabId, {
@@ -604,8 +618,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         requestId: req.inpageRequestId ?? req.id,
         approved: true,
         paymentHeader,
+        txId,
       });
-      return { paymentHeader };
+      return { paymentHeader, txId };
     }
 
     case "X402_REJECT": {
