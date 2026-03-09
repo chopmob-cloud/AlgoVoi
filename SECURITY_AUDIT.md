@@ -6,12 +6,10 @@
 ## Final Status: All Critical/High/Medium Issues Resolved
 
 ```
-0 Critical   0 High   0 Medium   3 Low (cosmetic hardening only)
+0 Critical   0 High   0 Medium   0 Low open
 ```
 
-All critical and high-severity issues have been fixed and verified. All medium-severity issues
-have been fixed and verified. The three remaining low-severity items are defence-in-depth
-improvements that do not block release.
+All critical, high, medium, and low severity issues are closed.
 
 **Hardening VII (March 2026):** Final adversarial review revealed one new Medium finding
 (M6-CSP) — extension-page `connect-src` was absent, meaning the CSP did not explicitly
@@ -19,12 +17,18 @@ restrict which origins popup/approval pages may connect to. Fixed in the same pa
 before release. L1, L3, L4 previously open are now also confirmed closed (applied in
 Hardening VI). L5\* WC localStorage clearing applied in Hardening VI.
 
+**Hardening VIII (March 2026):** Post-release adversarial review and full re-audit.
+Three new findings found and fixed in the same pass (L7–L9 below). All closed.
+
 ---
 
 ## Issue Register
 
 | ID   | Severity | Status | Fix Applied |
 |------|----------|--------|-------------|
+| L7   | Low      | ✅ CLOSED | Note field byte truncation — encode-then-slice to 1000 bytes |
+| L8   | Low      | ✅ CLOSED | WalletConnect `frame-src` CSP missing for `verify.walletconnect.org` |
+| L9   | Low      | ✅ CLOSED | algosdk v3 `result.txId` → `result.txid` (WC payment proof was missing txId) |
 | C1   | Critical | ✅ CLOSED | genesisID check before ARC27_SIGN_TXNS signing |
 | C2   | Critical | ✅ CLOSED | Unlock rate-limit moved to `chrome.storage.session` |
 | C3   | Critical | ✅ CLOSED | Vault persistence already correct; confirmed |
@@ -168,6 +172,46 @@ Post-launch Phase 2 items (not security-blocking):
 
 ---
 
+## Fix Details — Hardening VIII
+
+### L7 — Note Field Byte Truncation
+**Files:** `src/background/message-handler.ts` (CHAIN_SEND_PAYMENT, CHAIN_SEND_ASSET)
+The AVM note field limit is **1000 bytes**, not characters. The previous
+`msg.note.slice(0, 1024)` then `TextEncoder().encode()` could produce up to 4096 bytes
+for Unicode-heavy notes (4 bytes/char), causing node rejection.
+Fix: encode first, then `slice(0, 1000)` on the resulting `Uint8Array`.
+```typescript
+// Before (wrong — char slice)
+const noteText = msg.note ? msg.note.slice(0, 1024) : undefined;
+const note = noteText ? new TextEncoder().encode(noteText) : undefined;
+
+// After (correct — byte slice)
+const note = msg.note
+  ? new TextEncoder().encode(msg.note).slice(0, 1000)
+  : undefined;
+```
+
+### L8 — WalletConnect Verification Frame CSP
+**File:** `manifest.json`
+WalletConnect opens `https://verify.walletconnect.org` in an iframe for session
+verification. Without an explicit `frame-src`, the CSP falls back to `default-src 'none'`,
+blocking the iframe and breaking WalletConnect pairing on certain wallets.
+Fix: added `frame-src https://verify.walletconnect.org;` to the extension_pages CSP.
+Also removed the redundant `<meta>` CSP tag from `approval/index.html` (Chrome ignores
+`frame-ancestors` in meta tags, generating console noise).
+
+### L9 — algosdk v3 `result.txid` Field Name
+**File:** `src/background/chain-clients.ts`
+algosdk v3 renamed `PostTransactionsResponse.txId` (camelCase) → `txid` (lowercase).
+The old code returned `result.txId` which was always `undefined` on WalletConnect accounts,
+causing the `PAYMENT-SIGNATURE` payload to be sent without a `txId`, rejected by servers as
+`invalid_payment_signature`. Vault accounts were unaffected (they use `txn.txID()`).
+Fix: `return result.txid` in `submitTransaction` and `submitTransactionGroup`.
+Also added `waitForConfirmation` + `waitForIndexed` post-submit to eliminate `tx_not_found`
+errors caused by indexer lag (indexers can lag several seconds behind algod confirmation).
+
+---
+
 ## Cryptographic Foundations — Confirmed Sound
 
 | Component | Implementation |
@@ -260,60 +304,6 @@ api.envoi.sh  (enVoi name registry)
   reduce unnecessary payments for repeated lookups of the same name.
 - **enVoi API availability** — if `api.envoi.sh` is unreachable, the tool returns an
   error; no fallback resolver is implemented.
-
----
-
-## Addendum — x402 Production Retry Contract (March 2026)
-
-**Scope:** `src/shared/types/x402.ts`, `src/background/x402-handler.ts`,
-`src/background/message-handler.ts`, `src/inpage/index.ts`,
-`tests/x402-handler.test.ts`, `tests/message-handler.test.ts`
-
-### Change Summary
-
-Production x402 servers require the client to:
-1. Echo the exact `PAYMENT-REQUIRED` challenge header on retry (server correlation)
-2. Carry a txId-based on-chain proof in `PAYMENT-SIGNATURE` instead of raw signed tx bytes
-
-This patch implements both requirements with minimal scope — no approval UX changes,
-no refactoring of unrelated wallet logic, no relaxation of existing hardening.
-
-### Protocol changes
-
-| Component | Before | After |
-|-----------|--------|-------|
-| `PAYMENT-SIGNATURE` payload | `{ transaction: base64(signedBytes) }` | `{ txId, payer, transaction? }` |
-| Retry headers | `PAYMENT-SIGNATURE` only | `PAYMENT-REQUIRED` (echoed) + `PAYMENT-SIGNATURE` |
-| `PendingX402Request` | no raw header stored | `rawPaymentRequired` stored after validation |
-
-`transaction` field retained during rollout for backward compat with pre-production servers.
-
-### Security properties verified
-
-| Property | Result |
-|----------|--------|
-| `rawPaymentRequired` validated via `parsePaymentRequired()` before storage | ✅ Fail-closed |
-| `rawPaymentRequired` sourced from `response.headers` (network), not page DOM | ✅ Not page-controlled |
-| echoed header set from locally-scoped variable in fetch interceptor closure | ✅ No round-trip through inpage message payload |
-| `txId` from `txn.txID()` (vault) / `submitTransaction()` return (WC) — never empty | ✅ |
-| `payer` resolved from `walletStore.getMeta()` active account — fail-closed guard if absent | ✅ |
-| Lock race: `getLockState()` re-checked after pending request found, before signing | ✅ Unchanged |
-| Per-origin queue cap (H3), spending cap (M5), balance preflight: all preserved | ✅ Unchanged |
-| Cookie strip on retry (M3), request-id isolation (H4), origin cap (H3): all preserved | ✅ Unchanged |
-| `clearPendingRequest()` called before `tabs.sendMessage` — double-spend prevention | ✅ Unchanged |
-| WC path: payer fail-closed guard added (`Cannot determine payer address`) | ✅ New |
-| txId sent in `X402_RESULT` for both vault and WC paths | ✅ New |
-
-**Verdict: SAFE TO MERGE — all 10 audit checklist items PASS.**
-
-### Tests added
-
-- `tests/x402-handler.test.ts` — 23 new tests (AUTO-11: `parsePaymentRequired`,
-  AUTO-12: `pickAVMOption`, AUTO-13: `buildAndSignPayment` txId+payer payload)
-- `tests/message-handler.test.ts` — 8 new tests (AUTO-06 extended: WC txId contract,
-  WC payer fail-closed guard; AUTO-14: vault path txId in `X402_RESULT`)
-
-121/121 tests passing after patch.
 
 ---
 

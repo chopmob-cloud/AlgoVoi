@@ -5,7 +5,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getAccountState, getSuggestedParams, submitTransaction } from "./chain-clients";
+import { getAccountState, getSuggestedParams, submitTransaction, waitForConfirmation, waitForIndexed } from "./chain-clients";
 import { CHAINS, X402_VERSION } from "@shared/constants";
 import {
   handleX402,
@@ -214,9 +214,11 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const cfg = CHAINS[chain];
       // BigInt-safe decimal → atomic conversion (avoids float rounding errors)
       const amountAtomic = parseDecimalToAtomic(msg.amount, cfg.decimals);
-      // Bound note to 1024 bytes max (AVM limit is 1000, we leave headroom)
-      const noteText = msg.note ? msg.note.slice(0, 1024) : undefined;
-      const note = noteText ? new TextEncoder().encode(noteText) : undefined;
+      // Encode then byte-slice to the AVM 1000-byte note limit (safer than char-slice
+      // which would overshoot for multi-byte characters).
+      const note = msg.note
+        ? new TextEncoder().encode(msg.note).slice(0, 1000)
+        : undefined;
       const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: senderAddress,
         receiver: msg.to,
@@ -247,8 +249,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const params = await getSuggestedParams(chain);
       // Use msg.decimals passed by the frontend (frontend has full AccountAsset metadata)
       const amountAtomic = parseDecimalToAtomic(msg.amount, msg.decimals);
-      const noteText = msg.note ? msg.note.slice(0, 1024) : undefined;
-      const note = noteText ? new TextEncoder().encode(noteText) : undefined;
+      const note = msg.note
+        ? new TextEncoder().encode(msg.note).slice(0, 1000)
+        : undefined;
       const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
         sender: senderAddress,
         receiver: msg.to,
@@ -588,6 +591,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       // Submit and capture the on-chain txId for the proof payload.
       const txId = await submitTransaction(chain, signedBytes);
+
+      // Wait for algod confirmation then poll indexer — eliminates tx_not_found.
+      await waitForConfirmation(chain, txId, 8);
+      await waitForIndexed(chain, txId);
 
       // Resolve the payer address from the active account.
       // Fail closed if the account cannot be identified — never send an empty proof.

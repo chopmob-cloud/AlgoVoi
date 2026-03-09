@@ -62,7 +62,8 @@ export async function submitTransaction(
   signedTxn: Uint8Array
 ): Promise<string> {
   const result = await getAlgodClient(chain).sendRawTransaction(signedTxn).do();
-  return result.txId;
+  // algosdk v3: PostTransactionsResponse stores the id as `.txid` (lowercase)
+  return result.txid;
 }
 
 export async function submitTransactionGroup(
@@ -71,7 +72,7 @@ export async function submitTransactionGroup(
 ): Promise<string> {
   const combined = algosdk.concatArrays(...signedTxns);
   const result = await getAlgodClient(chain).sendRawTransaction(combined).do();
-  return result.txId;
+  return result.txid;
 }
 
 /** Wait for transaction confirmation (up to maxRounds) */
@@ -81,6 +82,30 @@ export async function waitForConfirmation(
   maxRounds = 10
 ): Promise<algosdk.modelsv2.PendingTransactionResponse> {
   return algosdk.waitForConfirmation(getAlgodClient(chain), txId, maxRounds);
+}
+
+/**
+ * Poll the indexer until a transaction is indexed (visible to the server).
+ * Must be called after waitForConfirmation so the tx is already on-chain.
+ * Indexers can lag several seconds behind algod even after block confirmation.
+ */
+export async function waitForIndexed(
+  chain: ChainId,
+  txId: string,
+  maxAttempts = 20,
+  intervalMs = 1000
+): Promise<void> {
+  const indexer = getIndexerClient(chain);
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await indexer.lookupTransactionByID(txId).do();
+      return; // indexed
+    } catch {
+      // 404 — not indexed yet; wait and retry
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+  }
+  // Best-effort: proceed anyway — server may still reject with tx_not_found
 }
 
 /** Check if an account has opted in to a given ASA */
