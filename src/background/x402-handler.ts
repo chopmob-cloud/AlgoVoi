@@ -21,7 +21,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getSuggestedParams, hasOptedIn, submitTransaction, getAccountState } from "./chain-clients";
+import { getSuggestedParams, hasOptedIn, submitTransaction, waitForConfirmation, waitForIndexed, getAccountState } from "./chain-clients";
 import { X402_VERSION, APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
 import type {
@@ -273,6 +273,12 @@ export async function buildAndSignPayment(
     }
     // Duplicate/already-submitted is expected for retried x402 payments — not an error.
   }
+
+  // Wait for algod confirmation, then poll the indexer until the transaction
+  // is indexed. The indexer can lag several seconds behind algod even after
+  // block confirmation — waitForIndexed eliminates the fixed-delay guesswork.
+  await waitForConfirmation(chain, txId, 8);
+  await waitForIndexed(chain, txId);
 
   return { paymentHeader, txId };
 }
