@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AlgoVoi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
   "icons": {
     "16": "icons/icon16.png",
@@ -32,8 +32,6 @@
     "storage",
     "alarms",
     "tabs",
-    "activeTab",
-    "notifications",
     "windows"
   ],
   "host_permissions": [

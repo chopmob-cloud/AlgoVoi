@@ -1,13 +1,13 @@
 {
   "name": "algovou",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
   "author": "MaidToShelly",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MaidToShelly/algovou"
+    "url": "https://github.com/chopmob-cloud/AlgoVoi"
   },
-  "homepage": "https://github.com/MaidToShelly/algovou#readme",
+  "homepage": "https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html",
   "private": true,
   "type": "module",
   "scripts": {
