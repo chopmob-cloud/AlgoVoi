@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlgoVoi – Privacy Policy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #fff;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin: 36px 0 10px; color: #111; }
+    p  { margin-bottom: 14px; color: #333; }
+    ul { margin: 0 0 14px 22px; color: #333; }
+    li { margin-bottom: 6px; }
+    .meta { color: #666; font-size: 0.9rem; margin-bottom: 40px; }
+    a { color: #0070f3; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    hr { border: none; border-top: 1px solid #e5e5e5; margin: 40px 0; }
+    .callout {
+      background: #f0f9ff;
+      border-left: 4px solid #0070f3;
+      padding: 14px 18px;
+      border-radius: 4px;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AlgoVoi Privacy Policy</h1>
+  <p class="meta">Last updated: March 11, 2026</p>
+
+  <div class="callout">
+    <strong>Short version:</strong> AlgoVoi stores your encrypted wallet data only on your own device.
+    We do not collect, transmit, or sell any personal information.
+  </div>
+
+  <h2>1. Who We Are</h2>
+  <p>
+    AlgoVoi is an open-source Chrome extension developed by Chopmob Cloud. It provides a non-custodial
+    Web3 wallet for the Algorand and Voi blockchain networks, along with native support for the x402
+    HTTP payment protocol. The source code is publicly available at
+    <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener">
+      github.com/chopmob-cloud/AlgoVoi</a>.
+  </p>
+
+  <h2>2. Data We Do Not Collect</h2>
+  <p>AlgoVoi does <strong>not</strong>:</p>
+  <ul>
+    <li>Collect, transmit, or store any personally identifiable information on external servers.</li>
+    <li>Track your browsing activity, visited URLs, or transaction history on any server we control.</li>
+    <li>Sell, share, or license any user data to third parties.</li>
+    <li>Use analytics, advertising, or crash-reporting services.</li>
+    <li>Require account registration or email address.</li>
+  </ul>
+
+  <h2>3. Data Stored Locally on Your Device</h2>
+  <p>
+    All sensitive data is stored exclusively in your browser's
+    <code>chrome.storage.local</code>, which is private to the extension and never accessible
+    to websites you visit.
+  </p>
+  <ul>
+    <li>
+      <strong>Encrypted wallet vault</strong> — Your private keys and seed phrases are encrypted
+      using PBKDF2 (600,000 iterations) key derivation followed by AES-GCM 256-bit encryption
+      before being written to local storage. The plaintext is never written to disk.
+    </li>
+    <li>
+      <strong>Wallet preferences</strong> — Active account index, selected network (Algorand / Voi),
+      and UI settings are stored unencrypted in local storage.
+    </li>
+    <li>
+      <strong>Session state</strong> — WalletConnect pairing URIs and pending transaction queues
+      are held in memory during your browser session and are not persisted after the extension
+      service worker is unloaded.
+    </li>
+  </ul>
+
+  <h2>4. Network Requests Made by the Extension</h2>
+  <p>
+    AlgoVoi communicates only with the following external services, solely to fulfill wallet
+    functionality. No personal data accompanies these requests beyond what is inherent to
+    blockchain transactions (e.g., your public wallet address).
+  </p>
+  <ul>
+    <li>
+      <strong>Algorand node &amp; indexer</strong> (<code>mainnet-api.algonode.cloud</code>,
+      <code>mainnet-idx.algonode.cloud</code>) — to query balances, submit signed transactions,
+      and retrieve on-chain data.
+    </li>
+    <li>
+      <strong>Voi node &amp; indexer</strong> (<code>mainnet-api.voi.nodely.dev</code>,
+      <code>mainnet-idx.voi.nodely.dev</code>) — same purpose for the Voi network.
+    </li>
+    <li>
+      <strong>WalletConnect relay</strong> (<code>*.walletconnect.com</code>,
+      <code>*.walletconnect.org</code>) — to enable QR-code wallet pairing with dApps via the
+      WalletConnect v2 protocol. Only encrypted session payloads are transmitted; WalletConnect
+      does not receive your private keys.
+    </li>
+    <li>
+      <strong>x402 payment endpoints</strong> — when you approve an x402 payment, the extension
+      constructs and submits a signed Algorand/Voi transaction to the merchant's endpoint. Only
+      the signed transaction (which contains your public address) is transmitted; your private key
+      never leaves your device.
+    </li>
+  </ul>
+
+  <h2>5. Permissions Used and Why</h2>
+  <ul>
+    <li><strong>storage</strong> — to persist the encrypted vault and preferences locally.</li>
+    <li><strong>alarms</strong> — to schedule periodic session keep-alive checks in the service worker.</li>
+    <li><strong>tabs</strong> — to open the WalletConnect pairing page in the extension popup and
+        to communicate with the active page during x402 payment flows.</li>
+    <li><strong>windows</strong> — to open the x402 payment approval popup window.</li>
+    <li>
+      <strong>Host permissions</strong> (Algorand, Voi, WalletConnect domains) — to make API calls
+      to the blockchain nodes and WalletConnect relay listed above.
+    </li>
+    <li>
+      <strong>Content script on <code>https://*/*</code></strong> — to inject the
+      <code>window.algorand</code> ARC-0027 provider and x402 fetch interceptor into web pages,
+      allowing dApps to request transaction signing. The content script cannot read page content
+      and only passes signing requests to the extension background.
+    </li>
+  </ul>
+
+  <h2>6. Children's Privacy</h2>
+  <p>
+    AlgoVoi is not directed at children under 13 years of age. We do not knowingly collect any
+    information from children.
+  </p>
+
+  <h2>7. Changes to This Policy</h2>
+  <p>
+    If we make material changes to this policy, we will update the "Last updated" date above and
+    publish the updated policy at this URL. Continued use of the extension after changes constitutes
+    acceptance of the revised policy.
+  </p>
+
+  <h2>8. Contact</h2>
+  <p>
+    Questions or concerns? Open an issue on
+    <a href="https://github.com/chopmob-cloud/AlgoVoi/issues" target="_blank" rel="noopener">
+      GitHub</a>.
+  </p>
+
+  <hr />
+  <p style="font-size:0.85rem; color:#888;">
+    AlgoVoi is open-source software released under the MIT License.
+    This privacy policy applies to the AlgoVoi Chrome extension only.
+  </p>
+
+</body>
+</html>
