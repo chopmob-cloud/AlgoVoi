@@ -67,12 +67,16 @@ export default function WalletSetup({ onComplete }: { onComplete: () => void }) 
     setError("");
     if (password !== confirmPassword) return setError("Passwords do not match");
     if (password.length < 8) return setError("Password must be at least 8 characters");
+    // Normalize whitespace: algosdk splits by single space only, so newlines or
+    // multiple spaces between words (common when pasting from wallet backups) cause
+    // a false "invalid mnemonic" error without this step.
+    const normalized = importMnemonic.trim().split(/\s+/).join(" ");
     try {
-      algosdk.mnemonicToSecretKey(importMnemonic.trim());
+      algosdk.mnemonicToSecretKey(normalized);
     } catch {
-      return setError("Invalid mnemonic phrase");
+      return setError("Invalid mnemonic — enter all 25 Algorand words, space-separated");
     }
-    await finalize(importMnemonic.trim());
+    await finalize(normalized);
   }
 
   // Mnemonic wallet init
