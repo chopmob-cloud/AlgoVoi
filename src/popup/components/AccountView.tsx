@@ -625,16 +625,16 @@ function SendModal({
         const noteBytes = note.trim() ? new TextEncoder().encode(note.trim()) : undefined;
         const txn = selectedAsset
           ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              from: activeAccount.address,
-              to: trimTo,
+              sender: activeAccount.address,
+              receiver: trimTo,
               assetIndex: selectedAsset.assetId,
               amount: amtAtomic,
               note: noteBytes,
               suggestedParams: params,
             })
           : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              from: activeAccount.address,
-              to: trimTo,
+              sender: activeAccount.address,
+              receiver: trimTo,
               amount: amtAtomic,
               note: noteBytes,
               suggestedParams: params,

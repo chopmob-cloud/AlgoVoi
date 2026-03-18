@@ -3,13 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- L3: Belt-and-suspenders — chrome-extension:// resources are already
-         non-frameable by the browser, but this makes the intent explicit. -->
     <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none';">
     <title>AlgoVoi — Payment Approval</title>
     <link rel="stylesheet" href="../popup/index.css" />
   </head>
-  <body class="bg-surface-0 text-white" style="width:400px;min-height:600px">
+  <body class="bg-surface-0 text-white body-approval">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

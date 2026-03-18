@@ -144,26 +144,83 @@ function TxnRow({ summary, index }: { summary: TxnSummary; index: number }) {
       </div>
     );
   }
+
+  const typeLabel = summary.applType ? `appl · ${summary.applType}` : summary.type;
+  const isDangerAppl = summary.applType === "UpdateApp" || summary.applType === "DeleteApp";
+
   return (
     <div className="flex flex-col gap-0.5 py-1.5 border-b border-surface-3 last:border-0">
       <div className="flex justify-between items-center">
         <span className="text-xs font-mono text-gray-400">Txn {index + 1}</span>
-        <span className="text-xs font-semibold uppercase tracking-wider text-algo">
-          {summary.type}
+        <span className={`text-xs font-semibold uppercase tracking-wider ${isDangerAppl ? "text-red-400" : "text-algo"}`}>
+          {typeLabel}
         </span>
       </div>
       {summary.sender && (
-        <p className="text-[10px] font-mono text-gray-500 truncate">
-          From: {summary.sender}
-        </p>
+        <p className="text-[10px] font-mono text-gray-500 truncate">From: {summary.sender}</p>
       )}
       {summary.receiver && (
-        <p className="text-[10px] font-mono text-gray-500 truncate">
-          To: {summary.receiver}
-        </p>
+        <p className="text-[10px] font-mono text-gray-500 truncate">To: {summary.receiver}</p>
       )}
       {summary.amount && (
         <p className="text-xs font-semibold text-white">{summary.amount}</p>
+      )}
+
+      {/* ── Dangerous-field warnings ─────────────────────────────────────── */}
+      {summary.blind && (
+        <p className="text-[10px] text-yellow-400 bg-yellow-900/30 rounded px-1.5 py-0.5 mt-0.5">
+          ⚠ Transaction could not be decoded — contents unknown
+        </p>
+      )}
+      {summary.rekeyTo && (
+        <p className="text-[10px] text-red-300 bg-red-900/40 rounded px-1.5 py-0.5 mt-0.5 break-all">
+          🔑 REKEY: permanently transfers account control to {summary.rekeyTo}
+        </p>
+      )}
+      {summary.closeRemainderTo && (
+        <p className="text-[10px] text-red-300 bg-red-900/40 rounded px-1.5 py-0.5 mt-0.5 break-all">
+          ⚠ CLOSE ACCOUNT: ALL remaining ALGO sent to {summary.closeRemainderTo}
+        </p>
+      )}
+      {summary.assetCloseTo && (
+        <p className="text-[10px] text-red-300 bg-red-900/40 rounded px-1.5 py-0.5 mt-0.5 break-all">
+          ⚠ CLOSE ASSET: ALL remaining balance sent to {summary.assetCloseTo}
+        </p>
+      )}
+      {summary.clawbackFrom && (
+        <p className="text-[10px] text-red-300 bg-red-900/40 rounded px-1.5 py-0.5 mt-0.5 break-all">
+          🚨 CLAWBACK: forcibly moves ASA from {summary.clawbackFrom} — funds taken from another account
+        </p>
+      )}
+      {summary.feeMicroalgos !== undefined && summary.feeMicroalgos > 10_000 && (
+        <p className="text-[10px] text-yellow-400 bg-yellow-900/30 rounded px-1.5 py-0.5 mt-0.5">
+          ⚠ High fee: {(summary.feeMicroalgos / 1_000_000).toFixed(6)} (fee {summary.feeMicroalgos.toLocaleString()} µ — {Math.round(summary.feeMicroalgos / 1_000)}× minimum)
+        </p>
+      )}
+      {summary.shortValidityWindow && (
+        <p className="text-[10px] text-orange-400 bg-orange-900/30 rounded px-1.5 py-0.5 mt-0.5">
+          ⚠ Very short validity window — transaction expires in seconds. Do not approve under time pressure.
+        </p>
+      )}
+      {summary.hasLease && (
+        <p className="text-[10px] text-yellow-400 bg-yellow-900/30 rounded px-1.5 py-0.5 mt-0.5">
+          ⚠ LEASE: blocks replacement transactions from this sender until expiry.
+        </p>
+      )}
+      {summary.freezeTarget && (
+        <p className="text-[10px] text-red-300 bg-red-900/40 rounded px-1.5 py-0.5 mt-0.5 break-all">
+          🧊 ASSET {summary.freezing ? "FREEZE" : "UNFREEZE"}: {summary.freezeTarget}
+        </p>
+      )}
+      {summary.keyregOnline !== undefined && (
+        <p className="text-[10px] text-yellow-400 bg-yellow-900/30 rounded px-1.5 py-0.5 mt-0.5">
+          🔑 KEY REGISTRATION: account going {summary.keyregOnline ? "ONLINE (consensus participation enabled)" : "OFFLINE (consensus participation disabled)"}
+        </p>
+      )}
+      {summary.note && (
+        <p className="text-[10px] text-gray-400 font-mono bg-surface-2 rounded px-1.5 py-0.5 mt-0.5 truncate">
+          Note: {summary.note}
+        </p>
       )}
     </div>
   );
@@ -174,6 +231,7 @@ function SignTxnsPage({ requestId }: { requestId: string }) {
   const [loading,   setLoading]  = useState(true);
   const [approving, setApproving] = useState(false);
   const [error,     setError]    = useState("");
+  const [blindAck,  setBlindAck] = useState(false);
 
   useEffect(() => {
     sendBg<{ approval: PendingApproval | null }>({ type: "APPROVAL_GET_PENDING", requestId })
@@ -212,6 +270,9 @@ function SignTxnsPage({ requestId }: { requestId: string }) {
     ? approval.txns.length - approval.indexesToSign.length
     : 0);
 
+  const hasBlind = approval.txnSummaries.some((s) => s.blind);
+  const approveDisabled = hasBlind && !blindAck;
+
   return (
     <div className="flex flex-col min-h-screen p-5 gap-4">
       {/* Header */}
@@ -225,6 +286,15 @@ function SignTxnsPage({ requestId }: { requestId: string }) {
 
       <OriginBadge origin={approval.origin} />
 
+      {/* Atomic group notice */}
+      {approval.txns.length > 1 && (
+        <div className="bg-blue-900/20 border border-blue-700/30 rounded-xl p-3">
+          <p className="text-xs text-blue-300">
+            ℹ {approval.txns.length} transactions — these execute atomically: all succeed or all fail together.
+          </p>
+        </div>
+      )}
+
       <div className="card flex flex-col gap-1">
         <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
           Transactions ({toSign} to sign, {approval.txns.length} total)
@@ -233,6 +303,41 @@ function SignTxnsPage({ requestId }: { requestId: string }) {
           <TxnRow key={i} summary={s} index={i} />
         ))}
       </div>
+
+      {/* Blind-sign acknowledgment gate */}
+      {hasBlind && (
+        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-3 flex flex-col gap-2">
+          <p className="text-xs text-yellow-300 font-semibold">⚠ One or more transactions could not be decoded</p>
+          {approval.txns.map((b64, i) =>
+            approval.txnSummaries[i]?.blind ? (
+              <div key={i} className="flex flex-col gap-1">
+                <p className="text-[10px] text-yellow-400">Transaction {i + 1} raw bytes (hex):</p>
+                <p className="text-[10px] font-mono text-gray-400 bg-surface-2 rounded p-1.5 break-all leading-relaxed">
+                  {(() => {
+                    try {
+                      const bin = atob(b64);
+                      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+                      return Array.from(bytes.slice(0, 96)).map((b) => b.toString(16).padStart(2, "0")).join(" ")
+                        + (bytes.length > 96 ? ` … (${bytes.length} bytes total)` : "");
+                    } catch { return "(could not decode)"; }
+                  })()}
+                </p>
+              </div>
+            ) : null
+          )}
+          <label className="flex items-start gap-2 cursor-pointer mt-1">
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0"
+              checked={blindAck}
+              onChange={(e) => setBlindAck(e.target.checked)}
+            />
+            <span className="text-xs text-yellow-300">
+              I have reviewed the raw bytes above and understand I am signing an undecodable transaction.
+            </span>
+          </label>
+        </div>
+      )}
 
       <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-3">
         <p className="text-xs text-yellow-300">
@@ -252,6 +357,7 @@ function SignTxnsPage({ requestId }: { requestId: string }) {
         onApprove={approve}
         onReject={reject}
         approving={approving}
+        disabled={approveDisabled}
       />
     </div>
   );
@@ -450,6 +556,13 @@ function EnvoiPage({ requestId }: { requestId: string }) {
         <p className="text-xs text-gray-400">
           This fee is charged by the enVoi name service to resolve{" "}
           <strong className="text-white">{approval.name}</strong> to a Voi address.
+        </p>
+      </div>
+
+      <div className="bg-orange-900/30 border border-orange-700/50 rounded-xl p-3">
+        <p className="text-xs text-orange-300">
+          ⚠ This payment will be broadcast to the Voi blockchain and <strong>cannot be reversed</strong>.
+          Only approve if you trust the enVoi name service and intended to resolve this name.
         </p>
       </div>
 

@@ -42,6 +42,57 @@ export interface TxnSummary {
   assetId?: number;
   /** True when this index is NOT in indexesToSign (displayed greyed out) */
   skipped?: boolean;
+
+  // ── Dangerous-field flags (shown as warnings in the approval popup) ─────────
+
+  /** rekeyTo address — permanently transfers signing authority to another key */
+  rekeyTo?: string;
+  /** closeRemainderTo — sends ALL remaining ALGO balance to this address */
+  closeRemainderTo?: string;
+  /** assetCloseTo — sends ALL remaining ASA balance to this address */
+  assetCloseTo?: string;
+  /**
+   * Actual transaction fee in µALGO/µVOI. Always present when the transaction
+   * was decoded. The UI flags it as HIGH when > 10 000 µ (10× the 1 000 µ minimum).
+   */
+  feeMicroalgos?: number;
+  /** decoded note field (UTF-8 text or hex preview for binary data) */
+  note?: string;
+  /** onCompletion label for appl transactions: NoOp / OptIn / CloseOut / ClearState / UpdateApp / DeleteApp */
+  applType?: string;
+  /**
+   * Short validity window flag. True when lastValid - firstValid < 10 rounds
+   * (~40 seconds on Algorand). Phishing indicator — pressures user to approve
+   * before they can read the details.
+   */
+  shortValidityWindow?: boolean;
+  /**
+   * For axfer (asset transfer) clawback transactions: the address being clawed
+   * back from. Non-empty means the transaction forcibly moves ASA units OUT of
+   * another account — one of the most dangerous AVM operations.
+   */
+  clawbackFrom?: string;
+  /**
+   * True when the transaction carries a non-zero lease field.
+   * A lease prevents any other transaction from the same sender with the same
+   * lease from being accepted until this one expires — can be used to lock out
+   * an account from sending replacements.
+   */
+  hasLease?: boolean;
+  /**
+   * For afrz (asset freeze) transactions: the address whose holding is being
+   * frozen or unfrozen, and the direction.
+   */
+  freezeTarget?: string;
+  freezing?: boolean; // true = freeze, false = unfreeze
+  /**
+   * For keyreg transactions: true when the transaction registers (enables)
+   * participation keys; false when it takes the account offline.
+   * Undefined for all other transaction types.
+   */
+  keyregOnline?: boolean;
+  /** true when the transaction could not be decoded — approval popup shows explicit blind-sign gate */
+  blind?: boolean;
 }
 
 /**

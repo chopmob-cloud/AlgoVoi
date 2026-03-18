@@ -38,7 +38,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey>
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -134,7 +134,7 @@ export async function decryptVaultWithKey(
   const ciphertext = hexToBytes(vault.ciphertext);
   let plaintext: ArrayBuffer;
   try {
-    plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv as unknown as ArrayBuffer }, key, ciphertext as unknown as ArrayBuffer);
   } catch {
     throw new Error("Decryption failed — wrong password?");
   }

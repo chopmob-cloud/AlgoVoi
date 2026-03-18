@@ -35,9 +35,17 @@ import type { ChainId } from "@shared/types/chain";
 // ── AVM network identifiers ───────────────────────────────────────────────────
 
 /** All network strings that map to Algorand mainnet */
-const ALGORAND_NETWORKS = new Set(["algorand-mainnet", "algorand:mainnet-v1.0"]);
+const ALGORAND_NETWORKS = new Set([
+  "algorand-mainnet",       // coinbase/x402 spec (hyphen)
+  "algorand_mainnet",       // AlgoVoi platform gateway (underscore)
+  "algorand:mainnet-v1.0",  // CAIP-2
+]);
 /** All network strings that map to Voi mainnet */
-const VOI_NETWORKS = new Set(["voi-mainnet", "voi:voimain-v1.0"]);
+const VOI_NETWORKS = new Set([
+  "voi-mainnet",            // coinbase/x402 spec (hyphen)
+  "voi_mainnet",            // AlgoVoi platform gateway (underscore)
+  "voi:voimain-v1.0",       // CAIP-2
+]);
 
 export function resolveChain(network: string): ChainId | null {
   if (ALGORAND_NETWORKS.has(network)) return "algorand";
@@ -66,7 +74,7 @@ export function clearPendingRequest(id: string): void {
 export function parsePaymentRequired(base64Value: string): PaymentRequired | null {
   try {
     const json = atob(base64Value);
-    const parsed = JSON.parse(json) as Partial<PaymentRequired>;
+    const parsed = JSON.parse(json) as Partial<PaymentRequired> & Partial<PaymentRequirements>;
     // Support both v1 spec (accepts array) and bare PaymentRequirements (legacy)
     if (Array.isArray(parsed.accepts)) {
       return parsed as PaymentRequired;

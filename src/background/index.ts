@@ -8,12 +8,8 @@ import { registerMessageHandler } from "./message-handler";
 // Register the central message router
 registerMessageHandler();
 
-// Service workers can be terminated and restarted by Chrome.
-// Use alarms to keep critical state alive.
-chrome.alarms.create("keepAlive", { periodInMinutes: 0.4 });
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "keepAlive") {
-    // No-op: just keeps the SW alive so wallet lock timers function correctly.
-    // In a production build, consider persisting the lock state to storage.
-  }
-});
+// The MV3 service worker is suspended by Chrome when idle.
+// wallet-store.ts registers an onSuspend listener that clears all in-memory
+// key material when the SW is suspended, so suspension is equivalent to an
+// implicit lock. No keepAlive alarm is needed — and Chrome Web Store policy
+// prohibits artificially prolonging SW lifetime.
