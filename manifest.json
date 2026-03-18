@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AlgoVoi",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
   "icons": {
     "16": "icons/icon16.png",
@@ -44,7 +44,7 @@
     "https://mcp.ilovechicken.co.uk/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.walletconnect.com https://*.walletconnect.org; connect-src 'self' https://mainnet-api.algonode.cloud https://mainnet-idx.algonode.cloud https://mainnet-api.voi.nodely.dev https://mainnet-idx.voi.nodely.dev https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://mcp.ilovechicken.co.uk; worker-src 'self'; frame-src https://verify.walletconnect.org; object-src 'none'; frame-ancestors 'none';"
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.walletconnect.com https://*.walletconnect.org https://static.defly.app; connect-src 'self' https://mainnet-api.algonode.cloud https://mainnet-idx.algonode.cloud https://mainnet-api.voi.nodely.dev https://mainnet-idx.voi.nodely.dev https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://mcp.ilovechicken.co.uk; worker-src 'self'; frame-src https://verify.walletconnect.org; object-src 'none'; frame-ancestors 'none';"
   },
   "web_accessible_resources": [
     {
