@@ -60,7 +60,7 @@ export type BgRequest =
   | { type: "ARC27_SIGN_BYTES"; origin: string; data: string; signer: string }
   | { type: "ARC27_DISCONNECT"; origin: string }
   // x402 payments
-  | { type: "X402_PAYMENT_NEEDED"; requestId: string; paymentRequirements: PaymentRequirements; url: string; tabId: number }
+  | { type: "X402_PAYMENT_NEEDED"; requestId: string; paymentRequirements: PaymentRequirements; url: string; method: string; tabId: number }
   | { type: "X402_GET_PENDING"; requestId: string }
   | { type: "X402_APPROVE"; requestId: string }
   | { type: "X402_REJECT"; requestId: string }

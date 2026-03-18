@@ -175,7 +175,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         const params = await getSuggestedParams(switchChain);
         const expectedHash = CHAINS[switchChain].genesisHash;
         // params.genesisHash is a Uint8Array — encode to base64 for comparison
-        const actualHash = btoa(String.fromCharCode(...params.genesisHash));
+        const genesisHashBytes = params.genesisHash ?? new Uint8Array(0);
+        const actualHash = btoa(String.fromCharCode(...Array.from(genesisHashBytes)));
         if (actualHash !== expectedHash) {
           throw new Error(
             `Node genesis hash mismatch for ${switchChain}: ` +
@@ -375,11 +376,89 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
             } catch { amount = String(t.amount); }
           }
           const assetId: number | undefined = t.assetIndex || undefined;
-          return { type, sender, receiver, amount, assetId };
+
+          // ── Dangerous-field extraction ───────────────────────────────────────
+          const rekeyTo: string | undefined =
+            t.rekeyTo?.toString?.() || undefined;
+          const closeRemainderTo: string | undefined =
+            t.closeRemainderTo?.toString?.() || undefined;
+          const assetCloseTo: string | undefined =
+            t.assetCloseTo?.toString?.() || undefined;
+
+          // Actual fee value — UI flags HIGH when > 10× minimum (10 000 µ)
+          const feeMicroalgos: number | undefined =
+            typeof t.fee === "bigint" ? Number(t.fee)
+            : typeof t.fee === "number" ? t.fee
+            : undefined;
+
+          // Short validity window — flag when lastValid - firstValid < 10 rounds
+          // (~40 s on Algorand). Indicates a time-pressure phishing attempt.
+          const firstValid: number = typeof t.firstValid === "bigint" ? Number(t.firstValid)
+            : typeof t.firstValid === "number" ? t.firstValid : 0;
+          const lastValid: number  = typeof t.lastValid  === "bigint" ? Number(t.lastValid)
+            : typeof t.lastValid  === "number" ? t.lastValid  : 0;
+          const shortValidityWindow: true | undefined =
+            firstValid > 0 && lastValid > 0 && (lastValid - firstValid) < 10
+              ? true : undefined;
+
+          // Decode note bytes — try UTF-8, fall back to hex preview
+          let note: string | undefined;
+          const noteBytes = t.note as Uint8Array | undefined;
+          if (noteBytes && noteBytes.length > 0) {
+            try {
+              note = new TextDecoder("utf-8", { fatal: true })
+                .decode(noteBytes.slice(0, 200));
+              if (note.length > 120) note = note.slice(0, 120) + "…";
+            } catch {
+              note = Array.from(noteBytes.slice(0, 24))
+                .map((b) => (b as number).toString(16).padStart(2, "0")).join(" ")
+                + (noteBytes.length > 24 ? " …" : "");
+            }
+          }
+
+          // Clawback — revocationTarget forces ASA transfer OUT of another account
+          const clawbackFrom: string | undefined =
+            t.revocationTarget?.toString?.() || t.assetRevocationTarget?.toString?.() || undefined;
+
+          // Lease — non-zero Uint8Array means the field is set
+          const leaseBytes = t.lease as Uint8Array | undefined;
+          const hasLease: true | undefined =
+            leaseBytes && leaseBytes.length > 0 && leaseBytes.some((b: number) => b !== 0)
+              ? true : undefined;
+
+          // Asset freeze fields (afrz transactions)
+          const freezeTarget: string | undefined = type === "afrz"
+            ? (t.freezeAccount?.toString?.() ?? t.freeze?.toString?.() ?? undefined)
+            : undefined;
+          // algosdk v3: assetFrozen field; fall back to frozen
+          const freezeStateRaw = t.assetFrozen ?? t.frozen;
+          const freezing: boolean | undefined = type === "afrz" && freezeStateRaw !== undefined
+            ? Boolean(freezeStateRaw) : undefined;
+
+          // Key registration — online (voteKey present) vs offline (no voteKey)
+          const keyregOnline: boolean | undefined = type === "keyreg"
+            ? !!(t.voteKey) : undefined;
+
+          // appl onCompletion label
+          const OC_NAMES: Record<number, string> = {
+            0: "NoOp", 1: "OptIn", 2: "CloseOut",
+            3: "ClearState", 4: "UpdateApp", 5: "DeleteApp",
+          };
+          // algosdk v3 uses onComplete (not onCompletion)
+          const applType: string | undefined = type === "appl" && typeof t.onComplete === "number"
+            ? (OC_NAMES[t.onComplete] ?? String(t.onComplete))
+            : undefined;
+
+          return {
+            type, sender, receiver, amount, assetId,
+            rekeyTo, closeRemainderTo, assetCloseTo,
+            feeMicroalgos, note, applType, shortValidityWindow,
+            clawbackFrom, hasLease, freezeTarget, freezing, keyregOnline,
+          };
         } catch (err) {
           // Re-throw genesis mismatch errors; wrap decode errors as unknown
           if (err instanceof Error && err.message.includes("genesisID")) throw err;
-          return { type: "unknown", sender: "" };
+          return { type: "unknown", sender: "", blind: true };
         }
       });
 

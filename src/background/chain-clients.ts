@@ -49,7 +49,7 @@ export async function getAccountState(
     balance: info.amount,
     assets,
     minBalance: info.minBalance,
-    authAddr: info.authAddr ?? undefined,
+    authAddr: info.authAddr != null ? String(info.authAddr) : undefined,
   };
 }
 
@@ -70,7 +70,10 @@ export async function submitTransactionGroup(
   chain: ChainId,
   signedTxns: Uint8Array[]
 ): Promise<string> {
-  const combined = algosdk.concatArrays(...signedTxns);
+  const totalLength = signedTxns.reduce((acc, a) => acc + a.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of signedTxns) { combined.set(arr, offset); offset += arr.length; }
   const result = await getAlgodClient(chain).sendRawTransaction(combined).do();
   return result.txid;
 }

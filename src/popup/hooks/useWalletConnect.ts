@@ -335,10 +335,8 @@ export function useWalletConnect(): UseWalletConnectReturn {
       // A session ping on the SESSION topic uses the fresh session connection and
       // gives the wallet app a second signal that the session is live, stopping its
       // "waiting for dApp" spinner even if the pairing-topic ACK was dropped.
-      let pingOk = false;
       try {
         await client.ping({ topic: approved.topic });
-        pingOk = true;
         appendDebugLog("wc:ping_ok", { topic: sanitizeTopic(approved?.topic) });
       } catch {
         // Non-fatal: session may still be usable even if ping times out.

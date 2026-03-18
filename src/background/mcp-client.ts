@@ -11,7 +11,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getSuggestedParams, submitTransaction, getAccountState } from "./chain-clients";
+import { getSuggestedParams, submitTransaction, waitForConfirmation, getAccountState } from "./chain-clients";
 import { requestApproval } from "./approval-handler";
 import { randomId } from "@shared/utils/crypto";
 import { X402_VERSION } from "@shared/constants";
@@ -187,9 +187,14 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
   });
 
   const signedBytes = txn.signTxn(sk);
+  const txId = txn.txID();
 
-  // Submit (broadcast) — no need to wait for confirmation before continuing
+  // Submit and wait for on-chain confirmation before returning the
+  // PAYMENT-SIGNATURE header. Without this the UluMCP server may receive
+  // the header before the transaction is visible on-chain, causing a
+  // verification failure even though the funds were spent.
   await submitTransaction("voi", signedBytes);
+  await waitForConfirmation("voi", txId, 8);
 
   const payload = {
     x402Version: X402_VERSION,

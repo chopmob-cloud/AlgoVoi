@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { abbreviateAddress, formatAmount, timeAgo } from "@shared/utils/format";
+import { formatAmount, timeAgo } from "@shared/utils/format";
 import type { PaymentRequirements } from "@shared/types/x402";
 
 interface CapturedRequest {

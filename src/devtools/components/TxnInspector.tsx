@@ -34,13 +34,14 @@ function decodeTxn(b64: string): DecodedTxn {
     const signed = algosdk.decodeSignedTransaction(bytes);
     txn = signed.txn;
   }
-  const raw = txn.get_obj_for_encoding();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = txn as unknown as Record<string, any>;
   return {
     type: txn.type ?? "unknown",
-    from: algosdk.encodeAddress(txn.from.publicKey),
-    to: txn.to ? algosdk.encodeAddress(txn.to.publicKey) : undefined,
-    amount: txn.amount,
-    assetIndex: txn.assetIndex,
+    from: algosdk.encodeAddress((txn as unknown as Record<string, any>).sender?.publicKey ?? (txn as unknown as Record<string, any>).from?.publicKey),
+    to: raw.receiver ? algosdk.encodeAddress(raw.receiver.publicKey) : (raw.to ? algosdk.encodeAddress(raw.to.publicKey) : undefined),
+    amount: raw.amount,
+    assetIndex: raw.assetIndex,
     note: txn.note ? new TextDecoder().decode(txn.note) : undefined,
     fee: txn.fee,
     firstValid: txn.firstValid,
