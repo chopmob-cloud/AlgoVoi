@@ -7,6 +7,7 @@ import { signTransactionWithWC } from "@shared/utils/wc-sign";
 import type { PendingX402Request } from "@shared/types/x402";
 import type { PendingApproval, PendingSignTxnsApproval, PendingSignBytesApproval, PendingEnvoiApproval, PendingMppApproval, TxnSummary } from "@shared/types/approval";
 import type { PendingAp2Approval } from "@shared/types/ap2";
+import type { PendingAgentSignRequest } from "@shared/types/agent";
 import type { ChainId } from "@shared/types/chain";
 
 // ── URL-safe base64 polyfill ──────────────────────────────────────────────────
@@ -55,7 +56,7 @@ function resolveChainFromNetwork(network: string): ChainId | null {
 
 const _params    = new URLSearchParams(window.location.search);
 const REQUEST_ID = _params.get("requestId") ?? "";
-const KIND       = _params.get("kind") ?? "";       // "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment" | ""
+const KIND       = _params.get("kind") ?? "";       // "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment" | "agent_sign" | ""
 
 // ── Root component ────────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ function ApprovalPage() {
   if (KIND === "envoi_payment") return <EnvoiPage       requestId={REQUEST_ID} />;
   if (KIND === "mpp_charge")    return <MppPage         requestId={REQUEST_ID} />;
   if (KIND === "ap2_payment")   return <Ap2Page         requestId={REQUEST_ID} />;
+  if (KIND === "agent_sign")    return <AgentSignPage   requestId={REQUEST_ID} />;
   return                               <X402Page        requestId={REQUEST_ID} />;
 }
 
@@ -1046,6 +1048,174 @@ function X402Page({ requestId }: { requestId: string }) {
           <button className="btn-secondary w-full" onClick={reject}>Cancel</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Agent Sign page ───────────────────────────────────────────────────────────
+
+function AgentSignPage({ requestId }: { requestId: string }) {
+  const [request,  setRequest]  = useState<PendingAgentSignRequest | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [error,    setError]    = useState("");
+
+  useEffect(() => {
+    sendBg<{ request: PendingAgentSignRequest | null }>({ type: "W3W_AGENT_SIGN_GET_PENDING", requestId })
+      .then(({ request: req }) => {
+        if (!req) setError("Agent signing request not found or already settled");
+        else setRequest(req);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [requestId]);
+
+  async function approve() {
+    setApproving(true);
+    setError("");
+    try {
+      await sendBg({ type: "W3W_AGENT_SIGN_APPROVE", requestId });
+      window.close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Signing failed");
+      setApproving(false);
+    }
+  }
+
+  async function reject() {
+    await sendBg({ type: "W3W_AGENT_SIGN_REJECT", requestId }).catch(() => {});
+    window.close();
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
+  if (!request) return <ErrorScreen message={error || "Request not found"} />;
+
+  const chainLabel = request.chain === "algorand" ? "Algorand" : "Voi";
+  const chainColor = request.chain === "algorand" ? "text-algo" : "text-voi";
+
+  // Build summaries from the request (background pre-decoded them via approval entry)
+  // We fetch the raw PendingAgentSignRequest which has agentName, agentUrl, chain, txns
+  // The approval entry (PendingAgentSignApproval) has txnSummaries but we fetch the
+  // raw request here to also show txn details inline via the approval handler.
+  // Re-fetch the approval entry for txnSummaries:
+  const txCount = request.txns.length;
+
+  return (
+    <div className="flex flex-col min-h-screen p-5 gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">AI</div>
+        <div>
+          <h1 className="text-base font-bold leading-none">AI Agent Sign Request</h1>
+          <p className="text-xs text-gray-400 mt-0.5">WalletConnect Web3Wallet — AlgoVoi</p>
+        </div>
+      </div>
+
+      {/* Agent identity */}
+      <div className="card">
+        <p className="text-xs text-gray-400 mb-1">AI Agent</p>
+        <p className="text-sm font-medium truncate">{request.agentName || "Unknown Agent"}</p>
+        {request.agentUrl && (
+          <p className="text-[10px] text-gray-500 truncate mt-0.5">{request.agentUrl}</p>
+        )}
+      </div>
+
+      {/* Chain + transaction count */}
+      <div className="card flex flex-col gap-2">
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-400">Chain</span>
+          <span className={`text-sm font-medium ${chainColor}`}>{chainLabel}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-400">Transactions</span>
+          <span className="text-sm font-medium text-white">{txCount}</span>
+        </div>
+      </div>
+
+      {/* Per-txn details (raw AgentSignTxn — decode inline for display) */}
+      <AgentTxnList txns={request.txns} />
+
+      {/* Security warnings */}
+      <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+        <p className="text-xs text-red-300 font-semibold mb-1">Signing on behalf of an AI agent</p>
+        <p className="text-xs text-red-300">
+          Verify the transactions carefully. The agent cannot access your private keys —
+          AlgoVoi signs internally — but only approve requests from agents you trust.
+        </p>
+      </div>
+
+      {!request.agentUrl && (
+        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-3">
+          <p className="text-xs text-yellow-300">
+            This agent did not provide a URL. Proceed with caution.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      <ApproveRejectBar
+        approveLabel={`Sign ${txCount} transaction${txCount !== 1 ? "s" : ""}`}
+        rejectLabel="Reject"
+        onApprove={approve}
+        onReject={reject}
+        approving={approving}
+      />
+    </div>
+  );
+}
+
+/**
+ * Per-transaction display for agent sign requests.
+ * Decodes in the popup context using atob — note that algosdk is NOT bundled
+ * in the approval popup. We do a minimal decode here for display (type + amount).
+ * The background already validated the transactions before opening the popup.
+ */
+function AgentTxnList({
+  txns,
+}: {
+  txns: { txn: string; signers?: string[] }[];
+}) {
+  return (
+    <div className="card flex flex-col gap-1">
+      <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+        Transactions ({txns.length})
+      </p>
+      {txns.map((item, i) => {
+        const isRef = Array.isArray(item.signers) && item.signers.length === 0;
+        if (isRef) {
+          return (
+            <div key={i} className="flex justify-between items-center opacity-40 text-xs py-1.5 border-b border-surface-3 last:border-0">
+              <span className="font-mono text-gray-500">Txn {i + 1}</span>
+              <span className="text-gray-500 italic">reference (not signing)</span>
+            </div>
+          );
+        }
+        // Minimal decode for display — just show raw bytes size + first few chars
+        let byteCount = 0;
+        try {
+          const b64 = item.txn.replace(/-/g, "+").replace(/_/g, "/");
+          const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+          byteCount = atob(padded).length;
+        } catch { byteCount = 0; }
+        return (
+          <div key={i} className="flex flex-col gap-0.5 py-1.5 border-b border-surface-3 last:border-0">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-mono text-gray-400">Txn {i + 1}</span>
+              <span className="text-xs text-algo font-semibold">
+                {byteCount > 0 ? `${byteCount} bytes` : "—"}
+              </span>
+            </div>
+            <p className="text-[9px] font-mono text-gray-500 truncate">
+              {item.txn.slice(0, 32)}…
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import algosdk from "algosdk";
+import QRCode from "qrcode";
 import ChainToggle from "./ChainToggle";
 import AssetList from "./AssetList";
 import { sendBg } from "../App";
@@ -10,7 +11,7 @@ import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
-type Tab = "assets" | "history" | "apps";
+type Tab = "assets" | "history" | "apps" | "agents";
 type Modal = "send" | "receive" | null;
 
 /**
@@ -416,7 +417,7 @@ export default function AccountView() {
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
-        {(["assets", "history", "apps"] as Tab[]).map((t) => (
+        {(["assets", "history", "apps", "agents"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -447,6 +448,11 @@ export default function AccountView() {
         )}
         {tab === "apps" && (
           <ConnectedAppsTab connectedSites={meta?.connectedSites ?? {}} onUpdate={loadState} />
+        )}
+        {tab === "agents" && (
+          <AgentsTab
+            isVaultAccount={activeAccount?.type !== "walletconnect"}
+          />
         )}
       </div>
 
@@ -1014,6 +1020,210 @@ function ConnectedAppsTab({
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Agents Tab (WalletConnect Web3Wallet for AI agents) ───────────────────────
+
+function AgentsTab({ isVaultAccount }: { isVaultAccount: boolean }) {
+  const [sessions, setSessions] = useState<Record<string, Record<string, unknown>>>({});
+  const [loading, setLoading]   = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [uri, setUri]           = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copied, setCopied]     = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  async function loadSessions() {
+    setLoading(true);
+    try {
+      const res = await sendBg<{ sessions: Record<string, Record<string, unknown>> }>({ type: "W3W_GET_SESSIONS" });
+      setSessions(res.sessions ?? {});
+    } catch (e) {
+      // Non-fatal — may fail if Web3Wallet not yet initialised
+      setSessions({});
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadSessions(); }, []);
+
+  async function handleGenerateUri() {
+    setGenerating(true);
+    setError(null);
+    setUri(null);
+    setQrDataUrl(null);
+    try {
+      const res = await sendBg<{ uri: string }>({ type: "W3W_GENERATE_URI" });
+      setUri(res.uri);
+      // Generate QR code as data URL for inline display
+      try {
+        const dataUrl = await QRCode.toDataURL(res.uri, { width: 240, margin: 1 });
+        setQrDataUrl(dataUrl);
+      } catch {
+        // QR generation failed — fall back to URI-only display
+      }
+      await loadSessions();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate URI");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleDisconnect(topic: string) {
+    try {
+      await sendBg({ type: "W3W_DISCONNECT", topic });
+      setUri(null);
+      setQrDataUrl(null);
+      await loadSessions();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Disconnect failed");
+    }
+  }
+
+  function copyUri() {
+    if (!uri) return;
+    navigator.clipboard.writeText(uri);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  const sessionEntries = Object.entries(sessions);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-4 h-4 border-2 border-algo border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isVaultAccount) {
+    return (
+      <div className="text-xs text-gray-500 text-center py-6 px-2">
+        Agent connections require a vault (mnemonic) account. Switch to a vault account to connect AI agents.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Connected agents */}
+      {sessionEntries.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-gray-400 uppercase tracking-wider">Connected Agents</p>
+          {sessionEntries.map(([topic, session]) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const peer = (session as any)?.peer?.metadata ?? {};
+            const name: string = peer.name ?? "Unknown Agent";
+            const url: string  = peer.url  ?? "";
+            return (
+              <div
+                key={topic}
+                className="bg-surface-2 rounded-lg px-3 py-2.5 flex items-center justify-between"
+              >
+                <div className="flex-1 min-w-0 mr-2">
+                  <p className="text-sm font-medium truncate">{name}</p>
+                  {url && <p className="text-[10px] text-gray-500 truncate">{url}</p>}
+                </div>
+                <button
+                  onClick={() => handleDisconnect(topic)}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors shrink-0"
+                >
+                  Disconnect
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Connect new agent */}
+      {!uri && (
+        <div className="flex flex-col gap-2">
+          {sessionEntries.length === 0 && (
+            <p className="text-xs text-gray-500 text-center py-2">
+              No AI agents connected. Generate a pairing URI for an agent to connect.
+            </p>
+          )}
+          <button
+            onClick={handleGenerateUri}
+            disabled={generating}
+            className="w-full py-2.5 rounded-xl bg-algo text-black text-xs font-semibold hover:bg-algo/90 transition-colors disabled:opacity-50"
+          >
+            {generating ? "Generating…" : "+ Connect an AI Agent"}
+          </button>
+          <button
+            onClick={loadSessions}
+            className="w-full py-1.5 rounded-xl bg-surface-2 text-gray-400 text-xs hover:text-white transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+
+      {/* QR code + URI display */}
+      {uri && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wider">Scan or copy this URI</p>
+          {qrDataUrl && (
+            <div className="flex justify-center">
+              <img
+                src={qrDataUrl}
+                alt="WalletConnect pairing QR code"
+                className="rounded-lg"
+                width={200}
+                height={200}
+              />
+            </div>
+          )}
+          <div className="bg-surface-2 rounded-lg p-2 flex flex-col gap-1.5">
+            <p className="text-[9px] font-mono text-gray-400 break-all leading-relaxed line-clamp-3">
+              {uri}
+            </p>
+            <button
+              onClick={copyUri}
+              className="text-xs text-algo hover:text-algo/80 transition-colors self-end"
+            >
+              {copied ? "Copied!" : "Copy URI"}
+            </button>
+          </div>
+          <div className="bg-surface-2 border border-white/10 rounded-xl p-3">
+            <p className="text-xs text-gray-400">
+              Share this URI with the AI agent. After it connects, you will see an approval popup for each signing request.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setUri(null); setQrDataUrl(null); }}
+              className="flex-1 py-2 rounded-xl bg-surface-2 text-gray-400 text-xs hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={loadSessions}
+              className="flex-1 py-2 rounded-xl bg-surface-2 text-gray-400 text-xs hover:text-white transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
+      <div className="bg-surface-2 border border-white/10 rounded-xl p-3 mt-1">
+        <p className="text-[10px] text-gray-500">
+          AI agents connect as WalletConnect dApps. AlgoVoi signs transactions using your vault keys — you approve each request in a popup. Agents never access your private keys.
+        </p>
+      </div>
     </div>
   );
 }

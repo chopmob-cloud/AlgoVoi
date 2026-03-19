@@ -31,7 +31,8 @@
   "permissions": [
     "storage",
     "tabs",
-    "windows"
+    "windows",
+    "alarms"
   ],
   "host_permissions": [
     "https://mainnet-api.algonode.cloud/*",

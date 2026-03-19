@@ -13,6 +13,7 @@ import type { PaymentRequirements, PendingX402Request, PaymentRecord } from "./x
 import type { PendingMppRequest } from "./mpp";
 import type { PendingApproval } from "./approval";
 import type { CartMandate, IntentMandate, PaymentMandate, PendingAp2Approval } from "./ap2";
+import type { PendingAgentSignRequest } from "./agent";
 
 // ── Window message types (inpage ↔ content) ──────────────────────────────────
 
@@ -85,7 +86,14 @@ export type BgRequest =
   | { type: "AP2_GET_PENDING"; requestId: string }
   | { type: "AP2_APPROVE"; requestId: string }
   | { type: "AP2_REJECT"; requestId: string }
-  | { type: "AP2_LIST_INTENT_MANDATES" };
+  | { type: "AP2_LIST_INTENT_MANDATES" }
+  // WalletConnect Web3Wallet — AlgoVoi as wallet for AI agents
+  | { type: "W3W_GENERATE_URI" }
+  | { type: "W3W_GET_SESSIONS" }
+  | { type: "W3W_DISCONNECT"; topic: string }
+  | { type: "W3W_AGENT_SIGN_GET_PENDING"; requestId: string }
+  | { type: "W3W_AGENT_SIGN_APPROVE"; requestId: string }
+  | { type: "W3W_AGENT_SIGN_REJECT"; requestId: string };
 
 export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_STATE" ? { lockState: LockState; meta: WalletMeta | null } :
@@ -123,6 +131,13 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "AP2_PAYMENT_REQUEST" ? { requestId: string } :
   // IntentMandate management (used by popup)
   T extends "AP2_LIST_INTENT_MANDATES" ? { mandates: IntentMandate[] } :
+  // Web3Wallet (AlgoVoi as WC wallet for AI agents)
+  T extends "W3W_GENERATE_URI" ? { uri: string } :
+  T extends "W3W_GET_SESSIONS" ? { sessions: Record<string, unknown> } :
+  T extends "W3W_DISCONNECT" ? { success: boolean } :
+  T extends "W3W_AGENT_SIGN_GET_PENDING" ? { request: PendingAgentSignRequest | null } :
+  T extends "W3W_AGENT_SIGN_APPROVE" ? { signedTxns: (string | null)[] } :
+  T extends "W3W_AGENT_SIGN_REJECT" ? { success: boolean } :
   { success: boolean; error?: string };
 
 // Notification pushed from background to content/tabs
@@ -132,4 +147,6 @@ export type BgNotification =
   | { type: "LOCK_STATE_CHANGED"; lockState: LockState }
   | { type: "X402_RESULT"; requestId: string; approved: boolean; paymentHeader?: string; error?: string }
   | { type: "MPP_RESULT"; requestId: string; approved: boolean; authorizationHeader?: string; error?: string }
-  | { type: "AP2_RESULT"; requestId: string; approved: boolean; paymentMandate?: PaymentMandate; error?: string };
+  | { type: "AP2_RESULT"; requestId: string; approved: boolean; paymentMandate?: PaymentMandate; error?: string }
+  | { type: "W3W_SESSION_APPROVED"; topic: string; agentName: string }
+  | { type: "W3W_SESSION_REQUEST"; requestId: string };

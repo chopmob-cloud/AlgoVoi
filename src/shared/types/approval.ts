@@ -22,7 +22,7 @@ export type { PendingAp2Approval } from "./ap2";
 
 // ── Request kinds ─────────────────────────────────────────────────────────────
 
-export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment";
+export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment" | "agent_sign";
 
 /** Auto-reject TTL — 5 minutes */
 export const APPROVAL_TTL_MS = 5 * 60 * 1_000;
@@ -189,10 +189,26 @@ export interface PendingMppApproval {
   timestamp: number;
 }
 
+/**
+ * Queued when an AI agent (connected via WalletConnect Web3Wallet) submits
+ * an algo_signTxn request. The user must explicitly approve in the popup.
+ */
+export interface PendingAgentSignApproval {
+  kind: "agent_sign";
+  id: string;
+  agentName: string;
+  agentUrl: string;
+  chain: "algorand" | "voi";
+  txCount: number;
+  txnSummaries: TxnSummary[];
+  timestamp: number;
+}
+
 /** Discriminated union of all approval request types */
 export type PendingApproval =
   | PendingSignTxnsApproval
   | PendingSignBytesApproval
   | PendingEnvoiApproval
   | PendingMppApproval
-  | PendingAp2Approval;
+  | PendingAp2Approval
+  | PendingAgentSignApproval;
