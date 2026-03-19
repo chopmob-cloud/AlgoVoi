@@ -142,33 +142,39 @@ Object.defineProperty(window, "algorand", {
 // Also announce per ARC-0027 discovery
 window.dispatchEvent(new CustomEvent("algorand#initialized"));
 
-// ── x402 fetch interceptor ────────────────────────────────────────────────────
+// ── x402 + MPP fetch interceptor ─────────────────────────────────────────────
 
 const _originalFetch = window.fetch.bind(window);
 
 // Map requestId → { resolve, reject } for pending x402 approvals
 const _pendingX402 = new Map<string, { resolve: (header: string) => void; reject: (e: Error) => void }>();
+// Map requestId → { resolve, reject } for pending MPP approvals
+const _pendingMpp = new Map<string, { resolve: (authHeader: string) => void; reject: (e: Error) => void }>();
 
 // Listen for x402 results pushed back from the content script
 window.addEventListener("message", (event: MessageEvent) => {
-  if (
-    event.source !== window ||
-    event.data?.source !== MSG_SOURCE_CONTENT ||
-    event.data?.type !== "X402_RESULT"
-  ) return;
-  const { requestId, approved, paymentHeader, error } = event.data.payload as {
-    requestId: string;
-    approved: boolean;
-    paymentHeader?: string;
-    error?: string;
-  };
-  const pending = _pendingX402.get(requestId);
-  if (!pending) return;
-  _pendingX402.delete(requestId);
-  if (approved && paymentHeader) {
-    pending.resolve(paymentHeader);
-  } else {
-    pending.reject(new Error(error ?? "Payment rejected by user"));
+  if (event.source !== window || event.data?.source !== MSG_SOURCE_CONTENT) return;
+
+  if (event.data?.type === "X402_RESULT") {
+    const { requestId, approved, paymentHeader, error } = event.data.payload as {
+      requestId: string; approved: boolean; paymentHeader?: string; error?: string;
+    };
+    const pending = _pendingX402.get(requestId);
+    if (!pending) return;
+    _pendingX402.delete(requestId);
+    if (approved && paymentHeader) pending.resolve(paymentHeader);
+    else pending.reject(new Error(error ?? "Payment rejected by user"));
+  }
+
+  if (event.data?.type === "MPP_RESULT") {
+    const { requestId, approved, authorizationHeader, error } = event.data.payload as {
+      requestId: string; approved: boolean; authorizationHeader?: string; error?: string;
+    };
+    const pending = _pendingMpp.get(requestId);
+    if (!pending) return;
+    _pendingMpp.delete(requestId);
+    if (approved && authorizationHeader) pending.resolve(authorizationHeader);
+    else pending.reject(new Error(error ?? "MPP payment rejected by user"));
   }
 });
 
@@ -177,6 +183,48 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
 
   if (response.status !== 402) return response;
 
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+  const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+
+  // ── MPP detection (WWW-Authenticate: Payment) ─────────────────────────────
+  // Check for MPP before x402 — the two protocols are disjoint by header name.
+  // MPP uses the standard HTTP auth header; x402 uses a custom PAYMENT-REQUIRED header.
+  const wwwAuth = response.headers.get("WWW-Authenticate") ?? "";
+  if (/Payment\s+/i.test(wwwAuth)) {
+    let authorizationHeader: string;
+    try {
+      authorizationHeader = await new Promise<string>((resolve, reject) => {
+        const requestId = nextId();
+        _pendingMpp.set(requestId, { resolve, reject });
+        window.postMessage(
+          {
+            source: MSG_SOURCE_INPAGE,
+            type: "MPP_PAYMENT_NEEDED",
+            id: requestId,
+            payload: { url, method, rawChallenge: wwwAuth, requestId },
+          },
+          _msgTarget
+        );
+        setTimeout(() => {
+          if (_pendingMpp.has(requestId)) {
+            _pendingMpp.delete(requestId);
+            reject(new Error("MPP payment timed out"));
+          }
+        }, 5 * 60 * 1000);
+      });
+    } catch (err) {
+      console.warn("[AlgoVoi] MPP payment failed:", err);
+      return response;
+    }
+
+    // Retry with Authorization: Payment <credential>
+    const retryHeaders = new Headers(init?.headers);
+    retryHeaders.delete("Cookie");
+    retryHeaders.set("Authorization", authorizationHeader);
+    return _originalFetch(input, { ...init, headers: retryHeaders });
+  }
+
+  // ── x402 detection (PAYMENT-REQUIRED header) ──────────────────────────────
   // Per the x402 spec (github.com/coinbase/x402), the 402 response carries:
   //   PAYMENT-REQUIRED: <base64(PaymentRequired JSON)>
   // where PaymentRequired = { x402Version, error, accepts: PaymentRequirements[] }
@@ -187,9 +235,6 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
     (response.headers.get("content-type")?.includes("application/json") ? "__body__" : null);
 
   if (!paymentHeader) return response;
-
-  const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-  const method = init?.method ?? (input instanceof Request ? input.method : "GET");
 
   // If the header signals the body contains the PaymentRequired JSON, read it.
   let rawPaymentRequired = paymentHeader;

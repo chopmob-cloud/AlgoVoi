@@ -66,6 +66,23 @@ export function setupProviderBridge(): void {
         msgTarget
       );
     }
+    if (msg.type === "MPP_RESULT") {
+      // Relay MPP result back to the inpage script
+      window.postMessage(
+        {
+          source: MSG_SOURCE_CONTENT,
+          type: "MPP_RESULT",
+          id: msg.requestId,
+          payload: {
+            requestId: msg.requestId,
+            approved: msg.approved,
+            authorizationHeader: msg.authorizationHeader,
+            error: msg.error,
+          },
+        },
+        msgTarget
+      );
+    }
     if (msg.type === "CHAIN_CHANGED" || msg.type === "ACCOUNT_CHANGED") {
       // L1: Use an explicit map rather than string manipulation.
       // `.replace("_", "")` only removes the FIRST underscore, producing
@@ -155,6 +172,21 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
         url,
         method,
         paymentRequirements: rawPaymentRequired,
+        requestId,
+        tabId: -1, // background will use sender.tab.id
+      });
+    }
+
+    case "MPP_PAYMENT_NEEDED": {
+      // rawChallenge = raw value of WWW-Authenticate: Payment header
+      const { url, method, rawChallenge, requestId } = msg.payload as {
+        url: string; method: string; rawChallenge: string; requestId: string;
+      };
+      return sendToBg({
+        type: "MPP_PAYMENT_NEEDED",
+        url,
+        method,
+        rawChallenge,
         requestId,
         tabId: -1, // background will use sender.tab.id
       });

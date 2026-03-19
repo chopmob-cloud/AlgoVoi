@@ -17,7 +17,7 @@
 
 // ── Request kinds ─────────────────────────────────────────────────────────────
 
-export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment";
+export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge";
 
 /** Auto-reject TTL — 5 minutes */
 export const APPROVAL_TTL_MS = 5 * 60 * 1_000;
@@ -157,8 +157,36 @@ export interface PendingEnvoiApproval {
   timestamp: number;
 }
 
+/**
+ * Queued when a page fetch returns an MPP 402 with method="avm", intent="charge".
+ * The background validates and decodes the challenge before queuing.
+ */
+export interface PendingMppApproval {
+  kind: "mpp_charge";
+  id: string;
+  /** URL of the resource that returned 402 */
+  url: string;
+  /** Parsed challenge fields for display */
+  realm: string;
+  challengeId: string;
+  /** Human-readable description from the challenge or avm request */
+  description?: string;
+  /** Recipient address (Algorand/Voi) */
+  recipient: string;
+  /** Amount in microunits as integer string */
+  amount: string;
+  /** "algorand" | "voi" */
+  network: string;
+  /** Currency label for display: "ALGO", "VOI", or "ASA <id>" */
+  currencyLabel: string;
+  /** Decimal places (default 6) */
+  decimals: number;
+  timestamp: number;
+}
+
 /** Discriminated union of all approval request types */
 export type PendingApproval =
   | PendingSignTxnsApproval
   | PendingSignBytesApproval
-  | PendingEnvoiApproval;
+  | PendingEnvoiApproval
+  | PendingMppApproval;

@@ -15,6 +15,12 @@ import {
   clearPendingRequest,
   resolveChain,
 } from "./x402-handler";
+import {
+  handleMpp,
+  buildAndSignMppPayment,
+  getPendingMppRequest,
+  clearPendingMppRequest,
+} from "./mpp-handler";
 import { mcpResolveEnvoi } from "./mcp-client";
 import { base64ToBytes, randomId } from "@shared/utils/crypto";
 import { formatAmount } from "@shared/utils/format";
@@ -725,6 +731,60 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     case "X402_GET_HISTORY":
       // Phase 2: payment history persistence is deferred; returns empty list for now.
       return { records: [] };
+
+    // ── MPP avm payments ──────────────────────────────────────────────────────
+    case "MPP_PAYMENT_NEEDED": {
+      const requestId = await handleMpp({
+        tabId: sender?.tab?.id ?? tabId,
+        url: msg.url,
+        method: msg.method,
+        rawChallenge: msg.rawChallenge,
+        inpageRequestId: msg.requestId,
+      });
+      return { requestId };
+    }
+
+    case "MPP_GET_PENDING": {
+      const req = getPendingMppRequest(msg.requestId);
+      return { request: req };
+    }
+
+    case "MPP_APPROVE": {
+      const mppReq = getPendingMppRequest(msg.requestId);
+      if (!mppReq) throw new Error("Pending MPP request not found");
+
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet locked during MPP approval");
+      }
+      walletStore.resetAutoLock();
+
+      const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
+      clearPendingMppRequest(msg.requestId);
+
+      // Notify the inpage script so it can retry the fetch with Authorization header
+      chrome.tabs.sendMessage(mppReq.tabId, {
+        type: "MPP_RESULT",
+        requestId: mppReq.inpageRequestId ?? mppReq.id,
+        approved: true,
+        authorizationHeader,
+        txId,
+      });
+      return { authorizationHeader, txId };
+    }
+
+    case "MPP_REJECT": {
+      const mppReqToReject = getPendingMppRequest(msg.requestId);
+      if (mppReqToReject) {
+        clearPendingMppRequest(msg.requestId);
+        chrome.tabs.sendMessage(mppReqToReject.tabId, {
+          type: "MPP_RESULT",
+          requestId: mppReqToReject.inpageRequestId ?? mppReqToReject.id,
+          approved: false,
+          error: "User rejected MPP payment",
+        });
+      }
+      return { success: true };
+    }
 
     // ── enVoi name resolution ─────────────────────────────────────────────────
     case "VOI_RESOLVE_NAME": {
