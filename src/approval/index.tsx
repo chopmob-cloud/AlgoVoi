@@ -5,7 +5,7 @@ import { formatAmount } from "@shared/utils/format";
 import { CHAINS } from "@shared/constants";
 import { signTransactionWithWC } from "@shared/utils/wc-sign";
 import type { PendingX402Request } from "@shared/types/x402";
-import type { PendingApproval, PendingSignTxnsApproval, PendingSignBytesApproval, PendingEnvoiApproval, TxnSummary } from "@shared/types/approval";
+import type { PendingApproval, PendingSignTxnsApproval, PendingSignBytesApproval, PendingEnvoiApproval, PendingMppApproval, TxnSummary } from "@shared/types/approval";
 import type { ChainId } from "@shared/types/chain";
 
 // ── URL-safe base64 polyfill ──────────────────────────────────────────────────
@@ -66,6 +66,7 @@ function ApprovalPage() {
   if (KIND === "sign_txns")     return <SignTxnsPage    requestId={REQUEST_ID} />;
   if (KIND === "sign_bytes")    return <SignBytesPage   requestId={REQUEST_ID} />;
   if (KIND === "envoi_payment") return <EnvoiPage       requestId={REQUEST_ID} />;
+  if (KIND === "mpp_charge")    return <MppPage         requestId={REQUEST_ID} />;
   return                               <X402Page        requestId={REQUEST_ID} />;
 }
 
@@ -575,6 +576,126 @@ function EnvoiPage({ requestId }: { requestId: string }) {
       <ApproveRejectBar
         approveLabel={`Pay ${displayAmount} ${chainCfg.ticker}`}
         rejectLabel="Cancel"
+        onApprove={approve}
+        onReject={reject}
+        approving={approving}
+      />
+    </div>
+  );
+}
+
+// ── MPP avm charge page ───────────────────────────────────────────────────────
+
+function MppPage({ requestId }: { requestId: string }) {
+  const [approval, setApproval] = useState<PendingMppApproval | null>(null);
+  const [loading,   setLoading]  = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [error,     setError]    = useState("");
+
+  useEffect(() => {
+    sendBg<{ request: PendingMppApproval | null }>({ type: "MPP_GET_PENDING", requestId })
+      .then(({ request: req }) => {
+        if (!req) setError("Payment request not found or already settled");
+        else setApproval(req);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [requestId]);
+
+  async function approve() {
+    setApproving(true);
+    setError("");
+    try {
+      await sendBg({ type: "MPP_APPROVE", requestId });
+      window.close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment failed");
+      setApproving(false);
+    }
+  }
+
+  async function reject() {
+    await sendBg({ type: "MPP_REJECT", requestId }).catch(() => {});
+    window.close();
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
+  if (!approval) return <ErrorScreen message={error || "Request not found"} />;
+
+  const displayAmount = formatAmount(
+    /^\d+$/.test(String(approval.amount)) ? BigInt(approval.amount) : 0n,
+    approval.decimals
+  );
+  const networkLabel = approval.network === "algorand" ? "Algorand" : "Voi";
+  const networkColor = approval.network === "algorand" ? "text-algo" : "text-voi";
+
+  return (
+    <div className="flex flex-col min-h-screen p-5 gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
+        <div>
+          <h1 className="text-base font-bold leading-none">MPP Payment</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Machine Payments Protocol · avm — AlgoVoi</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <p className="text-xs text-gray-400 mb-1">Requesting server</p>
+        <p className="text-sm font-medium truncate">{approval.realm}</p>
+        {approval.url !== approval.realm && (
+          <p className="text-[10px] text-gray-500 truncate mt-0.5">{approval.url}</p>
+        )}
+      </div>
+
+      <div className="card flex flex-col gap-3">
+        <p className="text-xs text-gray-400 uppercase tracking-wider">Payment Details</p>
+        <div className="flex justify-between items-start">
+          <span className="text-sm text-gray-400">Amount</span>
+          <div className="text-right">
+            <span className="text-xl font-bold text-white">{displayAmount}</span>
+            <span className="text-sm text-gray-400 ml-1.5">{approval.currencyLabel}</span>
+          </div>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-400">Network</span>
+          <span className={`text-sm font-medium ${networkColor}`}>{networkLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-gray-400">Pay to</span>
+          <span className="text-xs font-mono text-gray-300 break-all leading-relaxed">
+            {approval.recipient}
+          </span>
+        </div>
+        {approval.description && (
+          <div className="border-t border-surface-3 pt-2">
+            <p className="text-xs text-gray-400 mb-1">Description</p>
+            <p className="text-sm text-gray-300">{approval.description}</p>
+          </div>
+        )}
+        <div className="border-t border-surface-3 pt-2 flex justify-between text-[10px] text-gray-500">
+          <span>Challenge ID</span>
+          <span className="font-mono truncate max-w-[180px]">{approval.challengeId}</span>
+        </div>
+      </div>
+
+      <div className="bg-orange-900/30 border border-orange-700/50 rounded-xl p-3">
+        <p className="text-xs text-orange-300">
+          ⚠ This payment will be broadcast to the {networkLabel} blockchain and{" "}
+          <strong>cannot be reversed</strong>. Only approve if you trust{" "}
+          <strong>{approval.realm}</strong>.
+        </p>
+      </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      <ApproveRejectBar
+        approveLabel={`Pay ${displayAmount} ${approval.currencyLabel}`}
+        rejectLabel="Reject"
         onApprove={approve}
         onReject={reject}
         approving={approving}

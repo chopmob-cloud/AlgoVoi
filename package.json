@@ -1,6 +1,6 @@
 {
   "name": "algovou",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
   "author": "MaidToShelly",
   "repository": {

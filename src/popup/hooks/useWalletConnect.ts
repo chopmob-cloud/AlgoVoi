@@ -131,6 +131,14 @@ export function useWalletConnect(): UseWalletConnectReturn {
       ]);
 
       clientRef.current = client;
+
+      // Brief settle: the relay WebSocket is open after init() but the internal
+      // transport may not have finished flushing its handshake frames. Calling
+      // connect() immediately can hit a window where subscribe() gets queued
+      // but never ACK'd, causing the 15 s connect timeout. 500 ms is enough
+      // for the relay to finish the opening handshake on slow connections.
+      await new Promise<void>((r) => setTimeout(r, 500));
+
       return client;
     } finally {
       if (timeoutHandle !== null) clearTimeout(timeoutHandle);
@@ -170,7 +178,6 @@ export function useWalletConnect(): UseWalletConnectReturn {
     const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
     try {
-      const client = await getClient();
       const proposal = {
         // AVM wallets (Pera, Defly, Lute) require requiredNamespaces to parse
         // the session proposal correctly. The WC SDK warns this is deprecated
@@ -183,29 +190,60 @@ export function useWalletConnect(): UseWalletConnectReturn {
           },
         },
       };
-      // Race client.connect() against a hard timeout.
-      // connect() internally calls relayer.subscribe() which sends a
-      // JSON-RPC round-trip to the relay WebSocket.  That call has no
-      // built-in timeout in the WC SDK: if the relay stops responding
-      // after SignClient.init() succeeded (e.g. brief network hiccup),
-      // connect() hangs forever, qrDataUrl stays null, and the modal
-      // shows an indefinite spinner with no escape.
+
+      // Race client.connect() against a hard timeout, with one automatic retry.
+      // connect() internally calls relayer.subscribe() — a JSON-RPC round-trip
+      // with no built-in timeout in the WC SDK. The relay can ACK SignClient.init()
+      // then stall on subscribe (brief relay hiccup, extension WebSocket quirk).
+      // One silent retry self-heals transient failures without user intervention.
       const CONNECT_TIMEOUT_MS = 15_000;
-      let connectTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
-      const { uri, approval } = await Promise.race([
-        client.connect(proposal),
-        new Promise<never>((_, reject) => {
-          connectTimeoutHandle = setTimeout(
-            () => reject(new Error(
+      const MAX_CONNECT_ATTEMPTS = 2;
+
+      let client = await getClient();
+      let connectResult: Awaited<ReturnType<typeof client.connect>> | null = null;
+
+      for (let attempt = 1; attempt <= MAX_CONNECT_ATTEMPTS; attempt++) {
+        if (attempt > 1) {
+          // Destroy the stale client and start fresh for the retry.
+          appendDebugLog("wc:connect_retry", { attempt });
+          try { await (clientRef.current as any)?.core?.relayer?.transportClose?.(); } catch {}
+          clientRef.current = null;
+          try {
+            ["wc@2:core:pairing", "wc@2:client:proposal", "wc@2:core:relayer:subscriptions"]
+              .forEach(k => localStorage.removeItem(k));
+          } catch {}
+          client = await getClient();
+        }
+
+        let connectTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+        let timedOut = false;
+        try {
+          const result = await Promise.race([
+            client.connect(proposal),
+            new Promise<never>((_, reject) => {
+              connectTimeoutHandle = setTimeout(() => {
+                timedOut = true;
+                reject(new Error("connect_timeout"));
+              }, CONNECT_TIMEOUT_MS);
+            }),
+          ]);
+          if (connectTimeoutHandle !== null) clearTimeout(connectTimeoutHandle);
+          connectResult = result;
+          break; // success — exit retry loop
+        } catch (e) {
+          if (connectTimeoutHandle !== null) clearTimeout(connectTimeoutHandle);
+          if (!timedOut || attempt === MAX_CONNECT_ATTEMPTS) {
+            throw new Error(
               "Timed out generating a WalletConnect pairing URI (15s).\n\n" +
               "• Check your internet connection.\n" +
               "• Tap \"Try again\" to reconnect."
-            )),
-            CONNECT_TIMEOUT_MS
-          );
-        }),
-      ]);
-      if (connectTimeoutHandle !== null) clearTimeout(connectTimeoutHandle);
+            );
+          }
+          // First attempt timed out — loop continues with a fresh client
+        }
+      }
+
+      const { uri, approval } = connectResult!;
 
       // A missing URI means the SDK could not create a fresh pairing.
       // Surfacing it as an explicit error prevents the code from falling
