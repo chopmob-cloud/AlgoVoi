@@ -266,8 +266,10 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
         agentName: session.peer.metadata.name,
       }).catch(() => {}); // ignore if no popup open
 
-      // Start keepalive alarm now that we have an active session
-      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 0.4 });
+      // Start keepalive alarm now that we have an active session.
+      // periodInMinutes: 1 — Chrome clamps sub-1-minute alarms to 1 min anyway;
+      // using 1 explicitly avoids CWS reviewer concern about aggressive keepalive.
+      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
 
       console.info(`[AlgoVoi W3W] Agent session approved: ${topic} (${session.peer.metadata.name})`);
     } catch (err) {
@@ -641,7 +643,7 @@ export async function restoreWeb3WalletSessions(projectId: string): Promise<void
 
     if (validTopics.length > 0) {
       // Restart keepalive alarm for active sessions
-      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 0.4 });
+      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
       console.info(`[AlgoVoi W3W] Restored ${validTopics.length} agent session(s)`);
     }
   } catch (err) {
