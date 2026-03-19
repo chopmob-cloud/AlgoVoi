@@ -934,11 +934,12 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         throw new Error("Wallet locked during agent sign approval");
       }
       walletStore.resetAutoLock();
-      const agentAccount = walletStore.getActiveAccount();
+      const agentMeta = await walletStore.getMeta();
+      const agentAccount = agentMeta.accounts.find((a) => a.id === agentMeta.activeAccountId);
       if (!agentAccount || agentAccount.type === "walletconnect") {
         throw new Error("Agent signing requires a vault/mnemonic account");
       }
-      const agentSk = walletStore.getActiveSecretKey();
+      const agentSk = await walletStore.getActiveSecretKey();
       const signedTxns = await approveAgentSignRequest(msg.requestId, agentSk, agentAccount.address);
       return { signedTxns };
     }
