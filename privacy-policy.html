@@ -37,18 +37,19 @@
 <body>
 
   <h1>AlgoVoi Privacy Policy</h1>
-  <p class="meta">Last updated: March 11, 2026</p>
+  <p class="meta">Last updated: March 19, 2026 &nbsp;·&nbsp; Version 0.1.4</p>
 
   <div class="callout">
     <strong>Short version:</strong> AlgoVoi stores your encrypted wallet data only on your own device.
-    We do not collect, transmit, or sell any personal information.
+    We do not collect, transmit, or sell any personal information. Private keys never leave your device.
   </div>
 
   <h2>1. Who We Are</h2>
   <p>
     AlgoVoi is an open-source Chrome extension developed by Chopmob Cloud. It provides a non-custodial
-    Web3 wallet for the Algorand and Voi blockchain networks, along with native support for the x402
-    HTTP payment protocol. The source code is publicly available at
+    Web3 wallet for the Algorand and Voi blockchain networks, along with native support for the x402,
+    MPP (Machine Payments Protocol), and AP2 (Agent Payments Protocol) HTTP payment standards. The
+    source code is publicly available at
     <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener">
       github.com/chopmob-cloud/AlgoVoi</a>.
   </p>
@@ -77,12 +78,23 @@
     </li>
     <li>
       <strong>Wallet preferences</strong> — Active account index, selected network (Algorand / Voi),
-      and UI settings are stored unencrypted in local storage.
+      and connected site list are stored in local storage. The connected site list is stored inside
+      the encrypted vault.
     </li>
     <li>
-      <strong>Session state</strong> — WalletConnect pairing URIs and pending transaction queues
+      <strong>Session state</strong> — WalletConnect pairing topics and pending transaction queues
       are held in memory during your browser session and are not persisted after the extension
       service worker is unloaded.
+    </li>
+    <li>
+      <strong>Unlock rate-limiting</strong> — A failed-attempt counter is held in
+      <code>chrome.storage.session</code> (cleared when the browser closes) to prevent brute-force
+      password attempts.
+    </li>
+    <li>
+      <strong>AI agent sessions</strong> — Active WalletConnect agent session topics are stored
+      locally so sessions can be restored if the service worker is restarted. No agent transaction
+      data is persisted.
     </li>
   </ul>
 
@@ -96,7 +108,8 @@
     <li>
       <strong>Algorand node &amp; indexer</strong> (<code>mainnet-api.algonode.cloud</code>,
       <code>mainnet-idx.algonode.cloud</code>) — to query balances, submit signed transactions,
-      and retrieve on-chain data.
+      and retrieve on-chain data. Your public wallet address is transmitted as part of standard
+      blockchain queries.
     </li>
     <li>
       <strong>Voi node &amp; indexer</strong> (<code>mainnet-api.voi.nodely.dev</code>,
@@ -104,51 +117,115 @@
     </li>
     <li>
       <strong>WalletConnect relay</strong> (<code>*.walletconnect.com</code>,
-      <code>*.walletconnect.org</code>) — to enable QR-code wallet pairing with dApps via the
-      WalletConnect v2 protocol. Only encrypted session payloads are transmitted; WalletConnect
-      does not receive your private keys.
+      <code>*.walletconnect.org</code>) — to enable QR-code wallet pairing with dApps and AI
+      agents via the WalletConnect v2 protocol. Session payloads are end-to-end encrypted;
+      WalletConnect's relay infrastructure sees only encrypted metadata (session topic, timing).
+      Your private keys are never transmitted. See
+      <a href="https://walletconnect.com/privacy" target="_blank" rel="noopener">WalletConnect's privacy policy</a>.
     </li>
     <li>
-      <strong>x402 payment endpoints</strong> — when you approve an x402 payment, the extension
-      constructs and submits a signed Algorand/Voi transaction to the merchant's endpoint. Only
-      the signed transaction (which contains your public address) is transmitted; your private key
+      <strong>enVoi name resolution service</strong> (<code>mcp.ilovechicken.co.uk</code>) —
+      when you resolve a <code>.voi</code> human-readable name (e.g. <em>shelly.voi</em>), the
+      name you are resolving is sent to this MCP (Model Context Protocol) endpoint to retrieve
+      the corresponding Algorand address. A small VOI payment (set by the service) accompanies
+      this request to cover the resolution fee. This service is only called on the Voi network
+      when you explicitly initiate a name resolution. Your private key is never transmitted;
+      only the signed payment transaction (containing your public address) and the name to
+      resolve are sent.
+    </li>
+    <li>
+      <strong>x402 / MPP payment endpoints</strong> — when you approve an x402 or MPP payment,
+      the extension constructs and submits a signed Algorand/Voi transaction directly to the
+      blockchain node, then presents proof of payment to the merchant's server. Only the signed
+      transaction (containing your public address) and on-chain transaction ID are transmitted
+      to the merchant. Your private key never leaves your device.
+    </li>
+    <li>
+      <strong>AP2 (Agent Payments Protocol) merchants</strong> — when you approve an AP2
+      payment credential request, the extension signs a PaymentMandate document using your
+      private key and returns the signed credential to the requesting page. The credential
+      contains your public wallet address and a cryptographic signature. Your private key
       never leaves your device.
+    </li>
+    <li>
+      <strong>Wallet icon CDNs</strong> (<code>https://static.defly.app</code>,
+      <code>https://*.walletconnect.com</code>) — wallet application icons may be loaded from
+      these CDNs to display in the pairing and approval UI.
     </li>
   </ul>
 
-  <h2>5. Permissions Used and Why</h2>
+  <h2>5. Fetch Interceptor (x402 and MPP Payment Detection)</h2>
+  <p>
+    AlgoVoi injects a lightweight script into HTTPS pages that intercepts fetch responses
+    to detect HTTP 402 (Payment Required) status codes. This interceptor:
+  </p>
+  <ul>
+    <li>Reads only the HTTP status code and specific payment-related response headers
+      (<code>PAYMENT-REQUIRED</code>, <code>WWW-Authenticate: Payment</code>).</li>
+    <li>Does <strong>not</strong> read, store, or transmit the body of any web page or
+      any other response header.</li>
+    <li>Does <strong>not</strong> collect your browsing history or visited URLs.</li>
+    <li>Only activates when a website explicitly returns a 402 payment challenge.</li>
+  </ul>
+  <p>
+    When a 402 response is detected, the URL of the payment-gated resource is displayed
+    in the approval popup so you can confirm what you are paying for. This URL is used
+    only for display purposes and is not transmitted to any external server.
+  </p>
+
+  <h2>6. AI Agent Signing</h2>
+  <p>
+    AlgoVoi supports WalletConnect Web3Wallet integration, which allows AI agents to connect
+    to your wallet via a QR code or pairing URI. When an AI agent requests a transaction
+    signature:
+  </p>
+  <ul>
+    <li>A confirmation popup is <strong>always shown</strong> — no transaction is signed
+      without your explicit approval.</li>
+    <li>The agent's name, URL, and the full transaction details (type, amount, recipient)
+      are displayed before you approve.</li>
+    <li>Signed transactions are returned to the agent via the WalletConnect relay (encrypted).
+      Your private key is never exposed to the agent.</li>
+    <li>You can disconnect any agent session at any time from the Agents tab in the popup.</li>
+  </ul>
+
+  <h2>7. Permissions Used and Why</h2>
   <ul>
     <li><strong>storage</strong> — to persist the encrypted vault and preferences locally.</li>
-    <li><strong>alarms</strong> — to schedule periodic session keep-alive checks in the service worker.</li>
-    <li><strong>tabs</strong> — to open the WalletConnect pairing page in the extension popup and
-        to communicate with the active page during x402 payment flows.</li>
-    <li><strong>windows</strong> — to open the x402 payment approval popup window.</li>
+    <li><strong>alarms</strong> — to maintain active AI agent signing sessions: a periodic
+        alarm fires while an agent is connected and is cleared automatically when you disconnect
+        all agents.</li>
+    <li><strong>tabs</strong> — to route payment results back to the correct browser tab and
+        to broadcast chain-change events to open pages.</li>
+    <li><strong>windows</strong> — to open payment and signing approval popup windows.</li>
     <li>
-      <strong>Host permissions</strong> (Algorand, Voi, WalletConnect domains) — to make API calls
-      to the blockchain nodes and WalletConnect relay listed above.
+      <strong>Host permissions</strong> (Algorand, Voi, WalletConnect, enVoi domains) — to
+      make API calls to the blockchain nodes, WalletConnect relay, and name resolution service
+      listed above. Each host is used only for its stated purpose.
     </li>
     <li>
       <strong>Content script on <code>https://*/*</code></strong> — to inject the
-      <code>window.algorand</code> ARC-0027 provider and x402 fetch interceptor into web pages,
-      allowing dApps to request transaction signing. The content script cannot read page content
-      and only passes signing requests to the extension background.
+      <code>window.algorand</code> ARC-0027 provider and payment protocol fetch interceptor
+      into web pages, enabling dApps to request transaction signing and websites to offer
+      x402/MPP payment flows. The content script does not read or modify page content;
+      it only passes explicitly typed messages to the extension background.
     </li>
   </ul>
 
-  <h2>6. Children's Privacy</h2>
+  <h2>8. Children's Privacy</h2>
   <p>
     AlgoVoi is not directed at children under 13 years of age. We do not knowingly collect any
     information from children.
   </p>
 
-  <h2>7. Changes to This Policy</h2>
+  <h2>9. Changes to This Policy</h2>
   <p>
     If we make material changes to this policy, we will update the "Last updated" date above and
     publish the updated policy at this URL. Continued use of the extension after changes constitutes
     acceptance of the revised policy.
   </p>
 
-  <h2>8. Contact</h2>
+  <h2>10. Contact</h2>
   <p>
     Questions or concerns? Open an issue on
     <a href="https://github.com/chopmob-cloud/AlgoVoi/issues" target="_blank" rel="noopener">
