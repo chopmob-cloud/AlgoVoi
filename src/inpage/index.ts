@@ -163,9 +163,17 @@ const provider = {
 
     /**
      * List the IntentMandates stored in this wallet.
-     * Returns the array directly from chrome storage (via background).
+     * Requires the page to have been connected via enable() first — prevents
+     * wallet fingerprinting by unenabled pages.
      */
-    getIntentMandates(): Promise<unknown[]> {
+    async getIntentMandates(): Promise<unknown[]> {
+      // Verify the page is connected before exposing mandate metadata
+      const enableResult = await sendToContent<{ accounts: string[] }>("ARC27_ENABLE", {
+        genesisID: "",
+      }).catch(() => null);
+      if (!enableResult?.accounts?.length) {
+        throw new Error("ap2.getIntentMandates requires wallet connection via enable() first");
+      }
       return sendToContent<unknown[]>("AP2_GET_INTENT_MANDATES", {});
     },
   }),

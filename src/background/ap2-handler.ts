@@ -15,7 +15,6 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
 import { requestApproval } from "./approval-handler";
 import type {
@@ -34,7 +33,7 @@ function encodeBase64url(input: string | Uint8Array): string {
   if (typeof input === "string") {
     b64 = btoa(input);
   } else {
-    b64 = btoa(String.fromCharCode(...input));
+    b64 = btoa(Array.from(input).map((b) => String.fromCharCode(b)).join(""));
   }
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
@@ -134,6 +133,17 @@ export function verifyCartMandate(cartMandate: CartMandate): string | null {
     return "CartMandate: missing or invalid total";
   }
 
+  // Validate numeric format on item amounts and total (rejects "NaN", "Infinity", etc.)
+  const numericRe = /^\d+(\.\d+)?$/;
+  if (!numericRe.test(contents.total.value)) {
+    return `CartMandate: total.value is not a valid number: "${contents.total.value}"`;
+  }
+  for (let i = 0; i < contents.items.length; i++) {
+    if (!numericRe.test(contents.items[i].amount.value)) {
+      return `CartMandate: item[${i}].amount.value is not a valid number`;
+    }
+  }
+
   if (!merchant_authorization || typeof merchant_authorization !== "string") {
     return "CartMandate: missing merchant_authorization";
   }
@@ -220,21 +230,6 @@ export async function buildPaymentMandate(params: {
   };
 }
 
-// ── Approval popup ────────────────────────────────────────────────────────────
-
-async function openAp2ApprovalPopup(requestId: string): Promise<void> {
-  const url =
-    chrome.runtime.getURL("src/approval/index.html") +
-    `?requestId=${requestId}&kind=ap2_payment`;
-  await chrome.windows.create({
-    url,
-    type: "popup",
-    width: APPROVAL_POPUP_WIDTH,
-    height: APPROVAL_POPUP_HEIGHT,
-    focused: true,
-  });
-}
-
 // ── Main entry: handle an incoming AP2 payment request ────────────────────────
 
 /**
@@ -305,12 +300,12 @@ export async function handleAp2Payment(params: {
     _pendingAp2Requests.delete(requestId);
   }, TTL_MS);
 
-  // Queue in the unified approval handler (for APPROVAL_GET_PENDING compatibility)
+  // Queue in the unified approval handler — it opens the popup and manages the TTL.
+  // On TTL expiry or popup-open failure, clear the request from our map too.
   requestApproval(pending).catch(() => {
     _pendingAp2Requests.delete(requestId);
   });
 
-  await openAp2ApprovalPopup(requestId);
   return requestId;
 }
 

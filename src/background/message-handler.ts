@@ -831,6 +831,29 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         return true;
       });
 
+      // Enforce IntentMandate spending cap if currencies match
+      if (matchingIntent?.max_amount && matchingIntent.currency) {
+        const cartTotal = parseFloat(ap2Req.total.value);
+        const cap = parseFloat(matchingIntent.max_amount);
+        if (
+          matchingIntent.currency.toUpperCase() === ap2Req.total.currency.toUpperCase() &&
+          !isNaN(cartTotal) && !isNaN(cap) && cartTotal > cap
+        ) {
+          throw new Error(
+            `CartMandate total ${ap2Req.total.value} ${ap2Req.total.currency} ` +
+            `exceeds IntentMandate spending cap of ${matchingIntent.max_amount} ${matchingIntent.currency}`
+          );
+        }
+      }
+
+      // Re-verify CartMandate expiry at signing time (defense-in-depth; UI may race)
+      if (ap2Req.expiry) {
+        const expiresAt = new Date(ap2Req.expiry).getTime();
+        if (!isNaN(expiresAt) && Date.now() > expiresAt) {
+          throw new Error("CartMandate has expired — cannot sign PaymentMandate");
+        }
+      }
+
       // Build and sign the PaymentMandate using the stored CartMandate
       // (retained in PendingAp2Approval for correct hash computation)
       const paymentMandate = await buildPaymentMandate({
@@ -841,6 +864,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       });
 
       clearPendingAp2Request(msg.requestId);
+      resolveApproval(msg.requestId);
 
       // Notify the inpage script so its pending Promise can resolve
       chrome.tabs.sendMessage(ap2Req.tabId, {
@@ -856,6 +880,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const ap2ReqToReject = getPendingAp2Request(msg.requestId);
       if (ap2ReqToReject) {
         clearPendingAp2Request(msg.requestId);
+        rejectApproval(msg.requestId, "User rejected AP2 payment credential");
         chrome.tabs.sendMessage(ap2ReqToReject.tabId, {
           type: "AP2_RESULT",
           requestId: ap2ReqToReject.inpageRequestId ?? ap2ReqToReject.id,
