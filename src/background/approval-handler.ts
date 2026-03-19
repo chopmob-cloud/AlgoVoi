@@ -161,7 +161,7 @@ export { randomId };
 async function openApprovalPopup(id: string, kind: ApprovalKind): Promise<void> {
   // Validate kind against known values before injecting into URL — prevents
   // any future code path from accidentally constructing a URL with user-controlled kind.
-  const VALID_KINDS: readonly string[] = ["sign_txns", "sign_bytes", "envoi_payment", "mpp_charge"];
+  const VALID_KINDS: readonly string[] = ["sign_txns", "sign_bytes", "envoi_payment", "mpp_charge", "ap2_payment"];
   if (!VALID_KINDS.includes(kind)) throw new Error(`Unknown approval kind: ${kind}`);
   const popupUrl = new URL(chrome.runtime.getURL("src/approval/index.html"));
   popupUrl.searchParams.set("requestId", id);

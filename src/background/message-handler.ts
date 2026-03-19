@@ -29,6 +29,15 @@ import {
   getIntentMandates,
 } from "./ap2-handler";
 import { mcpResolveEnvoi } from "./mcp-client";
+import {
+  generatePairingUri,
+  getActiveSessions,
+  disconnectAgentSession,
+  getPendingAgentSignRequest,
+  approveAgentSignRequest,
+  rejectAgentSignRequest,
+} from "./web3wallet-handler";
+import { WC_PROJECT_ID } from "@shared/constants";
 import { base64ToBytes, randomId } from "@shared/utils/crypto";
 import { formatAmount } from "@shared/utils/format";
 import {
@@ -894,6 +903,49 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     case "AP2_LIST_INTENT_MANDATES": {
       const mandates = await getIntentMandates();
       return { mandates };
+    }
+
+    // ── WalletConnect Web3Wallet (AlgoVoi as wallet for AI agents) ───────────
+
+    case "W3W_GENERATE_URI": {
+      const uri = await generatePairingUri(WC_PROJECT_ID);
+      return { uri };
+    }
+
+    case "W3W_GET_SESSIONS": {
+      const sessions = getActiveSessions();
+      return { sessions };
+    }
+
+    case "W3W_DISCONNECT": {
+      await disconnectAgentSession(msg.topic);
+      return { success: true };
+    }
+
+    case "W3W_AGENT_SIGN_GET_PENDING": {
+      const agentReq = getPendingAgentSignRequest(msg.requestId);
+      return { request: agentReq };
+    }
+
+    case "W3W_AGENT_SIGN_APPROVE": {
+      const agentReq = getPendingAgentSignRequest(msg.requestId);
+      if (!agentReq) throw new Error("Pending agent sign request not found");
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet locked during agent sign approval");
+      }
+      walletStore.resetAutoLock();
+      const agentAccount = walletStore.getActiveAccount();
+      if (!agentAccount || agentAccount.type === "walletconnect") {
+        throw new Error("Agent signing requires a vault/mnemonic account");
+      }
+      const agentSk = walletStore.getActiveSecretKey();
+      const signedTxns = await approveAgentSignRequest(msg.requestId, agentSk, agentAccount.address);
+      return { signedTxns };
+    }
+
+    case "W3W_AGENT_SIGN_REJECT": {
+      await rejectAgentSignRequest(msg.requestId);
+      return { success: true };
     }
 
     // ── enVoi name resolution ─────────────────────────────────────────────────
