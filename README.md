@@ -1,11 +1,12 @@
 # AlgoVoi
 
-A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** networks with built-in [x402](https://x402.org) HTTP micropayment support.
+A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** networks with built-in payment protocol support for x402, MPP, and AP2.
 
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue?logo=googlechrome)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
+![Version](https://img.shields.io/badge/version-0.1.4-brightgreen)
 
 ---
 
@@ -13,10 +14,28 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 
 - **Multi-chain wallet** — Algorand mainnet and Voi mainnet from a single extension
 - **ARC-0027 provider** — `window.algorand` injected into every page, compatible with Pera, Defly, and Lute dApps
-- **WalletConnect v2** — Pair with any WalletConnect-compatible mobile wallet
+- **WalletConnect v2** — Pair with any WalletConnect-compatible mobile wallet (Pera, Defly, Voi Wallet)
 - **x402 micropayments** — Automatic HTTP 402 payment handling; pay for API calls and content without leaving the page
+- **MPP payments** — Machine Payments Protocol (`WWW-Authenticate: Payment`) support using AVM on-chain transactions
+- **AP2 credentials** — Google Agent Payments Protocol; sign verifiable payment mandates for AI agent commerce
+- **AI agent wallet** — WalletConnect Web3Wallet mode lets AI agents connect to AlgoVoi and request transaction signing without ever touching private keys
 - **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
+- **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
 - **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
+
+---
+
+## Payment Protocols
+
+AlgoVoi supports three HTTP payment protocols, all detected automatically:
+
+| Protocol | Header | Auth Response | Use case |
+|---|---|---|---|
+| **x402** | `PAYMENT-REQUIRED` | `PAYMENT-SIGNATURE` | Content paywalls, API metering |
+| **MPP** | `WWW-Authenticate: Payment` | `Authorization: Payment <credential>` | Machine-to-machine HTTP auth |
+| **AP2** | via `window.algorand.ap2` | `PaymentMandate` (VDC) | AI agent commerce (Google AP2) |
+
+MPP is checked first; x402 second. Both submit real AVM on-chain transactions. AP2 signs a verifiable credential only — the merchant handles settlement.
 
 ---
 
@@ -24,37 +43,59 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 
 ```
 src/
-├── background/     Service worker: wallet store, chain clients, x402 handler, message router
+├── background/     Service worker: wallet store, chain clients, x402/MPP/AP2/Web3Wallet handlers, message router
 ├── content/        Content script: bridges inpage ↔ background messages
-├── inpage/         Injected into pages: window.algorand provider + fetch x402 intercept
-├── popup/          React wallet UI (360 × 600 px)
-├── approval/       x402 payment approval popup
+├── inpage/         Injected into pages: window.algorand provider + fetch x402/MPP intercept
+├── popup/          React wallet UI (360 × 600 px) — includes Agent Sessions tab
+├── approval/       Payment approval popup (x402, MPP, AP2, agent sign requests)
 ├── devtools/       Chrome DevTools panel (TxnInspector, X402Inspector, BazaarPanel)
 └── shared/         Types, constants, crypto utils, debug logger
 ```
 
 **Message flow:**
 ```
-Page (dApp)
+Page (dApp / AI agent)
   └─ window.postMessage ──► content script
                                └─ chrome.runtime.sendMessage ──► background service worker
-                                                                      └─ algosdk / WC SDK
+                                                                      └─ algosdk / WC SDK / Web3Wallet
 ```
 
 **x402 flow:**
 ```
-fetch() → 402 response → inpage intercepts → approval popup → user approves
-  → background signs + submits txn → retry fetch with X-PAYMENT header
+fetch() → 402 + PAYMENT-REQUIRED header → inpage intercepts → approval popup → user approves
+  → background signs + submits AVM txn → retry fetch with PAYMENT-SIGNATURE header
+```
+
+**MPP flow:**
+```
+fetch() → 402 + WWW-Authenticate: Payment → inpage intercepts → approval popup → user approves
+  → background builds/signs/submits AVM txn → retry fetch with Authorization: Payment <credential>
+```
+
+**AP2 flow:**
+```
+window.algorand.ap2.requestPayment(cartMandate) → approval popup → user approves
+  → background SHA-256 hashes CartMandate + signs PaymentMandate with ed25519
+  → returns PaymentMandate (no AVM txn submitted — merchant settles separately)
+```
+
+**Agent (Web3Wallet) flow:**
+```
+AI agent pairs via WC URI → AlgoVoi acts as WC wallet → agent sends algo_signTxn request
+  → approval popup → user approves → AlgoVoi signs with vault key → signed txn returned to agent
+  (agent never touches private keys)
 ```
 
 ---
 
 ## Supported Networks
 
-| Network | Node | Genesis ID |
-|---------|------|------------|
-| Algorand Mainnet | `mainnet-api.algonode.cloud` | `mainnet-v1.0` |
-| Voi Mainnet | `mainnet-api.voi.nodely.dev` | `voimain-v1.0` |
+| Network | Node | Genesis ID | CAIP-2 |
+|---------|------|------------|--------|
+| Algorand Mainnet | `mainnet-api.algonode.cloud` | `mainnet-v1.0` | `algorand:mainnet-v1.0` |
+| Voi Mainnet | `mainnet-api.voi.nodely.dev` | `voimain-v1.0` | `algorand:r20fSQI8gWe_kFZziNonSPCXLwcQmH_n` |
+
+Both chains share the same ed25519 key pair and are available in a single WC agent session.
 
 ---
 
@@ -69,8 +110,8 @@ fetch() → 402 response → inpage intercepts → approval popup → user appro
 ### Setup
 
 ```bash
-git clone https://github.com/MaidToShelly/algovou.git
-cd algovou
+git clone https://github.com/chopmob-cloud/AlgoVoi.git
+cd AlgoVoi
 npm install
 cp .env.example .env
 ```
@@ -113,7 +154,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–VIII complete).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–X complete).
 
 ---
 
@@ -136,7 +177,7 @@ const { sig } = await window.algorand.signBytes({ data: new Uint8Array([...]) })
 
 ## x402 Automatic Payments
 
-AlgoVoi intercepts `fetch()` calls that return HTTP 402 and handles payment automatically:
+AlgoVoi intercepts `fetch()` calls that return HTTP 402 + `PAYMENT-REQUIRED` header and handles payment automatically:
 
 ```typescript
 // This fetch will trigger a payment approval popup if the server returns 402
@@ -147,22 +188,82 @@ const data = await response.json(); // resolves after payment is approved
 Supported payment assets:
 - **ALGO** (native)
 - **USDC** (ASA 31566704 on Algorand)
+- **VOI** (native)
 - **aUSDC** (ASA 302190 on Voi)
+
+---
+
+## MPP Payments
+
+AlgoVoi handles [Machine Payments Protocol](https://mpp.dev) (`WWW-Authenticate: Payment`) responses automatically using the custom `avm` method:
+
+```
+HTTP/1.1 402 Payment Required
+WWW-Authenticate: Payment id="...", realm="api.example.com", method="avm",
+  intent="charge", request="<base64url-MppAvmRequest>"
+```
+
+The extension builds and submits an AVM on-chain transaction, then retries the original request with:
+```
+Authorization: Payment <base64url-MppCredential>
+```
+
+---
+
+## AP2 — Agent Payments Protocol
+
+AlgoVoi supports [Google's AP2 protocol](https://github.com/google-agentic-commerce/AP2) via `window.algorand.ap2`:
+
+```typescript
+// Request a signed PaymentMandate for a CartMandate from the merchant
+const paymentMandate = await window.algorand.ap2.requestPayment(cartMandate);
+
+// List stored IntentMandates (spending authorizations)
+const mandates = await window.algorand.ap2.getIntentMandates();
+```
+
+The wallet:
+1. Verifies the CartMandate structure and expiry
+2. Shows an approval popup with items, total, and merchant details
+3. SHA-256 hashes the CartMandate and signs a `PaymentMandate` with the user's ed25519 key
+4. Returns the signed credential — **no AVM transaction is submitted**; the merchant settles externally
+
+---
+
+## AI Agent Wallet (Web3Wallet)
+
+AI agents can connect to AlgoVoi as their wallet via WalletConnect — they never touch private keys:
+
+1. Open AlgoVoi popup → **Agents** tab → **Connect Agent**
+2. Share the WC pairing URI with your agent (or scan the QR code)
+3. Agent connects using any WC-compatible SDK (`viem`, `algosdk`, ADK, etc.)
+4. Agent sends `algo_signTxn` requests — AlgoVoi shows an approval popup for each one
+5. User approves → AlgoVoi signs with the vault key → signed transaction returned to agent
+
+Both **Algorand mainnet** and **Voi mainnet** are available in the same agent session using CAIP-2 namespaces.
+
+```typescript
+// Example: agent using WalletConnect to request a transaction signature
+const result = await signClient.request({
+  topic: session.topic,
+  chainId: "algorand:mainnet-v1.0",   // or "algorand:r20fSQI8gWe_kFZziNonSPCXLwcQmH_n" for Voi
+  request: {
+    method: "algo_signTxn",
+    params: [[{ txn: base64MsgpackUnsignedTxn }]],
+  },
+});
+```
 
 ---
 
 ## Ecosystem
 
-### Compatible x402 Services
+### Compatible Services
 
-| Project | Network | Description |
+| Project | Protocol | Description |
 |---------|---------|-------------|
-| [UluMCP](https://github.com/MaidToShelly/UluMCP) | Algorand + **Voi** | MCP server for AI agents — tokens, NFTs, DEX swaps, marketplace. Supports x402 payment gating and WAD metered billing |
-| [x402 test site](https://x402.ilovechicken.co.uk) | Algorand + **Voi** | Live demo — browse gated content with AlgoVoi paying automatically |
-
-UluMCP is a working example of x402 on Voi — deploy it with `X402_AVM_PAY_TO` and `X402_AVM_PRICE` set and AlgoVoi will automatically handle the 402 payment flow when an AI agent hits a gated tool endpoint.
-
-The AlgoVoi **Bazaar DevTools panel** is designed to surface marketplace listings from services like UluMCP (`mp_listings`, `mp_sales`).
+| [UluMCP](https://github.com/MaidToShelly/UluMCP) | x402 | MCP server for AI agents — tokens, NFTs, DEX swaps, marketplace. x402 + WAD metered billing |
+| [x402 test site](https://x402.ilovechicken.co.uk) | x402 | Live demo — browse gated content with AlgoVoi paying automatically |
 
 ### Live x402 Endpoints (AVM)
 
@@ -174,22 +275,18 @@ Public endpoints for testing x402 clients against real on-chain payments:
 | `GET https://api.ilovechicken.co.uk/api/voi-premium` | Voi mainnet | aUSDC (ASA 302190) | 0.01 aUSDC |
 | `GET https://api.ilovechicken.co.uk/api/config` | — | — | Public (no payment) |
 
-Both endpoints implement the full x402 server contract: HMAC-signed intent tokens,
-single-use replay protection, and on-chain verification via the Algorand/Voi indexer.
-Open for any x402 client to test against — each call costs the caller real USDC/aUSDC.
-
 ---
 
 ## Development
 
 ```bash
 # Type check
-npm run typecheck
+npm run type-check
 
-# Lint
-npm run lint
+# Run tests
+npm test
 
-# Build for development (with sourcemaps)
+# Build with sourcemaps (development)
 NODE_ENV=development npm run build
 ```
 
