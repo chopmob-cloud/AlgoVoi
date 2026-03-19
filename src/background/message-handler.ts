@@ -21,6 +21,13 @@ import {
   getPendingMppRequest,
   clearPendingMppRequest,
 } from "./mpp-handler";
+import {
+  handleAp2Payment,
+  buildPaymentMandate,
+  getPendingAp2Request,
+  clearPendingAp2Request,
+  getIntentMandates,
+} from "./ap2-handler";
 import { mcpResolveEnvoi } from "./mcp-client";
 import { base64ToBytes, randomId } from "@shared/utils/crypto";
 import { formatAmount } from "@shared/utils/format";
@@ -784,6 +791,84 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         });
       }
       return { success: true };
+    }
+
+    // ── AP2 (Agent Payments Protocol) ────────────────────────────────────────
+    case "AP2_PAYMENT_REQUEST": {
+      const requestId = await handleAp2Payment({
+        tabId: sender?.tab?.id ?? tabId,
+        url: msg.url,
+        cartMandate: msg.cartMandate,
+        inpageRequestId: msg.requestId,
+      });
+      return { requestId };
+    }
+
+    case "AP2_GET_PENDING": {
+      const ap2Req = getPendingAp2Request(msg.requestId);
+      return { request: ap2Req };
+    }
+
+    case "AP2_APPROVE": {
+      const ap2Req = getPendingAp2Request(msg.requestId);
+      if (!ap2Req) throw new Error("Pending AP2 request not found");
+
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet locked during AP2 approval");
+      }
+      walletStore.resetAutoLock();
+
+      // Find a matching IntentMandate if available (first non-expired one)
+      const intentMandates = await getIntentMandates();
+      const nowAp2 = Date.now();
+      const matchingIntent = intentMandates.find((m) => {
+        if (m.network !== ap2Req.network) return false;
+        if (m.address !== ap2Req.address) return false;
+        if (m.intent_expiry) {
+          const expiresAt = new Date(m.intent_expiry).getTime();
+          if (!isNaN(expiresAt) && nowAp2 > expiresAt) return false;
+        }
+        return true;
+      });
+
+      // Build and sign the PaymentMandate using the stored CartMandate
+      // (retained in PendingAp2Approval for correct hash computation)
+      const paymentMandate = await buildPaymentMandate({
+        cartMandate: ap2Req.cartMandate,
+        intentMandateId: matchingIntent?.id ?? "",
+        network: ap2Req.network,
+        address: ap2Req.address,
+      });
+
+      clearPendingAp2Request(msg.requestId);
+
+      // Notify the inpage script so its pending Promise can resolve
+      chrome.tabs.sendMessage(ap2Req.tabId, {
+        type: "AP2_RESULT",
+        requestId: ap2Req.inpageRequestId ?? ap2Req.id,
+        approved: true,
+        paymentMandate,
+      });
+      return { paymentMandate };
+    }
+
+    case "AP2_REJECT": {
+      const ap2ReqToReject = getPendingAp2Request(msg.requestId);
+      if (ap2ReqToReject) {
+        clearPendingAp2Request(msg.requestId);
+        chrome.tabs.sendMessage(ap2ReqToReject.tabId, {
+          type: "AP2_RESULT",
+          requestId: ap2ReqToReject.inpageRequestId ?? ap2ReqToReject.id,
+          approved: false,
+          error: "User rejected AP2 payment credential",
+        });
+      }
+      return { success: true };
+    }
+
+    case "AP2_LIST_INTENT_MANDATES": {
+      const mandates = await getIntentMandates();
+      return { mandates };
     }
 
     // ── enVoi name resolution ─────────────────────────────────────────────────

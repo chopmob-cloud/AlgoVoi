@@ -15,9 +15,14 @@
  *   - One-shot semantics: a request is consumed exactly once
  */
 
+import type { PendingAp2Approval } from "./ap2";
+
+// Re-export so approval consumers can import from one place.
+export type { PendingAp2Approval } from "./ap2";
+
 // ── Request kinds ─────────────────────────────────────────────────────────────
 
-export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge";
+export type ApprovalKind = "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment";
 
 /** Auto-reject TTL — 5 minutes */
 export const APPROVAL_TTL_MS = 5 * 60 * 1_000;
@@ -189,4 +194,5 @@ export type PendingApproval =
   | PendingSignTxnsApproval
   | PendingSignBytesApproval
   | PendingEnvoiApproval
-  | PendingMppApproval;
+  | PendingMppApproval
+  | PendingAp2Approval;

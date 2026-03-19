@@ -12,6 +12,7 @@ import type { ChainId, AccountState } from "./chain";
 import type { PaymentRequirements, PendingX402Request, PaymentRecord } from "./x402";
 import type { PendingMppRequest } from "./mpp";
 import type { PendingApproval } from "./approval";
+import type { CartMandate, IntentMandate, PaymentMandate, PendingAp2Approval } from "./ap2";
 
 // ── Window message types (inpage ↔ content) ──────────────────────────────────
 
@@ -78,7 +79,13 @@ export type BgRequest =
   // Unified approval flow (sign_txns, sign_bytes, envoi_payment)
   | { type: "APPROVAL_GET_PENDING"; requestId: string }
   | { type: "APPROVAL_APPROVE";     requestId: string }
-  | { type: "APPROVAL_REJECT";      requestId: string };
+  | { type: "APPROVAL_REJECT";      requestId: string }
+  // AP2 credential signing (Agent Payments Protocol)
+  | { type: "AP2_PAYMENT_REQUEST"; requestId: string; cartMandate: CartMandate; url: string; tabId: number }
+  | { type: "AP2_GET_PENDING"; requestId: string }
+  | { type: "AP2_APPROVE"; requestId: string }
+  | { type: "AP2_REJECT"; requestId: string }
+  | { type: "AP2_LIST_INTENT_MANDATES" };
 
 export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_STATE" ? { lockState: LockState; meta: WalletMeta | null } :
@@ -110,6 +117,12 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "APPROVAL_GET_PENDING" ? { approval: PendingApproval | null } :
   T extends "APPROVAL_APPROVE"     ? { success: boolean } :
   T extends "APPROVAL_REJECT"      ? { success: boolean } :
+  T extends "AP2_GET_PENDING" ? { request: PendingAp2Approval | null } :
+  T extends "AP2_APPROVE" ? { paymentMandate: PaymentMandate } :
+  T extends "AP2_REJECT" ? { success: boolean } :
+  T extends "AP2_PAYMENT_REQUEST" ? { requestId: string } :
+  // IntentMandate management (used by popup)
+  T extends "AP2_LIST_INTENT_MANDATES" ? { mandates: IntentMandate[] } :
   { success: boolean; error?: string };
 
 // Notification pushed from background to content/tabs
@@ -118,4 +131,5 @@ export type BgNotification =
   | { type: "CHAIN_CHANGED"; chain: ChainId }
   | { type: "LOCK_STATE_CHANGED"; lockState: LockState }
   | { type: "X402_RESULT"; requestId: string; approved: boolean; paymentHeader?: string; error?: string }
-  | { type: "MPP_RESULT"; requestId: string; approved: boolean; authorizationHeader?: string; error?: string };
+  | { type: "MPP_RESULT"; requestId: string; approved: boolean; authorizationHeader?: string; error?: string }
+  | { type: "AP2_RESULT"; requestId: string; approved: boolean; paymentMandate?: PaymentMandate; error?: string };

@@ -309,11 +309,7 @@ export async function buildAndSignMppPayment(
     await submitTransaction(chain, signedBytes);
   } catch (err) {
     const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    const isDuplicate =
-      msg.includes("already") ||
-      msg.includes("duplicate") ||
-      msg.includes("already in ledger") ||
-      msg.includes("txn already exists");
+    const isDuplicate = /\b(already in ledger|txn already exists|duplicate transaction|transaction already)\b/i.test(msg);
     if (!isDuplicate) {
       throw new Error(
         `MPP transaction broadcast failed: ${err instanceof Error ? err.message : String(err)}`
@@ -439,6 +435,18 @@ export async function handleMpp(params: {
     }
   }, TTL_MS);
 
+  // Determine whether the active account is WalletConnect so the popup can
+  // show an early warning instead of letting the user click Pay and only then
+  // discover the account type is incompatible with MPP auto-signing.
+  let isWalletConnect = false;
+  try {
+    const meta = await walletStore.getMeta();
+    const active = meta.accounts.find((a) => a.id === meta.activeAccountId);
+    isWalletConnect = active?.type === "walletconnect";
+  } catch {
+    // Non-fatal — popup will show the error on approve instead
+  }
+
   // Queue a PendingMppApproval in the unified approval handler so the popup
   // can retrieve display details via APPROVAL_GET_PENDING / MPP_GET_PENDING.
   const mppApproval: PendingMppApproval = {
@@ -454,6 +462,7 @@ export async function handleMpp(params: {
     currencyLabel: currencyLabel(avmRequest),
     decimals: avmRequest.decimals ?? 6,
     timestamp: Date.now(),
+    isWalletConnect,
   };
   // requestApproval opens the popup and waits for user action; we fire-and-forget
   // here because the popup sends MPP_APPROVE / MPP_REJECT independently.
