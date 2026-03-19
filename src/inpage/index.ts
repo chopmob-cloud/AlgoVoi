@@ -190,6 +190,9 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   // Check for MPP before x402 — the two protocols are disjoint by header name.
   // MPP uses the standard HTTP auth header; x402 uses a custom PAYMENT-REQUIRED header.
   const wwwAuth = response.headers.get("WWW-Authenticate") ?? "";
+  if (/Payment\s+/i.test(wwwAuth) && response.headers.get(HEADER_PAYMENT_REQUIRED)) {
+    console.warn("[AlgoVoi] Both MPP (WWW-Authenticate) and x402 (PAYMENT-REQUIRED) headers present; using MPP.");
+  }
   if (/Payment\s+/i.test(wwwAuth)) {
     let authorizationHeader: string;
     try {
@@ -217,9 +220,12 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
       return response;
     }
 
-    // Retry with Authorization: Payment <credential>
+    // Retry with Authorization: Payment <credential>.
+    // Strip session headers that must not be forwarded to the payment endpoint.
     const retryHeaders = new Headers(init?.headers);
-    retryHeaders.delete("Cookie");
+    for (const h of ["Cookie", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
+      retryHeaders.delete(h);
+    }
     retryHeaders.set("Authorization", authorizationHeader);
     return _originalFetch(input, { ...init, headers: retryHeaders });
   }
@@ -228,26 +234,12 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   // Per the x402 spec (github.com/coinbase/x402), the 402 response carries:
   //   PAYMENT-REQUIRED: <base64(PaymentRequired JSON)>
   // where PaymentRequired = { x402Version, error, accepts: PaymentRequirements[] }
-  const paymentHeader =
-    response.headers.get(HEADER_PAYMENT_REQUIRED) ??
-    // Fallback: some early / non-spec implementations put it in the body
-    // We'll attempt body parse in the background; pass null here to trigger it.
-    (response.headers.get("content-type")?.includes("application/json") ? "__body__" : null);
+  // Only accept PAYMENT-REQUIRED as an HTTP response header — never from the body.
+  // Accepting body-based x402 would let a malicious server craft a JSON body to
+  // redirect payment to an arbitrary address without the PAYMENT-REQUIRED header check.
+  const rawPaymentRequired = response.headers.get(HEADER_PAYMENT_REQUIRED);
 
-  if (!paymentHeader) return response;
-
-  // If the header signals the body contains the PaymentRequired JSON, read it.
-  let rawPaymentRequired = paymentHeader;
-  if (paymentHeader === "__body__") {
-    try {
-      // Clone before consuming — the original response body is already consumed
-      const bodyText = await response.clone().text();
-      // Encode the body JSON as base64 so the background can parse it uniformly
-      rawPaymentRequired = btoa(bodyText);
-    } catch {
-      return response;
-    }
-  }
+  if (!rawPaymentRequired) return response;
 
   // Request payment approval from the extension
   let paymentSignature: string;
@@ -278,10 +270,13 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   // Retry the original request with PAYMENT-SIGNATURE header.
-  // M3: Drop Cookie (session credentials must never be auto-forwarded) but
-  // preserve Authorization — bearer tokens are legitimately needed for auth'd endpoints.
+  // Strip session/auth headers that must not be auto-forwarded to a payment endpoint.
+  // Cookie is always stripped; other common session headers are also removed to
+  // prevent a malicious 402 server from harvesting the user's credentials.
   const retryHeaders = new Headers(init?.headers);
-  retryHeaders.delete("Cookie");
+  for (const h of ["Cookie", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
+    retryHeaders.delete(h);
+  }
   if (retryHeaders.has("Authorization")) {
     // Authorization header is forwarded to the retry; dApp developers should verify
     // this endpoint is the intended recipient before enabling x402 payments.

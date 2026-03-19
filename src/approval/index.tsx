@@ -663,8 +663,11 @@ function MppPage({ requestId }: { requestId: string }) {
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-sm text-gray-400">Pay to</span>
-          <span className="text-xs font-mono text-gray-300 break-all leading-relaxed">
-            {approval.recipient}
+          <span
+            className="text-xs font-mono text-gray-300 break-all leading-relaxed"
+            title={approval.recipient}
+          >
+            {approval.recipient.slice(0, 8)}…{approval.recipient.slice(-8)}
           </span>
         </div>
         {approval.description && (

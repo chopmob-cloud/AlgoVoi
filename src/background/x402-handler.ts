@@ -166,14 +166,16 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
 
   const asaId = pr.asset === "0" || !pr.asset ? 0 : parseInt(pr.asset, 10);
 
-  // M5: Respect per-user configurable spending caps from wallet settings
+  // Respect per-user configurable spending caps from wallet settings.
+  // Validate cap values defensively: if stored value is missing, zero, or non-positive
+  // fall back to the hardcoded default rather than allowing unbounded spending.
+  function safeCap(stored: number | undefined, defaultCap: bigint): bigint {
+    if (stored === undefined || stored <= 0 || !Number.isFinite(stored)) return defaultCap;
+    try { const v = BigInt(Math.floor(stored)); return v > 0n ? v : defaultCap; } catch { return defaultCap; }
+  }
   const cap = asaId !== 0
-    ? (meta.spendingCaps?.asaMicrounits !== undefined
-        ? BigInt(meta.spendingCaps.asaMicrounits)
-        : SPENDING_CAP_ASA)
-    : (meta.spendingCaps?.nativeMicrounits !== undefined
-        ? BigInt(meta.spendingCaps.nativeMicrounits)
-        : SPENDING_CAP_NATIVE);
+    ? safeCap(meta.spendingCaps?.asaMicrounits, SPENDING_CAP_ASA)
+    : safeCap(meta.spendingCaps?.nativeMicrounits, SPENDING_CAP_NATIVE);
 
   if (amount > cap) {
     throw new Error(
@@ -207,7 +209,8 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
         `Open AlgoVoi, find the asset, and opt-in before paying.`
       );
     }
-    const note = new TextEncoder().encode(`x402:${req.url}`.slice(0, 980));
+    // Encode to UTF-8 bytes first, then slice — prevents splitting multi-byte characters.
+    const note = new TextEncoder().encode(`x402:${req.url}`).slice(0, 1000);
     txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
@@ -217,7 +220,7 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
       suggestedParams: params,
     });
   } else {
-    const note = new TextEncoder().encode(`x402:${req.url}`.slice(0, 980));
+    const note = new TextEncoder().encode(`x402:${req.url}`).slice(0, 1000);
     txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
@@ -269,11 +272,9 @@ export async function buildAndSignPayment(
     await submitTransaction(chain, signedBytes);
   } catch (err) {
     const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    const isDuplicate =
-      errMsg.includes("already") ||
-      errMsg.includes("duplicate") ||
-      errMsg.includes("already in ledger") ||
-      errMsg.includes("txn already exists");
+    // Use anchored patterns to avoid matching unrelated errors that happen to
+    // contain these substrings (e.g. "This is already the best transaction").
+    const isDuplicate = /\b(already in ledger|txn already exists|duplicate transaction|transaction already)\b/i.test(errMsg);
     if (!isDuplicate) {
       throw new Error(
         `Transaction broadcast failed: ${err instanceof Error ? err.message : String(err)}`
