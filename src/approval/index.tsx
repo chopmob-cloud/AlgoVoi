@@ -594,6 +594,7 @@ function MppPage({ requestId }: { requestId: string }) {
   const [approval, setApproval] = useState<PendingMppApproval | null>(null);
   const [loading,   setLoading]  = useState(true);
   const [approving, setApproving] = useState(false);
+  const [wcWaiting, setWcWaiting] = useState(false);
   const [error,     setError]    = useState("");
 
   useEffect(() => {
@@ -610,7 +611,27 @@ function MppPage({ requestId }: { requestId: string }) {
     setApproving(true);
     setError("");
     try {
-      await sendBg({ type: "MPP_APPROVE", requestId });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sendBg<any>({ type: "MPP_APPROVE", requestId });
+      if (result.needsWcSign) {
+        setApproving(false);
+        setWcWaiting(true);
+        try {
+          const signedBytes = await signTransactionWithWC(
+            result.sessionTopic,
+            result.chain,
+            result.unsignedTxnB64,
+            result.signerAddress
+          );
+          const signedTxnB64 = btoa(String.fromCharCode(...signedBytes));
+          await sendBg({ type: "MPP_WC_SIGNED", requestId, signedTxnB64 });
+          window.close();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Wallet rejected the payment");
+          setWcWaiting(false);
+        }
+        return;
+      }
       window.close();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed");
@@ -694,6 +715,13 @@ function MppPage({ requestId }: { requestId: string }) {
         </p>
       </div>
 
+      {wcWaiting && (
+        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-3 flex items-center gap-2">
+          <Spinner size={4} />
+          <p className="text-sm text-blue-300">Waiting for your wallet to sign…</p>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
           <p className="text-sm text-red-400">{error}</p>
@@ -706,6 +734,7 @@ function MppPage({ requestId }: { requestId: string }) {
         onApprove={approve}
         onReject={reject}
         approving={approving}
+        disabled={approving || wcWaiting}
       />
     </div>
   );
@@ -862,6 +891,16 @@ function Ap2Page({ requestId }: { requestId: string }) {
         </p>
       </div>
 
+      {approval.isWalletConnect && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+          <p className="text-xs text-red-300">
+            ⚠ <strong>WalletConnect accounts cannot sign AP2 credentials.</strong>{" "}
+            AP2 requires ed25519 byte signing which WalletConnect mobile wallets do not support.
+            Switch to a vault (mnemonic) account in AlgoVoi settings to use AP2.
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
           <p className="text-sm text-red-400">{error}</p>
@@ -874,7 +913,7 @@ function Ap2Page({ requestId }: { requestId: string }) {
         onApprove={approve}
         onReject={reject}
         approving={approving}
-        disabled={expired}
+        disabled={expired || (approval?.isWalletConnect ?? false)}
       />
     </div>
   );
