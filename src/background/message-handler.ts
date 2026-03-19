@@ -18,8 +18,11 @@ import {
 import {
   handleMpp,
   buildAndSignMppPayment,
+  buildMppPaymentTxnForWC,
+  serializeMppCredential,
   getPendingMppRequest,
   clearPendingMppRequest,
+  resolveMppChain,
 } from "./mpp-handler";
 import {
   handleAp2Payment,
@@ -774,6 +777,16 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       }
       walletStore.resetAutoLock();
 
+      // Check if active account is WalletConnect — route to WC signing
+      const mppMeta = await walletStore.getMeta();
+      const mppAccount = mppMeta.accounts.find((a) => a.id === mppMeta.activeAccountId);
+
+      if (mppAccount?.type === "walletconnect") {
+        const wcData = await buildMppPaymentTxnForWC(mppReq);
+        return { needsWcSign: true, ...wcData };
+      }
+
+      // Vault account — sign locally
       const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
       clearPendingMppRequest(msg.requestId);
 
@@ -800,6 +813,44 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         });
       }
       return { success: true };
+    }
+
+    case "MPP_WC_SIGNED": {
+      const mppWcReq = getPendingMppRequest(msg.requestId);
+      if (!mppWcReq) throw new Error("Pending MPP request not found");
+
+      const avmReq = mppWcReq.avmRequest;
+      const chain = resolveMppChain(avmReq.network);
+      if (!chain) throw new Error(`Unsupported MPP network: ${avmReq.network}`);
+
+      const signedBytes = base64ToBytes(msg.signedTxnB64);
+      const txId = await submitTransaction(chain, signedBytes);
+      await waitForConfirmation(chain, txId, 8);
+      await waitForIndexed(chain, txId);
+
+      const wcMppMeta = await walletStore.getMeta();
+      const wcPayer = wcMppMeta.accounts.find((a) => a.id === wcMppMeta.activeAccountId)?.address;
+      if (!wcPayer) throw new Error("Cannot determine payer address for MPP WC payment");
+
+      const mppCredential = {
+        challenge: mppWcReq.challenge,
+        source: `did:pkh:avm:${avmReq.network}:${wcPayer}`,
+        payload: {
+          txId,
+          transaction: btoa(String.fromCharCode(...signedBytes)),
+        },
+      };
+      const authorizationHeader = serializeMppCredential(mppCredential);
+
+      clearPendingMppRequest(msg.requestId);
+      chrome.tabs.sendMessage(mppWcReq.tabId, {
+        type: "MPP_RESULT",
+        requestId: mppWcReq.inpageRequestId ?? mppWcReq.id,
+        approved: true,
+        authorizationHeader,
+        txId,
+      });
+      return { authorizationHeader, txId };
     }
 
     // ── AP2 (Agent Payments Protocol) ────────────────────────────────────────

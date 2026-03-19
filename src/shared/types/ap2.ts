@@ -104,4 +104,6 @@ export interface PendingAp2Approval {
   address: string;
   expiry?: string;
   timestamp: number;
+  /** True when the active account is WalletConnect — AP2 ed25519 signing is unsupported */
+  isWalletConnect?: boolean;
 }

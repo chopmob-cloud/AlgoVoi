@@ -75,6 +75,8 @@ export type BgRequest =
   | { type: "MPP_GET_PENDING"; requestId: string }
   | { type: "MPP_APPROVE"; requestId: string }
   | { type: "MPP_REJECT"; requestId: string }
+  /** Sent by the approval popup after WC wallet signed the MPP payment txn */
+  | { type: "MPP_WC_SIGNED"; requestId: string; signedTxnB64: string }
   // enVoi name resolution via UluMCP (Voi only)
   | { type: "VOI_RESOLVE_NAME"; name: string }
   // Unified approval flow (sign_txns, sign_bytes, envoi_payment)
@@ -119,7 +121,10 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "X402_GET_HISTORY" ? { records: PaymentRecord[] } :
   T extends "X402_WC_SIGNED" ? { paymentHeader: string; txId?: string } :
   T extends "MPP_GET_PENDING" ? { request: PendingMppRequest | null } :
-  T extends "MPP_APPROVE" ? { authorizationHeader: string; txId: string } :
+  T extends "MPP_APPROVE" ?
+    | { authorizationHeader: string; txId: string }
+    | { needsWcSign: true; unsignedTxnB64: string; chain: ChainId; sessionTopic: string; signerAddress: string } :
+  T extends "MPP_WC_SIGNED" ? { authorizationHeader: string; txId: string } :
   T extends "MPP_REJECT" ? { success: boolean } :
   T extends "VOI_RESOLVE_NAME" ? { address: string; displayName: string } :
   T extends "APPROVAL_GET_PENDING" ? { approval: PendingApproval | null } :

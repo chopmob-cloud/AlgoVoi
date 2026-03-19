@@ -190,12 +190,15 @@ const SPENDING_CAP_NATIVE = 10_000_000n; // 10 ALGO/VOI
 const SPENDING_CAP_ASA    = 10_000_000n; // 10 USDC/aUSDC
 
 /**
- * Build, sign (vault key), submit, and encode an MPP avm charge payment.
- * Returns the full `Authorization: Payment <base64url>` header value.
+ * Internal helper: validate and build the unsigned MPP AVM transaction.
+ * Works for both vault and WalletConnect accounts (no signing performed here).
  */
-export async function buildAndSignMppPayment(
-  req: PendingMppRequest
-): Promise<{ authorizationHeader: string; txId: string }> {
+async function buildMppTransaction(req: PendingMppRequest): Promise<{
+  txn: algosdk.Transaction;
+  chain: ChainId;
+  senderAddress: string;
+  asaId: number;
+}> {
   const avmReq = req.avmRequest;
 
   const chain = resolveMppChain(avmReq.network);
@@ -228,13 +231,6 @@ export async function buildAndSignMppPayment(
   const meta = await walletStore.getMeta();
   const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
   if (!activeAccount) throw new Error("No active account");
-
-  if (activeAccount.type === "walletconnect") {
-    throw new Error(
-      "WalletConnect accounts cannot auto-pay MPP charges. " +
-      "Switch to a vault account or use a mnemonic-backed account."
-    );
-  }
 
   // Spending cap check — validate stored cap values defensively before use.
   // If the stored value is missing, zero, non-finite, or unparseable, fall back
@@ -300,6 +296,27 @@ export async function buildAndSignMppPayment(
     });
   }
 
+  return { txn, chain, senderAddress: activeAccount.address, asaId };
+}
+
+/**
+ * Build, sign (vault key), submit, and encode an MPP avm charge payment.
+ * Returns the full `Authorization: Payment <base64url>` header value.
+ * For WalletConnect accounts, use buildMppPaymentTxnForWC() instead.
+ */
+export async function buildAndSignMppPayment(
+  req: PendingMppRequest
+): Promise<{ authorizationHeader: string; txId: string }> {
+  const meta = await walletStore.getMeta();
+  const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
+  if (!activeAccount) throw new Error("No active account");
+
+  if (activeAccount.type === "walletconnect") {
+    throw new Error("Use buildMppPaymentTxnForWC() for WalletConnect accounts");
+  }
+
+  const { txn, chain } = await buildMppTransaction(req);
+
   // Sign, submit, wait for confirmation
   const sk = await walletStore.getActiveSecretKey();
   const signedBytes = txn.signTxn(sk);
@@ -323,7 +340,7 @@ export async function buildAndSignMppPayment(
   // Build and encode the MPP credential
   const credential: MppCredential = {
     challenge: req.challenge,
-    source: `did:pkh:avm:${avmReq.network}:${activeAccount.address}`,
+    source: `did:pkh:avm:${req.avmRequest.network}:${activeAccount.address}`,
     payload: {
       txId,
       transaction: btoa(String.fromCharCode(...signedBytes)),
@@ -333,6 +350,35 @@ export async function buildAndSignMppPayment(
   return {
     authorizationHeader: serializeMppCredential(credential),
     txId,
+  };
+}
+
+/**
+ * Build the unsigned MPP payment transaction for a WalletConnect account.
+ * Mirrors x402-handler's buildPaymentTxnForWC(). Does NOT sign or submit.
+ */
+export async function buildMppPaymentTxnForWC(req: PendingMppRequest): Promise<{
+  unsignedTxnB64: string;
+  chain: ChainId;
+  signerAddress: string;
+  sessionTopic: string;
+}> {
+  const { txn, chain, senderAddress } = await buildMppTransaction(req);
+
+  const meta = await walletStore.getMeta();
+  const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
+  if (activeAccount?.type !== "walletconnect" || !activeAccount.wcSessionTopic) {
+    throw new Error("Active account is not a WalletConnect account");
+  }
+
+  const txnBytes = txn.toByte();
+  const unsignedTxnB64 = btoa(String.fromCharCode(...txnBytes));
+
+  return {
+    unsignedTxnB64,
+    chain,
+    signerAddress: senderAddress,
+    sessionTopic: activeAccount.wcSessionTopic,
   };
 }
 

@@ -257,6 +257,7 @@ export async function handleAp2Payment(params: {
   const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
   if (!activeAccount) throw new Error("No active account");
 
+  const isWalletConnect = activeAccount.type === "walletconnect";
   const network = (meta.activeChain as "algorand" | "voi") ?? "algorand";
   const address = activeAccount.address;
 
@@ -291,6 +292,7 @@ export async function handleAp2Payment(params: {
     address,
     expiry: contents.expiry,
     timestamp: Date.now(),
+    isWalletConnect,
   };
   _pendingAp2Requests.set(requestId, pending);
 
