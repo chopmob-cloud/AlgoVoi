@@ -217,6 +217,12 @@ async function buildMppTransaction(req: PendingMppRequest): Promise<{
     throw new Error(`Invalid MPP payment amount: ${avmReq.amount} (must be positive)`);
   }
 
+  // LOW: defensive type guard — currency must be a string (decodeMppAvmRequest already
+  // validates this, but guard here in case the type evolves or is cast away in future).
+  if (typeof avmReq.currency !== "string" || avmReq.currency.length === 0) {
+    throw new Error(`Invalid MPP currency: expected non-empty string, got ${JSON.stringify(avmReq.currency)}`);
+  }
+
   // Resolve asset ID — "ALGO", "VOI", or numeric ASA ID
   const currencyUpper = avmReq.currency.toUpperCase();
   const asaId =
@@ -457,6 +463,13 @@ export async function handleMpp(params: {
     );
   }
 
+  // Capture the active accountId so MPP_APPROVE can assert it hasn't changed
+  let pendingAccountId: string | undefined;
+  try {
+    const pendingMeta = await walletStore.getMeta();
+    pendingAccountId = pendingMeta.activeAccountId;
+  } catch { /* non-fatal — assertion will be skipped if undefined */ }
+
   const requestId = randomId();
   const pending: PendingMppRequest = {
     id: requestId,
@@ -469,6 +482,7 @@ export async function handleMpp(params: {
     tabOrigin: requestOrigin,
     inpageRequestId: params.inpageRequestId,
     rawChallenge: params.rawChallenge,
+    accountId: pendingAccountId,
   };
   _pendingMppRequests.set(requestId, pending);
 

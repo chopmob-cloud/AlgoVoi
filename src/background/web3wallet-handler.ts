@@ -380,6 +380,13 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
       const agentName = session?.peer?.metadata?.name ?? "Unknown Agent";
       const agentUrl  = session?.peer?.metadata?.url  ?? "";
 
+      // Capture the active accountId so W3W_AGENT_SIGN_APPROVE can assert it hasn't changed
+      let agentActiveAccountId: string | undefined;
+      try {
+        const agentMeta = await walletStore.getMeta();
+        agentActiveAccountId = agentMeta.activeAccountId;
+      } catch { /* non-fatal */ }
+
       const requestId = randomId();
       const pending: PendingAgentSignRequest = {
         id: requestId,
@@ -393,6 +400,7 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
         txns,
         decodedTxns,
         timestamp: Date.now(),
+        accountId: agentActiveAccountId,
       };
       _pendingAgentRequests.set(requestId, pending);
 

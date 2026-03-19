@@ -113,4 +113,6 @@ export interface PendingMppRequest {
   inpageRequestId?: string;
   /** Raw WWW-Authenticate header value for reference */
   rawChallenge: string;
+  /** accountId of the active account at request creation time — asserted on approval */
+  accountId?: string;
 }
