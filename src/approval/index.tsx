@@ -6,6 +6,7 @@ import { CHAINS } from "@shared/constants";
 import { signTransactionWithWC } from "@shared/utils/wc-sign";
 import type { PendingX402Request } from "@shared/types/x402";
 import type { PendingApproval, PendingSignTxnsApproval, PendingSignBytesApproval, PendingEnvoiApproval, PendingMppApproval, TxnSummary } from "@shared/types/approval";
+import type { PendingAp2Approval } from "@shared/types/ap2";
 import type { ChainId } from "@shared/types/chain";
 
 // ── URL-safe base64 polyfill ──────────────────────────────────────────────────
@@ -54,7 +55,7 @@ function resolveChainFromNetwork(network: string): ChainId | null {
 
 const _params    = new URLSearchParams(window.location.search);
 const REQUEST_ID = _params.get("requestId") ?? "";
-const KIND       = _params.get("kind") ?? "";       // "sign_txns" | "sign_bytes" | "envoi_payment" | ""
+const KIND       = _params.get("kind") ?? "";       // "sign_txns" | "sign_bytes" | "envoi_payment" | "mpp_charge" | "ap2_payment" | ""
 
 // ── Root component ────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ function ApprovalPage() {
   if (KIND === "sign_bytes")    return <SignBytesPage   requestId={REQUEST_ID} />;
   if (KIND === "envoi_payment") return <EnvoiPage       requestId={REQUEST_ID} />;
   if (KIND === "mpp_charge")    return <MppPage         requestId={REQUEST_ID} />;
+  if (KIND === "ap2_payment")   return <Ap2Page         requestId={REQUEST_ID} />;
   return                               <X402Page        requestId={REQUEST_ID} />;
 }
 
@@ -702,6 +704,175 @@ function MppPage({ requestId }: { requestId: string }) {
         onApprove={approve}
         onReject={reject}
         approving={approving}
+      />
+    </div>
+  );
+}
+
+// ── AP2 payment credential page ───────────────────────────────────────────────
+
+function Ap2Page({ requestId }: { requestId: string }) {
+  const [approval, setApproval] = useState<PendingAp2Approval | null>(null);
+  const [loading,   setLoading]  = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [error,     setError]    = useState("");
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    sendBg<{ request: PendingAp2Approval | null }>({ type: "AP2_GET_PENDING", requestId })
+      .then(({ request: req }) => {
+        if (!req) setError("AP2 payment request not found or already settled");
+        else {
+          setApproval(req);
+          // Start expiry countdown if present
+          if (req.expiry) {
+            const expiresAt = new Date(req.expiry).getTime();
+            if (!isNaN(expiresAt)) {
+              const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+              setCountdown(remaining);
+            }
+          }
+        }
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [requestId]);
+
+  // Countdown ticker
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((c) => {
+        if (c === null || c <= 1) { clearInterval(timer); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown !== null]);
+
+  async function approve() {
+    setApproving(true);
+    setError("");
+    try {
+      await sendBg({ type: "AP2_APPROVE", requestId });
+      window.close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Credential signing failed");
+      setApproving(false);
+    }
+  }
+
+  async function reject() {
+    await sendBg({ type: "AP2_REJECT", requestId }).catch(() => {});
+    window.close();
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
+  if (!approval) return <ErrorScreen message={error || "Request not found"} />;
+
+  const networkLabel = approval.network === "algorand" ? "Algorand" : "Voi";
+  const networkColor = approval.network === "algorand" ? "text-algo" : "text-voi";
+  const expired = countdown !== null && countdown <= 0;
+
+  return (
+    <div className="flex flex-col min-h-screen p-5 gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">A2</div>
+        <div>
+          <h1 className="text-base font-bold leading-none">AP2 Payment Credential</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Agent Payments Protocol — AlgoVoi</p>
+        </div>
+      </div>
+
+      {/* Merchant / source */}
+      <div className="card">
+        <p className="text-xs text-gray-400 mb-1">Requesting page</p>
+        <p className="text-sm font-medium truncate">{approval.url}</p>
+        {approval.merchant_id && (
+          <p className="text-xs text-gray-500 truncate mt-0.5">Merchant: {approval.merchant_id}</p>
+        )}
+      </div>
+
+      {/* Cart items */}
+      <div className="card flex flex-col gap-2">
+        <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Cart Items</p>
+        {approval.items.map((item, i) => (
+          <div key={i} className="flex justify-between items-start border-b border-surface-3 pb-1.5 last:border-0 last:pb-0">
+            <span className="text-sm text-gray-300 flex-1 mr-2">{item.label}</span>
+            <span className="text-sm font-semibold text-white shrink-0">
+              {item.amount.value} {item.amount.currency}
+            </span>
+          </div>
+        ))}
+        <div className="flex justify-between items-center border-t border-surface-2 pt-2 mt-1">
+          <span className="text-sm text-gray-400 font-semibold">Total</span>
+          <div className="text-right">
+            <span className="text-xl font-bold text-white">{approval.total.value}</span>
+            <span className="text-sm text-gray-400 ml-1.5">{approval.total.currency}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Network + signer */}
+      <div className="card flex flex-col gap-2">
+        <div className="flex justify-between">
+          <span className="text-sm text-gray-400">Network</span>
+          <span className={`text-sm font-medium ${networkColor}`}>{networkLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-gray-400">Signing address</span>
+          <span className="text-xs font-mono text-gray-300 break-all leading-relaxed"
+            title={approval.address}>
+            {approval.address.slice(0, 8)}…{approval.address.slice(-8)}
+          </span>
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-500">
+          <span>Transaction ID</span>
+          <span className="font-mono truncate max-w-[200px]">{approval.transaction_id}</span>
+        </div>
+      </div>
+
+      {/* Expiry countdown */}
+      {countdown !== null && (
+        <div className={`border rounded-xl p-3 ${
+          expired
+            ? "bg-red-900/30 border-red-700/50"
+            : countdown < 60
+            ? "bg-orange-900/30 border-orange-700/50"
+            : "bg-surface-2 border-white/10"
+        }`}>
+          <p className={`text-xs ${expired ? "text-red-300" : countdown < 60 ? "text-orange-300" : "text-gray-400"}`}>
+            {expired
+              ? "Cart mandate has expired — this credential will be rejected by the merchant."
+              : `Cart expires in ${countdown}s`}
+          </p>
+        </div>
+      )}
+
+      {/* Security warning */}
+      <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-3">
+        <p className="text-xs text-yellow-300">
+          ⚠ Signing this credential authorizes payment on your behalf.{" "}
+          <strong>No AVM transaction is submitted now</strong> — the merchant/agent handles
+          settlement separately using this signed credential.
+          Only approve if you trust <strong>{approval.merchant_id ?? approval.url}</strong>.
+        </p>
+      </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      <ApproveRejectBar
+        approveLabel="Sign credential"
+        rejectLabel="Reject"
+        onApprove={approve}
+        onReject={reject}
+        approving={approving}
+        disabled={expired}
       />
     </div>
   );

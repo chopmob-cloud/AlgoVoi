@@ -30,7 +30,6 @@
   "devtools_page": "src/devtools/index.html",
   "permissions": [
     "storage",
-    "alarms",
     "tabs",
     "windows"
   ],

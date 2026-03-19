@@ -149,10 +149,14 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
   }
 
   // Enforce spending cap — reuse user-configured cap or the 10 VOI default.
-  const cap =
-    meta.spendingCaps?.nativeMicrounits !== undefined
-      ? BigInt(meta.spendingCaps.nativeMicrounits)
-      : SPENDING_CAP_NATIVE;
+  const rawCap = meta.spendingCaps?.nativeMicrounits;
+  let cap: bigint;
+  try {
+    const parsed = rawCap !== undefined ? BigInt(rawCap) : SPENDING_CAP_NATIVE;
+    cap = parsed > 0n ? parsed : SPENDING_CAP_NATIVE;
+  } catch {
+    cap = SPENDING_CAP_NATIVE;
+  }
   if (amount > cap) {
     throw new Error(
       `Resolution fee ${amount} µVOI exceeds spending cap of ${cap} µVOI. ` +

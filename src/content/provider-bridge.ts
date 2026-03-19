@@ -83,6 +83,23 @@ export function setupProviderBridge(): void {
         msgTarget
       );
     }
+    if (msg.type === "AP2_RESULT") {
+      // Relay AP2 result back to the inpage script
+      window.postMessage(
+        {
+          source: MSG_SOURCE_CONTENT,
+          type: "AP2_RESULT",
+          id: msg.requestId,
+          payload: {
+            requestId: msg.requestId,
+            approved: msg.approved,
+            paymentMandate: msg.paymentMandate,
+            error: msg.error,
+          },
+        },
+        msgTarget
+      );
+    }
     if (msg.type === "CHAIN_CHANGED" || msg.type === "ACCOUNT_CHANGED") {
       // L1: Use an explicit map rather than string manipulation.
       // `.replace("_", "")` only removes the FIRST underscore, producing
@@ -163,10 +180,12 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
 
     case "ARC27_SIGN_AND_SEND": {
       // Phase 2: signing works but algod submission is deferred; txnIDs is empty.
+      const payload = msg.payload as { txns?: unknown };
+      if (!Array.isArray(payload?.txns)) throw new Error("txns must be an array");
       const result = await sendToBg<{ stxns: (string | null)[] }>({
         type: "ARC27_SIGN_TXNS",
         origin,
-        txns: (msg.payload as { txns: { txn: string }[] }).txns.map((t) => t.txn),
+        txns: (payload.txns as { txn: string }[]).map((t) => t.txn),
       });
       return { stxns: result.stxns, txnIDs: [] };
     }
@@ -200,6 +219,25 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
         requestId,
         tabId: -1, // background will use sender.tab.id
       });
+    }
+
+    case "AP2_PAYMENT_REQUEST": {
+      // cartMandate = CartMandate object from the page
+      const { cartMandate, requestId } = msg.payload as {
+        cartMandate: unknown; requestId: string;
+      };
+      const ap2Url = window.location.href;
+      return sendToBg({
+        type: "AP2_PAYMENT_REQUEST",
+        cartMandate,
+        requestId,
+        url: ap2Url,
+        tabId: -1, // background will use sender.tab.id
+      });
+    }
+
+    case "AP2_GET_INTENT_MANDATES": {
+      return sendToBg({ type: "AP2_LIST_INTENT_MANDATES" });
     }
 
     default:

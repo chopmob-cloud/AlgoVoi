@@ -130,6 +130,45 @@ const provider = {
     }
     return this;
   },
+
+  // ── AP2 (Agent Payments Protocol by Google) ───────────────────────────────
+  ap2: Object.freeze({
+    /**
+     * Request a PaymentMandate for a given CartMandate.
+     * Opens the AlgoVoi approval popup; resolves with a signed PaymentMandate
+     * once the user approves, or rejects if the user declines.
+     */
+    requestPayment(cartMandate: unknown): Promise<unknown> {
+      return new Promise((resolve, reject) => {
+        const requestId = nextId();
+        _pendingAp2.set(requestId, { resolve, reject });
+        window.postMessage(
+          {
+            source: MSG_SOURCE_INPAGE,
+            type: "AP2_PAYMENT_REQUEST",
+            id: requestId,
+            payload: { cartMandate, requestId },
+          },
+          _msgTarget
+        );
+        // 5-minute timeout matching x402/MPP pattern
+        setTimeout(() => {
+          if (_pendingAp2.has(requestId)) {
+            _pendingAp2.delete(requestId);
+            reject(new Error("AP2 payment request timed out"));
+          }
+        }, 5 * 60 * 1000);
+      });
+    },
+
+    /**
+     * List the IntentMandates stored in this wallet.
+     * Returns the array directly from chrome storage (via background).
+     */
+    getIntentMandates(): Promise<unknown[]> {
+      return sendToContent<unknown[]>("AP2_GET_INTENT_MANDATES", {});
+    },
+  }),
 };
 
 // Inject provider — freeze to prevent dApp tampering
@@ -150,8 +189,11 @@ const _originalFetch = window.fetch.bind(window);
 const _pendingX402 = new Map<string, { resolve: (header: string) => void; reject: (e: Error) => void }>();
 // Map requestId → { resolve, reject } for pending MPP approvals
 const _pendingMpp = new Map<string, { resolve: (authHeader: string) => void; reject: (e: Error) => void }>();
+// Map requestId → { resolve, reject } for pending AP2 approvals
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _pendingAp2 = new Map<string, { resolve: (mandate: any) => void; reject: (e: Error) => void }>();
 
-// Listen for x402 results pushed back from the content script
+// Listen for x402/MPP/AP2 results pushed back from the content script
 window.addEventListener("message", (event: MessageEvent) => {
   if (event.source !== window || event.data?.source !== MSG_SOURCE_CONTENT) return;
 
@@ -175,6 +217,17 @@ window.addEventListener("message", (event: MessageEvent) => {
     _pendingMpp.delete(requestId);
     if (approved && authorizationHeader) pending.resolve(authorizationHeader);
     else pending.reject(new Error(error ?? "MPP payment rejected by user"));
+  }
+
+  if (event.data?.type === "AP2_RESULT") {
+    const { requestId, approved, paymentMandate, error } = event.data.payload as {
+      requestId: string; approved: boolean; paymentMandate?: unknown; error?: string;
+    };
+    const pending = _pendingAp2.get(requestId);
+    if (!pending) return;
+    _pendingAp2.delete(requestId);
+    if (approved && paymentMandate) pending.resolve(paymentMandate);
+    else pending.reject(new Error(error ?? "AP2 payment rejected by user"));
   }
 });
 
