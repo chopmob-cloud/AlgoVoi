@@ -781,6 +781,14 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const mppMeta = await walletStore.getMeta();
       const mppAccount = mppMeta.accounts.find((a) => a.id === mppMeta.activeAccountId);
 
+      // MEDIUM-2: assert the active account hasn't changed since the request was queued
+      if (mppReq.accountId !== undefined && mppMeta.activeAccountId !== mppReq.accountId) {
+        throw new Error(
+          "Active account changed after MPP payment request was initiated. " +
+          "Please reject this request and initiate a new payment."
+        );
+      }
+
       if (mppAccount?.type === "walletconnect") {
         const wcData = await buildMppPaymentTxnForWC(mppReq);
         return { needsWcSign: true, ...wcData };
@@ -823,18 +831,90 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const chain = resolveMppChain(avmReq.network);
       if (!chain) throw new Error(`Unsupported MPP network: ${avmReq.network}`);
 
+      // Resolve expected payer before touching signed bytes
+      const wcMppMeta = await walletStore.getMeta();
+      const wcMppAccount = wcMppMeta.accounts.find((a) => a.id === wcMppMeta.activeAccountId);
+      if (!wcMppAccount) throw new Error("Cannot determine payer address for MPP WC payment");
+
       const signedBytes = base64ToBytes(msg.signedTxnB64);
+
+      // MEDIUM-1: validate the signed txn matches the original MPP request
+      // Prevents a compromised popup or misbehaving WC wallet from broadcasting an unintended txn.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const decoded = algosdk.decodeSignedTransaction(signedBytes) as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const t = decoded.txn as Record<string, any>;
+
+        const txnSender: string = t.from?.toString?.() ?? t.sender?.toString?.() ?? "";
+        if (txnSender !== wcMppAccount.address) {
+          throw new Error(
+            `MPP_WC_SIGNED: signed txn sender (${txnSender}) does not match ` +
+            `expected payer (${wcMppAccount.address})`
+          );
+        }
+
+        const txnReceiver: string = t.to?.toString?.() ?? t.receiver?.toString?.() ?? "";
+        if (txnReceiver !== avmReq.recipient) {
+          throw new Error(
+            `MPP_WC_SIGNED: signed txn receiver (${txnReceiver}) does not match ` +
+            `expected recipient (${avmReq.recipient})`
+          );
+        }
+
+        const expectedAmount = BigInt(avmReq.amount);
+        const txnAmount: bigint =
+          typeof t.amount === "bigint" ? t.amount
+          : typeof t.amount === "number" ? BigInt(t.amount)
+          : 0n;
+        if (txnAmount !== expectedAmount) {
+          throw new Error(
+            `MPP_WC_SIGNED: signed txn amount (${txnAmount}) does not match ` +
+            `expected amount (${expectedAmount})`
+          );
+        }
+
+        const currencyUpper = typeof avmReq.currency === "string" ? avmReq.currency.toUpperCase() : "";
+        const expectedAsaId =
+          currencyUpper === "ALGO" || currencyUpper === "VOI" || avmReq.currency === "0"
+            ? 0
+            : parseInt(avmReq.currency, 10);
+
+        if (expectedAsaId === 0) {
+          if (t.type !== "pay") {
+            throw new Error(`MPP_WC_SIGNED: expected payment txn (pay), got "${t.type}"`);
+          }
+        } else {
+          if (t.type !== "axfer") {
+            throw new Error(`MPP_WC_SIGNED: expected ASA transfer txn (axfer), got "${t.type}"`);
+          }
+          const txnAsaId: number =
+            typeof t.assetIndex === "bigint" ? Number(t.assetIndex)
+            : typeof t.assetIndex === "number" ? t.assetIndex
+            : 0;
+          if (txnAsaId !== expectedAsaId) {
+            throw new Error(
+              `MPP_WC_SIGNED: signed txn assetIndex (${txnAsaId}) does not match ` +
+              `expected ASA ID (${expectedAsaId})`
+            );
+          }
+        }
+      } catch (err) {
+        // Re-throw our own validation errors; wrap algosdk decode failures
+        if (err instanceof Error && err.message.startsWith("MPP_WC_SIGNED:")) throw err;
+        throw new Error(
+          `MPP_WC_SIGNED: failed to decode signed transaction: ` +
+          `${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+
       const txId = await submitTransaction(chain, signedBytes);
       await waitForConfirmation(chain, txId, 8);
       await waitForIndexed(chain, txId);
 
-      const wcMppMeta = await walletStore.getMeta();
-      const wcPayer = wcMppMeta.accounts.find((a) => a.id === wcMppMeta.activeAccountId)?.address;
-      if (!wcPayer) throw new Error("Cannot determine payer address for MPP WC payment");
-
       const mppCredential = {
         challenge: mppWcReq.challenge,
-        source: `did:pkh:avm:${avmReq.network}:${wcPayer}`,
+        source: `did:pkh:avm:${avmReq.network}:${wcMppAccount.address}`,
         payload: {
           txId,
           transaction: btoa(String.fromCharCode(...signedBytes)),
@@ -989,6 +1069,13 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const agentAccount = agentMeta.accounts.find((a) => a.id === agentMeta.activeAccountId);
       if (!agentAccount || agentAccount.type === "walletconnect") {
         throw new Error("Agent signing requires a vault/mnemonic account");
+      }
+      // MEDIUM-2: assert active account hasn't changed since the request was queued
+      if (agentReq.accountId !== undefined && agentMeta.activeAccountId !== agentReq.accountId) {
+        throw new Error(
+          "Active account changed after agent signing request was initiated. " +
+          "Please reject this request and ask the agent to retry."
+        );
       }
       const agentSk = await walletStore.getActiveSecretKey();
       const signedTxns = await approveAgentSignRequest(msg.requestId, agentSk, agentAccount.address);

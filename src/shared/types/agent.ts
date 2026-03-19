@@ -47,4 +47,6 @@ export interface PendingAgentSignRequest {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   decodedTxns: Record<string, any>[];
   timestamp: number;
+  /** accountId of the active account at request creation time — asserted on approval */
+  accountId?: string;
 }
