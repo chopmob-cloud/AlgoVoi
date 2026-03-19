@@ -131,9 +131,19 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
         txns?: unknown;
         indexesToSign?: number[];
       };
-      // M2: Validate txns is an array before mapping — a malformed postMessage (missing or
-      // non-array txns) would otherwise throw TypeError inside .map(), crashing the bridge.
+      // M2: Validate txns is an array before mapping.
       if (!Array.isArray(txns)) throw new Error("ARC27_SIGN_TXNS: txns must be an array");
+      // Validate indexesToSign: must be an array of non-negative integers within bounds.
+      if (indexesToSign !== undefined) {
+        if (
+          !Array.isArray(indexesToSign) ||
+          indexesToSign.some(
+            (i) => !Number.isInteger(i) || i < 0 || i >= (txns as unknown[]).length
+          )
+        ) {
+          throw new Error("ARC27_SIGN_TXNS: indexesToSign must be non-negative integers within txns bounds");
+        }
+      }
       return sendToBg({
         type: "ARC27_SIGN_TXNS",
         origin,

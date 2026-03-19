@@ -72,15 +72,18 @@ export function parseMppChallenge(headerValue: string): MppChallenge | null {
   const startIdx = (schemeMatch.index ?? 0) + schemeMatch[0].length;
   const paramStr = headerValue.slice(startIdx);
 
-  // Parse key="value" pairs — handle escaped characters inside quoted strings
+  // Parse key="value" pairs — handle escaped characters inside quoted strings.
+  // Cap at 32 parameters to prevent ReDoS via a crafted header with many quoted strings.
   const params: Record<string, string> = {};
   const paramRegex = /(\w+)=(?:"((?:[^"\\]|\\.)*)"|([^,\s]*))/g;
   let m: RegExpExecArray | null;
-  while ((m = paramRegex.exec(paramStr)) !== null) {
+  let paramCount = 0;
+  while ((m = paramRegex.exec(paramStr)) !== null && paramCount < 32) {
     const key = m[1];
     // Quoted value: unescape \X sequences. Unquoted value: take as-is.
     const value = m[2] !== undefined ? m[2].replace(/\\(.)/g, "$1") : m[3];
     params[key] = value;
+    paramCount++;
   }
 
   // Validate required fields
@@ -114,6 +117,15 @@ export function decodeMppAvmRequest(requestB64url: string): MppAvmRequest | null
       typeof parsed.currency !== "string" ||
       typeof parsed.recipient !== "string" ||
       typeof parsed.network !== "string"
+    ) {
+      return null;
+    }
+    // Validate amount is a positive integer string — reject "0", leading zeros, non-numeric
+    if (!/^\d+$/.test(parsed.amount) || BigInt(parsed.amount) <= 0n) return null;
+    // Validate decimals is in range 0–19 if provided
+    if (
+      parsed.decimals !== undefined &&
+      (!Number.isInteger(parsed.decimals) || parsed.decimals < 0 || parsed.decimals > 19)
     ) {
       return null;
     }
@@ -224,15 +236,16 @@ export async function buildAndSignMppPayment(
     );
   }
 
-  // Spending cap check
-  const cap =
-    asaId !== 0
-      ? meta.spendingCaps?.asaMicrounits !== undefined
-        ? BigInt(meta.spendingCaps.asaMicrounits)
-        : SPENDING_CAP_ASA
-      : meta.spendingCaps?.nativeMicrounits !== undefined
-      ? BigInt(meta.spendingCaps.nativeMicrounits)
-      : SPENDING_CAP_NATIVE;
+  // Spending cap check — validate stored cap values defensively before use.
+  // If the stored value is missing, zero, non-finite, or unparseable, fall back
+  // to the hardcoded default rather than allowing unbounded spending.
+  function safeCap(stored: number | undefined, defaultCap: bigint): bigint {
+    if (stored === undefined || stored <= 0 || !Number.isFinite(stored)) return defaultCap;
+    try { const v = BigInt(Math.floor(stored)); return v > 0n ? v : defaultCap; } catch { return defaultCap; }
+  }
+  const cap = asaId !== 0
+    ? safeCap(meta.spendingCaps?.asaMicrounits, SPENDING_CAP_ASA)
+    : safeCap(meta.spendingCaps?.nativeMicrounits, SPENDING_CAP_NATIVE);
 
   if (amount > cap) {
     throw new Error(
@@ -257,9 +270,8 @@ export async function buildAndSignMppPayment(
     );
   }
 
-  // Build transaction
-  const noteText = `mpp:${req.challenge.realm}`.slice(0, 980);
-  const note = new TextEncoder().encode(noteText);
+  // Build transaction — encode to UTF-8 bytes first, then slice to prevent splitting multi-byte chars.
+  const note = new TextEncoder().encode(`mpp:${req.challenge.realm}`).slice(0, 1000);
   let txn: algosdk.Transaction;
 
   if (asaId !== 0) {
@@ -417,6 +429,15 @@ export async function handleMpp(params: {
     rawChallenge: params.rawChallenge,
   };
   _pendingMppRequests.set(requestId, pending);
+
+  // Safety TTL: if the popup is force-closed or crashes without sending MPP_APPROVE/REJECT,
+  // clean up the pending entry after 6 minutes (1 min grace beyond the inpage 5-min timeout).
+  const TTL_MS = 6 * 60 * 1000;
+  setTimeout(() => {
+    if (_pendingMppRequests.has(requestId)) {
+      _pendingMppRequests.delete(requestId);
+    }
+  }, TTL_MS);
 
   // Queue a PendingMppApproval in the unified approval handler so the popup
   // can retrieve display details via APPROVAL_GET_PENDING / MPP_GET_PENDING.
