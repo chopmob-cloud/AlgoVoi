@@ -23,6 +23,27 @@ interface Props {
   onClose: () => void;
 }
 
+/** Wallet icon with fallback to a coloured letter avatar when the URL is blocked by CSP */
+function WalletIcon({ icon, name }: { icon?: string; name?: string }) {
+  const [failed, setFailed] = useState(false);
+  const letter = (name ?? "W")[0].toUpperCase();
+  if (icon && !failed) {
+    return (
+      <img
+        src={icon}
+        alt=""
+        className="w-8 h-8 rounded-lg flex-shrink-0"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-lg flex-shrink-0 bg-purple-600 flex items-center justify-center text-white text-sm font-bold">
+      {letter}
+    </div>
+  );
+}
+
 const WALLET_LABELS: Record<string, string> = {
   algorand: "Pera · Defly · Lute · any ARC-0025 wallet",
   voi:      "Lute · any ARC-0025 Voi wallet",
@@ -290,9 +311,7 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
           <div>
             {/* Wallet badge */}
             <div className="flex items-center gap-3 bg-surface-2 rounded-xl px-3 py-2.5 mb-4">
-              {session.peerIcon && (
-                <img src={session.peerIcon} alt="" className="w-8 h-8 rounded-lg" />
-              )}
+              <WalletIcon icon={session.peerIcon} name={session.peerName} />
               <div>
                 <p className="text-sm font-semibold">{session.peerName}</p>
                 <p className="text-xs text-green-400">✓ Connected on {chainLabel}</p>
