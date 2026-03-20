@@ -187,6 +187,8 @@ export interface PendingMppApproval {
   /** Decimal places (default 6) */
   decimals: number;
   timestamp: number;
+  /** True when the active account is WalletConnect — shown in popup UI */
+  isWalletConnect?: boolean;
 }
 
 /**

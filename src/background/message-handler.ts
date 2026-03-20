@@ -764,8 +764,12 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "MPP_GET_PENDING": {
-      const req = getPendingMppRequest(msg.requestId);
-      return { request: req };
+      // Return the display-ready PendingMppApproval from the unified approval handler,
+      // not the raw PendingMppRequest — the popup needs flat fields (recipient, realm,
+      // currencyLabel, isWalletConnect, etc.) that only exist on PendingMppApproval.
+      const mppPendingApproval = getPendingApproval(msg.requestId);
+      if (mppPendingApproval?.kind === "mpp_charge") return { request: mppPendingApproval };
+      return { request: null };
     }
 
     case "MPP_APPROVE": {

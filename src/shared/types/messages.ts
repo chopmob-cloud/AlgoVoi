@@ -11,6 +11,7 @@ import type { Account, WalletMeta, LockState } from "./wallet";
 import type { ChainId, AccountState } from "./chain";
 import type { PaymentRequirements, PendingX402Request, PaymentRecord } from "./x402";
 import type { PendingMppRequest } from "./mpp";
+import type { PendingMppApproval } from "./approval";
 import type { PendingApproval } from "./approval";
 import type { CartMandate, IntentMandate, PaymentMandate, PendingAp2Approval } from "./ap2";
 import type { PendingAgentSignRequest } from "./agent";
@@ -120,7 +121,7 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "X402_REJECT" ? { success: boolean } :
   T extends "X402_GET_HISTORY" ? { records: PaymentRecord[] } :
   T extends "X402_WC_SIGNED" ? { paymentHeader: string; txId?: string } :
-  T extends "MPP_GET_PENDING" ? { request: PendingMppRequest | null } :
+  T extends "MPP_GET_PENDING" ? { request: PendingMppApproval | null } :
   T extends "MPP_APPROVE" ?
     | { authorizationHeader: string; txId: string }
     | { needsWcSign: true; unsignedTxnB64: string; chain: ChainId; sessionTopic: string; signerAddress: string } :
