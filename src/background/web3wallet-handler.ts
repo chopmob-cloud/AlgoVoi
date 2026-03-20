@@ -510,6 +510,13 @@ export async function generatePairingUri(projectId: string): Promise<string> {
   const w3w = await initWeb3Wallet(projectId);
   const { uri } = await w3w.core.pairing.create();
   if (!uri) throw new Error("Failed to generate pairing URI");
+
+  // Start keepalive immediately so the SW stays alive during the pairing window.
+  // Without this, Chrome can suspend the SW within ~30 s of idling, dropping the
+  // relay WebSocket before session_proposal arrives from the agent.
+  // The alarm handler will self-clear once all sessions AND pairings are gone.
+  chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
+
   return uri;
 }
 
@@ -519,6 +526,18 @@ export async function generatePairingUri(projectId: string): Promise<string> {
 export function getActiveSessions(): Record<string, unknown> {
   if (!_web3wallet) return {};
   return _web3wallet.getActiveSessions() as unknown as Record<string, unknown>;
+}
+
+/**
+ * Return the number of active (non-expired) WC pairings.
+ * Used by the keepalive alarm handler to stay alive during the pairing window
+ * (after generatePairingUri returns but before session_proposal arrives).
+ */
+export function getActivePairings(): number {
+  if (!_web3wallet) return 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pairings: any[] = _web3wallet.core.pairing.getPairings();
+  return pairings.filter((p) => p.active).length;
 }
 
 /**
