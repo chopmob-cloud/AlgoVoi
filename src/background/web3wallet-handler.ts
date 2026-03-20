@@ -468,9 +468,9 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
       const topics = await getStoredTopics();
       await storeSessions(topics.filter((t) => t !== topic));
       console.info(`[AlgoVoi W3W] Session deleted by peer: ${topic}`);
-      // Stop keepalive if no sessions remain
+      // Stop keepalive only if no sessions AND no pending pairings remain
       const remaining = w3w.getActiveSessions();
-      if (Object.keys(remaining).length === 0) {
+      if (Object.keys(remaining).length === 0 && getActivePairings() === 0) {
         chrome.alarms.clear("w3w-keepalive").catch(() => {});
       }
     }
@@ -559,9 +559,9 @@ export async function disconnectAgentSession(topic: string): Promise<void> {
   // Remove from persisted topics
   const topics = await getStoredTopics();
   await storeSessions(topics.filter((t) => t !== topic));
-  // Stop keepalive if no sessions remain
+  // Stop keepalive only if no sessions AND no pending pairings remain
   const remaining = getActiveSessions();
-  if (Object.keys(remaining).length === 0) {
+  if (Object.keys(remaining).length === 0 && getActivePairings() === 0) {
     chrome.alarms.clear("w3w-keepalive").catch(() => {});
   }
 }
