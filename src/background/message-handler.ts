@@ -45,6 +45,7 @@ import { base64ToBytes, randomId } from "@shared/utils/crypto";
 import { formatAmount } from "@shared/utils/format";
 import {
   getPendingApproval,
+  getApprovalWindowId,
   requestApproval,
   resolveApproval,
   rejectApproval,
@@ -800,7 +801,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       // Vault account — sign locally
       const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
-      const mppPopupWindowId = mppReq.popupWindowId;
+      const mppPopupWindowId = getApprovalWindowId(msg.requestId);
       clearPendingMppRequest(msg.requestId);
 
       // Notify the inpage script so it can retry the fetch with Authorization header
@@ -887,7 +888,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       };
       const authorizationHeader = serializeMppCredential(mppCredential);
 
-      const mppWcPopupWindowId = mppWcReq.popupWindowId;
+      const mppWcPopupWindowId = getApprovalWindowId(msg.requestId);
       clearPendingMppRequest(msg.requestId);
       chrome.tabs.sendMessage(mppWcReq.tabId, {
         type: "MPP_RESULT",

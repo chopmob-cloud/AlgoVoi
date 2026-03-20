@@ -42,6 +42,8 @@ const _resolvers = new Map<string, {
   resolve: (approved: boolean) => void;
   reject:  (reason: Error)    => void;
 }>();
+/** Stores the Chrome window ID for each open approval popup, keyed by requestId. */
+const _windowIds = new Map<string, number>();
 
 // ── Public read accessor ──────────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ export function getPendingApproval(id: string): PendingApproval | null {
  */
 export function clearPendingApproval(id: string): void {
   _pending.delete(id);
+  _windowIds.delete(id);
   const t = _timers.get(id);
   if (t !== undefined) {
     clearTimeout(t);
@@ -104,6 +107,16 @@ export function countPendingByOrigin(origin: string): number {
     if ("origin" in approval && approval.origin === origin) count++;
   }
   return count;
+}
+
+/**
+ * Return and consume the Chrome window ID for an approval popup.
+ * Call this before closing/clearing the request so you have the ID.
+ */
+export function getApprovalWindowId(id: string): number | undefined {
+  const windowId = _windowIds.get(id);
+  _windowIds.delete(id);
+  return windowId;
 }
 
 // ── Main entry ────────────────────────────────────────────────────────────────
@@ -167,11 +180,12 @@ async function openApprovalPopup(id: string, kind: ApprovalKind): Promise<void> 
   popupUrl.searchParams.set("requestId", id);
   popupUrl.searchParams.set("kind", kind);
   const url = popupUrl.toString();
-  await chrome.windows.create({
+  const win = await chrome.windows.create({
     url,
     type: "popup",
     width: APPROVAL_POPUP_WIDTH,
     height: APPROVAL_POPUP_HEIGHT,
     focused: true,
   });
+  if (win.id !== undefined) _windowIds.set(id, win.id);
 }

@@ -26,7 +26,7 @@ import {
   waitForIndexed,
   getAccountState,
 } from "./chain-clients";
-import { APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
+import { CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
 import { requestApproval } from "./approval-handler";
 import type { MppChallenge, MppAvmRequest, MppCredential, PendingMppRequest } from "@shared/types/mpp";
@@ -156,22 +156,6 @@ export function getPendingMppRequest(id: string): PendingMppRequest | null {
 
 export function clearPendingMppRequest(id: string): void {
   _pendingMppRequests.delete(id);
-}
-
-// ── Approval popup ────────────────────────────────────────────────────────────
-
-async function openMppApprovalPopup(requestId: string): Promise<number | undefined> {
-  const url =
-    chrome.runtime.getURL("src/approval/index.html") +
-    `?requestId=${requestId}&kind=mpp_charge`;
-  const win = await chrome.windows.create({
-    url,
-    type: "popup",
-    width: APPROVAL_POPUP_WIDTH,
-    height: APPROVAL_POPUP_HEIGHT,
-    focused: true,
-  });
-  return win.id;
 }
 
 /** Build the currency display label from an MppAvmRequest */
@@ -536,12 +520,6 @@ export async function handleMpp(params: {
     _pendingMppRequests.delete(requestId);
   });
 
-  // Store the popup windowId so MPP_APPROVE can close it from the background.
-  // This is more reliable than window.close() in the popup page, which only works
-  // for windows opened by window.open() — not for chrome.windows.create() popups.
-  const popupWindowId = await openMppApprovalPopup(requestId);
-  if (popupWindowId !== undefined) {
-    pending.popupWindowId = popupWindowId;
-  }
+
   return requestId;
 }
