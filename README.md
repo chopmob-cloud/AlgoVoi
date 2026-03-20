@@ -265,7 +265,9 @@ const result = await signClient.request({
 | [UluMCP](https://github.com/MaidToShelly/UluMCP) | x402 | MCP server for AI agents — tokens, NFTs, DEX swaps, marketplace. x402 + WAD metered billing |
 | [x402 test site](https://x402.ilovechicken.co.uk) | x402 | Live demo — browse gated content with AlgoVoi paying automatically |
 
-### Live x402 Endpoints (AVM)
+### Live Endpoints
+
+#### x402 Test Endpoints
 
 Public endpoints for testing x402 clients against real on-chain payments:
 
@@ -274,6 +276,27 @@ Public endpoints for testing x402 clients against real on-chain payments:
 | `GET https://api.ilovechicken.co.uk/api/premium` | Algorand mainnet | USDC (ASA 31566704) | 0.01 USDC |
 | `GET https://api.ilovechicken.co.uk/api/voi-premium` | Voi mainnet | aUSDC (ASA 302190) | 0.01 aUSDC |
 | `GET https://api.ilovechicken.co.uk/api/config` | — | — | Public (no payment) |
+
+#### MCP Gateway (x402 + MPP)
+
+AI agent tools gated by x402 or MPP, priced in native ALGO:
+
+| Endpoint | Protocol | Asset | Price | Description |
+|----------|----------|-------|-------|-------------|
+| `POST https://mcp.ilovechicken.co.uk/mcp` | x402 | VOI (native) | 1 VOI | MCP session init + tool calls (enVoi name resolution, chain tools) |
+| `GET https://mcp.ilovechicken.co.uk/account/:address` | MPP | ALGO (native) | 0.001 ALGO | Account balance and state |
+| `GET https://mcp.ilovechicken.co.uk/assets/:id` | MPP | ALGO (native) | 0.001 ALGO | ASA metadata and supply |
+| `GET https://mcp.ilovechicken.co.uk/transactions/:address` | MPP | ALGO (native) | 0.002 ALGO | Transaction history for an address |
+
+#### Platform Gateway (server-to-server)
+
+For tenant integrations — server-side x402 challenge/verify flow:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `https://api.ilovechicken.co.uk/challenge` | `POST` | Issue a payment challenge (returns `challengeId` + payment requirements) |
+| `https://api.ilovechicken.co.uk/verify` | `POST` | Verify a submitted on-chain payment against a challenge |
+| `https://api.ilovechicken.co.uk/health` | `GET` | Gateway health check |
 
 ---
 
