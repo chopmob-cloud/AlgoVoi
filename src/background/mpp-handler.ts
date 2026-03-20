@@ -380,6 +380,10 @@ export async function buildMppPaymentTxnForWC(req: PendingMppRequest): Promise<{
   const txnBytes = txn.toByte();
   const unsignedTxnB64 = btoa(String.fromCharCode(...txnBytes));
 
+  // Store expected bytes on the pending request so MPP_WC_SIGNED can compare
+  // the unsigned txn extracted from the signed bytes against what we built.
+  req.expectedUnsignedTxnB64 = unsignedTxnB64;
+
   return {
     unsignedTxnB64,
     chain,

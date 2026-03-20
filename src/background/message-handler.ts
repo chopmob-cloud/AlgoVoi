@@ -842,74 +842,29 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       const signedBytes = base64ToBytes(msg.signedTxnB64);
 
-      // MEDIUM-1: validate the signed txn matches the original MPP request
-      // Prevents a compromised popup or misbehaving WC wallet from broadcasting an unintended txn.
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const decoded = algosdk.decodeSignedTransaction(signedBytes) as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t = decoded.txn as Record<string, any>;
-
-        const txnSender: string = t.from?.toString?.() ?? t.sender?.toString?.() ?? "";
-        if (txnSender !== wcMppAccount.address) {
-          throw new Error(
-            `MPP_WC_SIGNED: signed txn sender (${txnSender}) does not match ` +
-            `expected payer (${wcMppAccount.address})`
-          );
-        }
-
-        const txnReceiver: string = t.to?.toString?.() ?? t.receiver?.toString?.() ?? "";
-        if (txnReceiver !== avmReq.recipient) {
-          throw new Error(
-            `MPP_WC_SIGNED: signed txn receiver (${txnReceiver}) does not match ` +
-            `expected recipient (${avmReq.recipient})`
-          );
-        }
-
-        const expectedAmount = BigInt(avmReq.amount);
-        const txnAmount: bigint =
-          typeof t.amount === "bigint" ? t.amount
-          : typeof t.amount === "number" ? BigInt(t.amount)
-          : 0n;
-        if (txnAmount !== expectedAmount) {
-          throw new Error(
-            `MPP_WC_SIGNED: signed txn amount (${txnAmount}) does not match ` +
-            `expected amount (${expectedAmount})`
-          );
-        }
-
-        const currencyUpper = typeof avmReq.currency === "string" ? avmReq.currency.toUpperCase() : "";
-        const expectedAsaId =
-          currencyUpper === "ALGO" || currencyUpper === "VOI" || avmReq.currency === "0"
-            ? 0
-            : parseInt(avmReq.currency, 10);
-
-        if (expectedAsaId === 0) {
-          if (t.type !== "pay") {
-            throw new Error(`MPP_WC_SIGNED: expected payment txn (pay), got "${t.type}"`);
-          }
-        } else {
-          if (t.type !== "axfer") {
-            throw new Error(`MPP_WC_SIGNED: expected ASA transfer txn (axfer), got "${t.type}"`);
-          }
-          const txnAsaId: number =
-            typeof t.assetIndex === "bigint" ? Number(t.assetIndex)
-            : typeof t.assetIndex === "number" ? t.assetIndex
-            : 0;
-          if (txnAsaId !== expectedAsaId) {
+      // MEDIUM-1: validate the signed txn contains exactly the transaction we built.
+      // Extract the unsigned portion from the signed bytes and compare its re-encoded
+      // bytes against what we stored in buildMppPaymentTxnForWC. This is more robust
+      // than field-by-field comparison: it catches any alteration regardless of how
+      // algosdk v3 names internal transaction fields.
+      if (mppWcReq.expectedUnsignedTxnB64) {
+        try {
+          const decodedSigned = algosdk.decodeSignedTransaction(signedBytes);
+          const signedTxnUnsignedBytes = decodedSigned.txn.toByte();
+          const signedTxnUnsignedB64 = btoa(String.fromCharCode(...signedTxnUnsignedBytes));
+          if (signedTxnUnsignedB64 !== mppWcReq.expectedUnsignedTxnB64) {
             throw new Error(
-              `MPP_WC_SIGNED: signed txn assetIndex (${txnAsaId}) does not match ` +
-              `expected ASA ID (${expectedAsaId})`
+              "MPP_WC_SIGNED: signed transaction does not match the MPP payment request. " +
+              "The WalletConnect wallet may have altered the transaction."
             );
           }
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("MPP_WC_SIGNED:")) throw err;
+          throw new Error(
+            `MPP_WC_SIGNED: failed to validate signed transaction: ` +
+            `${err instanceof Error ? err.message : String(err)}`
+          );
         }
-      } catch (err) {
-        // Re-throw our own validation errors; wrap algosdk decode failures
-        if (err instanceof Error && err.message.startsWith("MPP_WC_SIGNED:")) throw err;
-        throw new Error(
-          `MPP_WC_SIGNED: failed to decode signed transaction: ` +
-          `${err instanceof Error ? err.message : String(err)}`
-        );
       }
 
       const txId = await submitTransaction(chain, signedBytes);

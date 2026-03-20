@@ -115,4 +115,10 @@ export interface PendingMppRequest {
   rawChallenge: string;
   /** accountId of the active account at request creation time — asserted on approval */
   accountId?: string;
+  /**
+   * Base64-encoded unsigned transaction bytes built for WalletConnect signing.
+   * Set by buildMppPaymentTxnForWC; used by MPP_WC_SIGNED to verify the returned
+   * signed transaction contains exactly the transaction we requested.
+   */
+  expectedUnsignedTxnB64?: string;
 }
