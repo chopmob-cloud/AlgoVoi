@@ -160,17 +160,18 @@ export function clearPendingMppRequest(id: string): void {
 
 // ── Approval popup ────────────────────────────────────────────────────────────
 
-async function openMppApprovalPopup(requestId: string): Promise<void> {
+async function openMppApprovalPopup(requestId: string): Promise<number | undefined> {
   const url =
     chrome.runtime.getURL("src/approval/index.html") +
     `?requestId=${requestId}&kind=mpp_charge`;
-  await chrome.windows.create({
+  const win = await chrome.windows.create({
     url,
     type: "popup",
     width: APPROVAL_POPUP_WIDTH,
     height: APPROVAL_POPUP_HEIGHT,
     focused: true,
   });
+  return win.id;
 }
 
 /** Build the currency display label from an MppAvmRequest */
@@ -535,6 +536,12 @@ export async function handleMpp(params: {
     _pendingMppRequests.delete(requestId);
   });
 
-  await openMppApprovalPopup(requestId);
+  // Store the popup windowId so MPP_APPROVE can close it from the background.
+  // This is more reliable than window.close() in the popup page, which only works
+  // for windows opened by window.open() — not for chrome.windows.create() popups.
+  const popupWindowId = await openMppApprovalPopup(requestId);
+  if (popupWindowId !== undefined) {
+    pending.popupWindowId = popupWindowId;
+  }
   return requestId;
 }
