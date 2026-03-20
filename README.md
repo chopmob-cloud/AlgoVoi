@@ -277,21 +277,22 @@ Public endpoints for testing x402 clients against real on-chain payments:
 | `GET https://api.ilovechicken.co.uk/api/voi-premium` | Voi mainnet | aUSDC (ASA 302190) | 0.01 aUSDC |
 | `GET https://api.ilovechicken.co.uk/api/config` | — | — | Public (no payment) |
 
-#### MPP Test Endpoint
+#### MPP Test Endpoints
 
-Live endpoint using `WWW-Authenticate: Payment` with the `avm` method — tests the full MPP flow (challenge → AVM on-chain txn → `Authorization: Payment` credential):
+Live endpoints using `WWW-Authenticate: Payment` with the `avm` method — full MPP flow (challenge → AVM on-chain txn → `Authorization: Payment` credential):
 
 | Endpoint | Network | Asset | Price |
 |----------|---------|-------|-------|
-| `GET https://api.ilovechicken.co.uk/api/mpp-premium` | Algorand mainnet | ALGO (native) | 0.001 ALGO |
+| `GET https://api.ilovechicken.co.uk/api/mpp-premium` | Algorand mainnet | ALGO (native) | configurable via `MPP_AMOUNT` env (µALGO) |
+| `GET https://api.ilovechicken.co.uk/api/mpp-voi-premium` | Voi mainnet | VOI (native) | configurable via `MPP_VOI_AMOUNT` env (µVOI) |
 
 #### AP2 Test Endpoint
 
-Live endpoint for testing Google AP2 credential flow — no AVM transaction submitted; the wallet signs a `PaymentMandate` credential which the server verifies:
+Live endpoint for the Google AP2 credential flow — no AVM transaction submitted; the wallet signs a `PaymentMandate` with its ed25519 key, the server verifies the signature + replay protection:
 
 | Endpoint | Network | Asset | Price |
 |----------|---------|-------|-------|
-| `POST https://api.ilovechicken.co.uk/api/ap2` | Algorand mainnet | USD (off-chain) | $0.01 |
+| `POST https://api.ilovechicken.co.uk/api/ap2-premium` | Algorand / Voi | USD (off-chain) | set by merchant CartMandate |
 
 #### MCP Gateway (x402 + MPP)
 
