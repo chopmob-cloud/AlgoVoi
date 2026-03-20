@@ -55,6 +55,8 @@ const MAX_PENDING_PER_SESSION = 10;
 
 let _web3wallet: IWeb3Wallet | null = null;
 let _projectId: string = "";
+/** Guards restoreWeb3WalletSessions against concurrent invocations from the alarm */
+let _restoring: boolean = false;
 
 // ── Pending agent sign requests ───────────────────────────────────────────────
 
@@ -654,27 +656,45 @@ export async function rejectAgentSignRequest(requestId: string): Promise<void> {
  * suspension window are lost (acceptable for v0.1.4 — documented above).
  */
 export async function restoreWeb3WalletSessions(projectId: string): Promise<void> {
-  const topics = await getStoredTopics();
-  if (topics.length === 0 && !projectId) return; // nothing to restore
+  // Re-entrancy guard: the alarm fires every 60 s; skip if a restore is
+  // already in flight (relay init + topic fetch can take several seconds).
+  if (_restoring) return;
+  _restoring = true;
 
   try {
-    await initWeb3Wallet(projectId);
-    const activeSessions = _web3wallet?.getActiveSessions() ?? {};
-    const activeTopics = Object.keys(activeSessions);
+    const topics = await getStoredTopics();
+    if (topics.length === 0 && !projectId) return; // nothing to restore
 
-    // Clean up stored topics that no longer exist in the WC relay
-    const validTopics = topics.filter((t) => activeTopics.includes(t));
-    if (validTopics.length !== topics.length) {
-      await storeSessions(validTopics);
-    }
+    try {
+      await initWeb3Wallet(projectId);
+      const activeSessions = _web3wallet?.getActiveSessions() ?? {};
+      const activeTopics = Object.keys(activeSessions);
 
-    if (validTopics.length > 0) {
-      // Restart keepalive alarm for active sessions
-      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
-      console.info(`[AlgoVoi W3W] Restored ${validTopics.length} agent session(s)`);
+      // Clean up stored topics that no longer exist in the WC relay
+      const validTopics = topics.filter((t) => activeTopics.includes(t));
+      if (validTopics.length !== topics.length) {
+        await storeSessions(validTopics);
+      }
+
+      if (validTopics.length > 0) {
+        // Active sessions present — keep the alarm alive
+        chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
+        console.info(`[AlgoVoi W3W] Restored ${validTopics.length} agent session(s)`);
+      } else {
+        // No active sessions — check for pending pairings (QR shown, awaiting scan)
+        const pendingPairings = getActivePairings();
+        if (pendingPairings === 0) {
+          // Nothing active at all — clear the alarm so the SW can suspend normally.
+          // This handles the case where a pairing was created but the agent never
+          // connected and the pairing expired via WC TTL (session_delete won't fire).
+          chrome.alarms.clear("w3w-keepalive").catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn("[AlgoVoi W3W] restoreWeb3WalletSessions failed:", err);
+      // Non-fatal: agent sessions will re-connect when the agent retries
     }
-  } catch (err) {
-    console.warn("[AlgoVoi W3W] restoreWeb3WalletSessions failed:", err);
-    // Non-fatal: agent sessions will re-connect when the agent retries
+  } finally {
+    _restoring = false;
   }
 }
