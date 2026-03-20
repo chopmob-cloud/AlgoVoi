@@ -800,6 +800,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       // Vault account — sign locally
       const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
+      const mppPopupWindowId = mppReq.popupWindowId;
       clearPendingMppRequest(msg.requestId);
 
       // Notify the inpage script so it can retry the fetch with Authorization header
@@ -810,6 +811,11 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         authorizationHeader,
         txId,
       });
+      // Close the approval popup from the background. More reliable than window.close()
+      // in the popup page — works even if the MV3 sendResponse channel has expired.
+      if (mppPopupWindowId !== undefined) {
+        chrome.windows.remove(mppPopupWindowId).catch(() => {});
+      }
       return { authorizationHeader, txId };
     }
 
@@ -881,6 +887,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       };
       const authorizationHeader = serializeMppCredential(mppCredential);
 
+      const mppWcPopupWindowId = mppWcReq.popupWindowId;
       clearPendingMppRequest(msg.requestId);
       chrome.tabs.sendMessage(mppWcReq.tabId, {
         type: "MPP_RESULT",
@@ -889,6 +896,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         authorizationHeader,
         txId,
       });
+      if (mppWcPopupWindowId !== undefined) {
+        chrome.windows.remove(mppWcPopupWindowId).catch(() => {});
+      }
       return { authorizationHeader, txId };
     }
 

@@ -115,6 +115,8 @@ export interface PendingMppRequest {
   rawChallenge: string;
   /** accountId of the active account at request creation time — asserted on approval */
   accountId?: string;
+  /** Chrome window ID of the approval popup — used to close it from the background */
+  popupWindowId?: number;
   /**
    * Base64-encoded unsigned transaction bytes built for WalletConnect signing.
    * Set by buildMppPaymentTxnForWC; used by MPP_WC_SIGNED to verify the returned
