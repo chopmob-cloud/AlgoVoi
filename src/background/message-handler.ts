@@ -794,15 +794,19 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         );
       }
 
-      if (mppAccount?.type === "walletconnect") {
+      if (!mppAccount) throw new Error("Active account not found for MPP payment");
+      if (mppAccount.type === "walletconnect") {
         const wcData = await buildMppPaymentTxnForWC(mppReq);
         return { needsWcSign: true, ...wcData };
       }
 
-      // Vault account — sign locally
-      const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
+      // Vault account — sign locally.
+      // Read popup window ID and clear the pending request BEFORE the long async signing
+      // operation to prevent: (a) TTL expiring during signing and clearing _windowIds before
+      // we can read it; (b) a duplicate MPP_APPROVE arriving while signing is in progress.
       const mppPopupWindowId = getApprovalWindowId(msg.requestId);
       clearPendingMppRequest(msg.requestId);
+      const { authorizationHeader, txId } = await buildAndSignMppPayment(mppReq);
 
       // Notify the inpage script so it can retry the fetch with Authorization header
       chrome.tabs.sendMessage(mppReq.tabId, {
@@ -811,7 +815,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         approved: true,
         authorizationHeader,
         txId,
-      });
+      }).catch(() => {}); // tab may have been closed since the request was initiated
       // Close the approval popup from the background. More reliable than window.close()
       // in the popup page — works even if the MV3 sendResponse channel has expired.
       if (mppPopupWindowId !== undefined) {
@@ -821,6 +825,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "MPP_REJECT": {
+      // Popup always calls window.close() after sending this message, so no
+      // background-side window removal is needed. TTL handles any crash/leak.
       const mppReqToReject = getPendingMppRequest(msg.requestId);
       if (mppReqToReject) {
         clearPendingMppRequest(msg.requestId);
@@ -829,7 +835,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
           requestId: mppReqToReject.inpageRequestId ?? mppReqToReject.id,
           approved: false,
           error: "User rejected MPP payment",
-        });
+        }).catch(() => {}); // tab may have been closed since the request was initiated
       }
       return { success: true };
     }
@@ -847,32 +853,45 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const wcMppAccount = wcMppMeta.accounts.find((a) => a.id === wcMppMeta.activeAccountId);
       if (!wcMppAccount) throw new Error("Cannot determine payer address for MPP WC payment");
 
+      // Assert active account hasn't changed since request was queued (mirrors MPP_APPROVE guard)
+      if (mppWcReq.accountId !== undefined && wcMppMeta.activeAccountId !== mppWcReq.accountId) {
+        throw new Error(
+          "Active account changed after MPP payment request was initiated. " +
+          "Please reject this request and initiate a new payment."
+        );
+      }
+
       const signedBytes = base64ToBytes(msg.signedTxnB64);
 
       // MEDIUM-1: validate the signed txn contains exactly the transaction we built.
-      // Extract the unsigned portion from the signed bytes and compare its re-encoded
-      // bytes against what we stored in buildMppPaymentTxnForWC. This is more robust
-      // than field-by-field comparison: it catches any alteration regardless of how
-      // algosdk v3 names internal transaction fields.
-      if (mppWcReq.expectedUnsignedTxnB64) {
-        try {
-          const decodedSigned = algosdk.decodeSignedTransaction(signedBytes);
-          const signedTxnUnsignedBytes = decodedSigned.txn.toByte();
-          const signedTxnUnsignedB64 = btoa(String.fromCharCode(...signedTxnUnsignedBytes));
-          if (signedTxnUnsignedB64 !== mppWcReq.expectedUnsignedTxnB64) {
-            throw new Error(
-              "MPP_WC_SIGNED: signed transaction does not match the MPP payment request. " +
-              "The WalletConnect wallet may have altered the transaction."
-            );
-          }
-        } catch (err) {
-          if (err instanceof Error && err.message.startsWith("MPP_WC_SIGNED:")) throw err;
+      // expectedUnsignedTxnB64 is always set by buildMppPaymentTxnForWC; its absence
+      // means this WC request bypassed the build step — reject outright rather than
+      // skipping the binding check and accepting an unvalidated transaction.
+      if (!mppWcReq.expectedUnsignedTxnB64) {
+        throw new Error("MPP_WC_SIGNED: missing expected transaction binding — cannot validate signed bytes.");
+      }
+      try {
+        const decodedSigned = algosdk.decodeSignedTransaction(signedBytes);
+        const signedTxnUnsignedBytes = decodedSigned.txn.toByte();
+        const signedTxnUnsignedB64 = btoa(String.fromCharCode(...signedTxnUnsignedBytes));
+        if (signedTxnUnsignedB64 !== mppWcReq.expectedUnsignedTxnB64) {
           throw new Error(
-            `MPP_WC_SIGNED: failed to validate signed transaction: ` +
-            `${err instanceof Error ? err.message : String(err)}`
+            "MPP_WC_SIGNED: signed transaction does not match the MPP payment request. " +
+            "The WalletConnect wallet may have altered the transaction."
           );
         }
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("MPP_WC_SIGNED:")) throw err;
+        throw new Error(
+          `MPP_WC_SIGNED: failed to validate signed transaction: ` +
+          `${err instanceof Error ? err.message : String(err)}`
+        );
       }
+
+      // Read popup window ID and clear pending BEFORE the long async submission
+      // so TTL expiry during on-chain confirmation cannot clear _windowIds first.
+      const mppWcPopupWindowId = getApprovalWindowId(msg.requestId);
+      clearPendingMppRequest(msg.requestId);
 
       const txId = await submitTransaction(chain, signedBytes);
       await waitForConfirmation(chain, txId, 8);
@@ -888,15 +907,13 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       };
       const authorizationHeader = serializeMppCredential(mppCredential);
 
-      const mppWcPopupWindowId = getApprovalWindowId(msg.requestId);
-      clearPendingMppRequest(msg.requestId);
       chrome.tabs.sendMessage(mppWcReq.tabId, {
         type: "MPP_RESULT",
         requestId: mppWcReq.inpageRequestId ?? mppWcReq.id,
         approved: true,
         authorizationHeader,
         txId,
-      });
+      }).catch(() => {}); // tab may have been closed since the request was initiated
       if (mppWcPopupWindowId !== undefined) {
         chrome.windows.remove(mppWcPopupWindowId).catch(() => {});
       }
