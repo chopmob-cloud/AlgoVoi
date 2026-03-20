@@ -23,14 +23,33 @@ interface Props {
   onClose: () => void;
 }
 
-/** Wallet icon with fallback to a coloured letter avatar when the URL is blocked by CSP */
+/** Allowed origins for wallet icon images — must match extension img-src CSP */
+const ALLOWED_ICON_ORIGINS = [
+  "https://explorer-api.walletconnect.com",
+  "https://registry.walletconnect.com",
+  "https://api.walletconnect.com",
+  "https://static.defly.app",
+];
+function isAllowedIconUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "https:") return false;
+    const full = `https://${hostname}`;
+    return ALLOWED_ICON_ORIGINS.some((o) => full === o || full.endsWith("." + new URL(o).hostname));
+  } catch {
+    return false;
+  }
+}
+
+/** Wallet icon with fallback to a coloured letter avatar when the URL is blocked or invalid */
 function WalletIcon({ icon, name }: { icon?: string; name?: string }) {
   const [failed, setFailed] = useState(false);
-  const letter = (name ?? "W")[0].toUpperCase();
-  if (icon && !failed) {
+  const letter = (name || "W")[0].toUpperCase();
+  const safeIcon = icon && isAllowedIconUrl(icon) ? icon : undefined;
+  if (safeIcon && !failed) {
     return (
       <img
-        src={icon}
+        src={safeIcon}
         alt=""
         className="w-8 h-8 rounded-lg flex-shrink-0"
         onError={() => setFailed(true)}

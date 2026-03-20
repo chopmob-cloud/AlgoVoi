@@ -111,7 +111,9 @@ export function countPendingByOrigin(origin: string): number {
 
 /**
  * Return and consume the Chrome window ID for an approval popup.
- * Call this before closing/clearing the request so you have the ID.
+ * Single-use by design: deletes on read so the ID cannot be double-consumed.
+ * Cleaned up automatically when TTL fires (rejectApproval → clearPendingApproval)
+ * or when the user rejects/approves normally.
  */
 export function getApprovalWindowId(id: string): number | undefined {
   const windowId = _windowIds.get(id);
@@ -174,8 +176,12 @@ export { randomId };
 async function openApprovalPopup(id: string, kind: ApprovalKind): Promise<void> {
   // Validate kind against known values before injecting into URL — prevents
   // any future code path from accidentally constructing a URL with user-controlled kind.
-  const VALID_KINDS: readonly string[] = ["sign_txns", "sign_bytes", "envoi_payment", "mpp_charge", "ap2_payment"];
-  if (!VALID_KINDS.includes(kind)) throw new Error(`Unknown approval kind: ${kind}`);
+  // "agent_sign" is intentionally excluded: agent sign requests open their own popup
+  // via web3wallet-handler and do not go through requestApproval().
+  // satisfies ReadonlyArray<ApprovalKind> ensures each entry is a valid ApprovalKind —
+  // TypeScript will catch any stale entries if ApprovalKind values are removed.
+  const VALID_KINDS = ["sign_txns", "sign_bytes", "envoi_payment", "mpp_charge", "ap2_payment"] as const satisfies ReadonlyArray<ApprovalKind>;
+  if (!(VALID_KINDS as readonly string[]).includes(kind)) throw new Error(`Unknown approval kind: ${kind}`);
   const popupUrl = new URL(chrome.runtime.getURL("src/approval/index.html"));
   popupUrl.searchParams.set("requestId", id);
   popupUrl.searchParams.set("kind", kind);
@@ -187,5 +193,13 @@ async function openApprovalPopup(id: string, kind: ApprovalKind): Promise<void> 
     height: APPROVAL_POPUP_HEIGHT,
     focused: true,
   });
-  if (win.id !== undefined) _windowIds.set(id, win.id);
+  if (win.id !== undefined) {
+    // Guard: TTL may have fired while chrome.windows.create was in-flight.
+    // If the approval is already gone, close the orphaned popup immediately.
+    if (_pending.has(id)) {
+      _windowIds.set(id, win.id);
+    } else {
+      chrome.windows.remove(win.id).catch(() => {});
+    }
+  }
 }
