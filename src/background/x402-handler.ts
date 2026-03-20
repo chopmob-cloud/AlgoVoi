@@ -39,12 +39,14 @@ const ALGORAND_NETWORKS = new Set([
   "algorand-mainnet",       // coinbase/x402 spec (hyphen)
   "algorand_mainnet",       // AlgoVoi platform gateway (underscore)
   "algorand:mainnet-v1.0",  // CAIP-2
+  "algorand",               // MPP payment method identifier (chopmob-cloud/mpp)
 ]);
 /** All network strings that map to Voi mainnet */
 const VOI_NETWORKS = new Set([
   "voi-mainnet",            // coinbase/x402 spec (hyphen)
   "voi_mainnet",            // AlgoVoi platform gateway (underscore)
   "voi:voimain-v1.0",       // CAIP-2
+  "voi",                    // MPP payment method identifier (chopmob-cloud/mpp)
 ]);
 
 export function resolveChain(network: string): ChainId | null {
