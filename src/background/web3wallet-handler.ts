@@ -384,7 +384,7 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
       let agentActiveAccountId: string | undefined;
       try {
         const agentMeta = await walletStore.getMeta();
-        agentActiveAccountId = agentMeta.activeAccountId;
+        agentActiveAccountId = agentMeta.activeAccountId ?? undefined;
       } catch { /* non-fatal */ }
 
       const requestId = randomId();

@@ -10,7 +10,6 @@
 import type { Account, WalletMeta, LockState } from "./wallet";
 import type { ChainId, AccountState } from "./chain";
 import type { PaymentRequirements, PendingX402Request, PaymentRecord } from "./x402";
-import type { PendingMppRequest } from "./mpp";
 import type { PendingMppApproval } from "./approval";
 import type { PendingApproval } from "./approval";
 import type { CartMandate, IntentMandate, PaymentMandate, PendingAp2Approval } from "./ap2";

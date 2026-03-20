@@ -317,6 +317,13 @@ export async function buildPaymentTxnForWC(req: PendingX402Request): Promise<{
   const txnBytes = txn.toByte();
   const unsignedTxnB64 = btoa(String.fromCharCode(...txnBytes));
 
+  // Store expected bytes on the pending request so X402_WC_SIGNED can compare
+  // the unsigned txn extracted from the signed bytes against what we built.
+  req.expectedUnsignedTxnB64 = unsignedTxnB64;
+  // Store the account ID so X402_WC_SIGNED can assert the active account hasn't
+  // changed between the WC signing request and the signed-result callback.
+  req.wcAccountId = activeAccount.id;
+
   return {
     unsignedTxnB64,
     chain,

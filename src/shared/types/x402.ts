@@ -120,6 +120,18 @@ export interface PendingX402Request {
    * request header, allowing the server to correlate retry ↔ challenge.
    */
   rawPaymentRequired?: string;
+  /**
+   * Base64 of the canonical unsigned transaction bytes built by buildPaymentTxnForWC().
+   * Set when a WalletConnect account is used; X402_WC_SIGNED validates the
+   * signed bytes decode to this exact transaction before submitting.
+   */
+  expectedUnsignedTxnB64?: string;
+  /**
+   * Account ID of the active wallet account at the time buildPaymentTxnForWC() ran.
+   * X402_WC_SIGNED asserts the active account hasn't changed before building the
+   * payment proof header, mirroring the same guard in MPP_WC_SIGNED.
+   */
+  wcAccountId?: string;
 }
 
 /** Result of a completed payment signing */
