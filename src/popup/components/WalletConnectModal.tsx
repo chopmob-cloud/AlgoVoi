@@ -23,12 +23,28 @@ interface Props {
   onClose: () => void;
 }
 
-/** Allowed origins for wallet icon images — must match extension img-src CSP */
+/**
+ * Allowed origins for wallet icon <img> tags — must be a strict subset of the
+ * extension's img-src CSP (manifest.json). Any icon URL not matching this list
+ * falls back to the letter-avatar component via isAllowedIconUrl() below.
+ *
+ * Wallet peer icons arrive via peerMeta.icons[0] and can point to any domain
+ * the wallet app chooses, so we allowlist only verified WalletConnect CDNs and
+ * known wallet static-asset hosts. Unknown domains always fall through to the
+ * letter avatar — the onError handler provides a second safety net.
+ *
+ * CSP img-src covers: 'self' data: *.walletconnect.com *.walletconnect.org static.defly.app
+ */
 const ALLOWED_ICON_ORIGINS = [
-  "https://explorer-api.walletconnect.com",
-  "https://registry.walletconnect.com",
-  "https://api.walletconnect.com",
+  // WalletConnect cloud image delivery (current CDN for registered wallets)
+  "https://imagedelivery.net",
+  // Pera Wallet
+  "https://perawallet.app",
+  // Defly Wallet
   "https://static.defly.app",
+  "https://defly.app",
+  // Lute Wallet
+  "https://lute.app",
 ];
 function isAllowedIconUrl(url: string): boolean {
   try {
