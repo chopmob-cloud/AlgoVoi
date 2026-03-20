@@ -456,7 +456,7 @@ export async function handleMpp(params: {
   let pendingAccountId: string | undefined;
   try {
     const pendingMeta = await walletStore.getMeta();
-    pendingAccountId = pendingMeta.activeAccountId;
+    pendingAccountId = pendingMeta.activeAccountId ?? undefined;
   } catch { /* non-fatal — assertion will be skipped if undefined */ }
 
   const requestId = randomId();

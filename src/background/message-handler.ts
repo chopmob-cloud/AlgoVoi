@@ -694,18 +694,54 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       const signedBytes = base64ToBytes(msg.signedTxnB64);
 
+      // MEDIUM-1: validate the signed txn contains exactly the transaction we built.
+      // expectedUnsignedTxnB64 is always set by buildPaymentTxnForWC; its absence
+      // means this WC request bypassed the build step — reject outright rather than
+      // skipping the binding check and accepting an unvalidated transaction.
+      if (!req.expectedUnsignedTxnB64) {
+        throw new Error("X402_WC_SIGNED: missing expected transaction binding — cannot validate signed bytes.");
+      }
+      try {
+        const decodedSigned = algosdk.decodeSignedTransaction(signedBytes);
+        const signedTxnUnsignedBytes = decodedSigned.txn.toByte();
+        const signedTxnUnsignedB64 = btoa(String.fromCharCode(...signedTxnUnsignedBytes));
+        if (signedTxnUnsignedB64 !== req.expectedUnsignedTxnB64) {
+          throw new Error(
+            "X402_WC_SIGNED: signed transaction does not match the x402 payment request. " +
+            "The WalletConnect wallet may have altered the transaction."
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("X402_WC_SIGNED:")) throw err;
+        throw new Error(
+          `X402_WC_SIGNED: failed to validate signed transaction: ` +
+          `${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+
+      // Resolve the payer address from the active account and assert account hasn't
+      // changed since buildPaymentTxnForWC ran (mirrors MPP_WC_SIGNED guard).
+      // Fail closed if the account cannot be identified — never send an empty proof.
+      const wcMeta = await walletStore.getMeta();
+      if (req.wcAccountId !== undefined && wcMeta.activeAccountId !== req.wcAccountId) {
+        throw new Error(
+          "Active account changed after x402 WC payment request was initiated. " +
+          "Reject the original request and retry with the current account."
+        );
+      }
+      const payer = wcMeta.accounts.find((a) => a.id === wcMeta.activeAccountId)?.address;
+      if (!payer) throw new Error("Cannot determine payer address for WC payment proof");
+
+      // Clear pending BEFORE the long async submission so TTL cannot clear state
+      // mid-flight and a second X402_WC_SIGNED cannot race through.
+      clearPendingRequest(msg.requestId);
+
       // Submit and capture the on-chain txId for the proof payload.
       const txId = await submitTransaction(chain, signedBytes);
 
       // Wait for algod confirmation then poll indexer — eliminates tx_not_found.
       await waitForConfirmation(chain, txId, 8);
       await waitForIndexed(chain, txId);
-
-      // Resolve the payer address from the active account.
-      // Fail closed if the account cannot be identified — never send an empty proof.
-      const wcMeta = await walletStore.getMeta();
-      const payer = wcMeta.accounts.find((a) => a.id === wcMeta.activeAccountId)?.address;
-      if (!payer) throw new Error("Cannot determine payer address for WC payment proof");
 
       // Re-encode as standard base64 in case Defly/Pera returned URL-safe base64
       const signedTxnStdB64 = btoa(String.fromCharCode(...signedBytes));
@@ -723,15 +759,13 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       };
       const paymentHeader = btoa(JSON.stringify(wcPayload));
 
-      clearPendingRequest(msg.requestId);
-
       chrome.tabs.sendMessage(req.tabId, {
         type: "X402_RESULT",
         requestId: req.inpageRequestId ?? req.id,
         approved: true,
         paymentHeader,
         txId,
-      });
+      }).catch(() => {});
       return { paymentHeader, txId };
     }
 
