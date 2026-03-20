@@ -277,6 +277,22 @@ Public endpoints for testing x402 clients against real on-chain payments:
 | `GET https://api.ilovechicken.co.uk/api/voi-premium` | Voi mainnet | aUSDC (ASA 302190) | 0.01 aUSDC |
 | `GET https://api.ilovechicken.co.uk/api/config` | — | — | Public (no payment) |
 
+#### MPP Test Endpoint
+
+Live endpoint using `WWW-Authenticate: Payment` with the `avm` method — tests the full MPP flow (challenge → AVM on-chain txn → `Authorization: Payment` credential):
+
+| Endpoint | Network | Asset | Price |
+|----------|---------|-------|-------|
+| `GET https://api.ilovechicken.co.uk/api/mpp-premium` | Algorand mainnet | ALGO (native) | 0.001 ALGO |
+
+#### AP2 Test Endpoint
+
+Live endpoint for testing Google AP2 credential flow — no AVM transaction submitted; the wallet signs a `PaymentMandate` credential which the server verifies:
+
+| Endpoint | Network | Asset | Price |
+|----------|---------|-------|-------|
+| `POST https://api.ilovechicken.co.uk/api/ap2` | Algorand mainnet | USD (off-chain) | $0.01 |
+
 #### MCP Gateway (x402 + MPP)
 
 AI agent tools gated by x402 or MPP, priced in native ALGO:
