@@ -110,7 +110,7 @@ export default function VaultPanel({
   // ── Core action dispatcher ─────────────────────────────────────────────────
   // Handles both mnemonic (direct) and WalletConnect (multi-step) paths.
 
-  async function doAction(action: string, extra?: Record<string, string | boolean>) {
+  async function doAction(action: string, extra?: Record<string, string | boolean | number>) {
     setBusy(true);
     setError(null);
     setTxId(null);
@@ -119,7 +119,29 @@ export default function VaultPanel({
       const result = await sendBg<AnyObj>({ type: action, chain, ...extra });
 
       if (result.needsWcSign) {
-        if (result.step === "create") {
+        if (result.step === "remap") {
+          // ── WC vault remap — single group sign (fund box + add_agent) ────
+
+          setWcStatus("Approve vault reconnect in your wallet app…");
+          const remapTxns = (result.setupGroupB64s as string[]).map((b64) =>
+            algosdk.decodeUnsignedTransaction(base64ToBytes(b64))
+          );
+          const signedRemap = await wc.signGroup(
+            result.sessionTopic as string, chain, remapTxns, result.signerAddress as string
+          );
+          const signedRemapB64s = signedRemap.map((b) => btoa(String.fromCharCode(...b)));
+
+          setWcStatus("Confirming on-chain…");
+          const remapResult = await sendBg<AnyObj>({
+            type:            "VAULT_WC_REMAP_SUBMIT",
+            signedGroupB64s: signedRemapB64s,
+            chain,
+            appId:           result.appId    as number,
+            appAddress:      result.appAddress as string,
+          });
+          if (remapResult.txId) setTxId(remapResult.txId as string);
+
+        } else if (result.step === "create") {
           // ── WC vault deploy — 2 signing rounds ──────────────────────────
 
           // Round 1: sign the create application txn
@@ -370,7 +392,7 @@ function DeployWizard({
 }: {
   chain:    ChainId;
   ticker:   string;
-  onDeploy: (action: string, extra: Record<string, string | boolean>) => Promise<void>;
+  onDeploy: (action: string, extra: Record<string, string | boolean | number>) => Promise<void>;
   busy:     boolean;
   error:    string | null;
 }) {
@@ -378,6 +400,8 @@ function DeployWizard({
   const [dailyCap,   setDailyCap]   = useState("10");    // 10 ALGO/VOI
   const [maxAsa,     setMaxAsa]     = useState("1");     // 1 USDC/aUSDC
   const [allowlist,  setAllowlist]  = useState(false);
+  const [showRemap,  setShowRemap]  = useState(false);
+  const [remapAppId, setRemapAppId] = useState("");
 
   function handleDeploy() {
     onDeploy("VAULT_DEPLOY", {
@@ -387,6 +411,16 @@ function DeployWizard({
       allowlistEnabled: allowlist,
       agentMaxPerTxn:   "0", // inherit global
       agentDailyCap:    "0", // inherit global
+    });
+  }
+
+  function handleRemap() {
+    const id = parseInt(remapAppId.trim(), 10);
+    if (!id || isNaN(id)) return;
+    onDeploy("VAULT_REMAP", {
+      appId:          id,
+      agentMaxPerTxn: "0", // inherit global
+      agentDailyCap:  "0", // inherit global
     });
   }
 
@@ -487,6 +521,49 @@ function DeployWizard({
           </span>
         ) : `Deploy Vault on ${CHAINS[chain].name}`}
       </button>
+
+      {/* Remap existing vault */}
+      <div className="bg-surface-2 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowRemap((s) => !s)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 hover:text-gray-300"
+        >
+          <span>Already have a vault? Reconnect it</span>
+          <span>{showRemap ? "▲" : "▼"}</span>
+        </button>
+        {showRemap && (
+          <div className="px-3 pb-3 flex flex-col gap-2 border-t border-surface-1">
+            <p className="text-[10px] text-gray-500 pt-2 leading-relaxed">
+              Enter your existing vault App ID. A new agent key will be generated
+              and registered on-chain — the contract limits are unchanged.
+            </p>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-400">App ID</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={remapAppId}
+                onChange={(e) => setRemapAppId(e.target.value)}
+                placeholder="e.g. 3487338609"
+                className="input text-sm font-mono"
+              />
+            </label>
+            <button
+              onClick={handleRemap}
+              disabled={busy || !remapAppId.trim()}
+              className="btn-primary text-xs py-2 font-semibold disabled:opacity-40"
+            >
+              {busy ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  Reconnecting…
+                </span>
+              ) : "Reconnect Vault"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
