@@ -33,6 +33,20 @@ export interface VaultData {
    * Optional for backward-compatibility; migrated from meta on first unlock.
    */
   connectedSites?: Record<string, string[]>;
+  /**
+   * Auto-generated agent keypair for SpendingCapVault autonomous payments.
+   * Stored inside the AES-GCM encrypted vault — never in plaintext storage.
+   * The owner wallet (accounts[]) deploys the vault and authorises this key.
+   */
+  agentKey?: {
+    mnemonic: string;
+    address: string;
+  };
+  /**
+   * Deployed SpendingCapVault app IDs per chain.
+   * Stored in the encrypted vault so it is coupled to the agent key.
+   */
+  vaultApps?: Partial<Record<string, { appId: number; appAddress: string }>>;
 }
 
 /** AES-GCM encrypted vault persisted in chrome.storage.local */

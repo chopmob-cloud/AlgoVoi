@@ -5,7 +5,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getAccountState, getSuggestedParams, submitTransaction, waitForConfirmation, waitForIndexed } from "./chain-clients";
+import { getAlgodClient, getAccountState, getSuggestedParams, submitTransaction, waitForConfirmation, waitForIndexed } from "./chain-clients";
 import { CHAINS, X402_VERSION } from "@shared/constants";
 import {
   handleX402,
@@ -32,6 +32,19 @@ import {
   getIntentMandates,
 } from "./ap2-handler";
 import { mcpResolveEnvoi } from "./mcp-client";
+import {
+  deployVault,
+  getVaultGlobalState,
+  getVaultAgentState,
+  suspendAgent,
+  resumeAgent,
+  updateGlobalLimits,
+  ownerWithdraw,
+  buildVaultCreateTxn,
+  buildVaultSetupGroup,
+  buildOwnerActionTxn,
+  submitSignedGroup,
+} from "./vault-store";
 import {
   generatePairingUri,
   getActiveSessions,
@@ -102,6 +115,18 @@ function parseDecimalToAtomic(amount: string, decimals: number): bigint {
   }
   return atomic;
 }
+
+// ── WC vault binding map ─────────────────────────────────────────────────────
+// Stores the expected unsigned txn bytes for each pending WC vault operation.
+// Keyed by wcSessionTopic — at most one pending vault op per WC session.
+// Prevents a compromised WC relay or rogue popup from substituting a different
+// transaction (e.g. rekey, drain) after the background has built and validated it.
+interface VaultWcBinding {
+  expectedUnsignedB64s: string[]; // ordered — [createTxn] | [fundTxn, addAgentTxn] | [actionTxn]
+  expires: number;
+}
+const _pendingVaultWcBinding = new Map<string, VaultWcBinding>();
+const VAULT_WC_BINDING_TTL_MS = 5 * 60 * 1000; // 5 min — matches WC signing session timeout
 
 export function registerMessageHandler(): void {
   chrome.runtime.onMessage.addListener(
@@ -1147,9 +1172,334 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { success: true };
     }
 
+    // ── SpendingCapVault — on-chain agent spending limits ─────────────────────
+
+    case "VAULT_GET_STATE": {
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock(); // L2: polling from the vault panel should keep the session alive
+      const vaultApp = walletStore.getVaultApp(msg.chain);
+      if (!vaultApp) return { deployed: false };
+      const agentAddr = walletStore.getAgentAddress();
+      const [global, agent] = await Promise.all([
+        getVaultGlobalState(msg.chain, vaultApp.appId, vaultApp.appAddress),
+        agentAddr ? getVaultAgentState(msg.chain, vaultApp.appId, agentAddr) : Promise.resolve(null),
+      ]);
+      return {
+        deployed: true,
+        appId:      vaultApp.appId,
+        appAddress: vaultApp.appAddress,
+        agentAddress: agentAddr,
+        global:  serializeBigInt(global),
+        agent:   agent ? serializeBigInt(agent) : null,
+      };
+    }
+
+    case "VAULT_DEPLOY": {
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+      const deployMeta    = await walletStore.getMeta();
+      const deployAccount = deployMeta.accounts.find((a) => a.id === deployMeta.activeAccountId);
+      if (!deployAccount) throw new Error("No active account");
+
+      // Generate agent key if not already created (works for both mnemonic and WC owners)
+      let agentAddr = walletStore.getAgentAddress();
+      if (!agentAddr) agentAddr = await walletStore.createAgentKey();
+
+      const limits = {
+        globalMaxPerTxn:  BigInt(msg.globalMaxPerTxn),
+        globalDailyCap:   BigInt(msg.globalDailyCap),
+        globalMaxAsa:     BigInt(msg.globalMaxAsa),
+        allowlistEnabled: msg.allowlistEnabled,
+        agentMaxPerTxn:   BigInt(msg.agentMaxPerTxn),
+        agentDailyCap:    BigInt(msg.agentDailyCap),
+      };
+
+      if (deployAccount.type === "walletconnect") {
+        // WC path: return unsigned create txn → popup signs → VAULT_WC_SUBMIT_CREATE
+        if (!deployAccount.wcSessionTopic) throw new Error("No WalletConnect session for this account");
+        const createTxn = await buildVaultCreateTxn(msg.chain, deployAccount.address, limits);
+        const createUnsignedB64 = btoa(String.fromCharCode(...createTxn.toByte()));
+        // H1: store expected create txn bytes — validated in VAULT_WC_SUBMIT_CREATE
+        _pendingVaultWcBinding.set(deployAccount.wcSessionTopic, {
+          expectedUnsignedB64s: [createUnsignedB64],
+          expires: Date.now() + VAULT_WC_BINDING_TTL_MS,
+        });
+        return {
+          needsWcSign:    true,
+          step:           "create",
+          unsignedTxnB64: createUnsignedB64,
+          chain:          msg.chain,
+          sessionTopic:   deployAccount.wcSessionTopic,
+          signerAddress:  deployAccount.address,
+          agentAddress:   agentAddr,
+          agentMaxPerTxn: msg.agentMaxPerTxn,
+          agentDailyCap:  msg.agentDailyCap,
+        };
+      }
+
+      // Mnemonic path: sign and submit all steps in background
+      const ownerSk = await walletStore.getActiveSecretKey();
+      const result  = await deployVault(msg.chain, ownerSk, deployAccount.address, agentAddr, limits);
+      await walletStore.saveVaultApp(msg.chain, result.appId, result.appAddress);
+      return { appId: result.appId, appAddress: result.appAddress, agentAddress: agentAddr, txId: result.txId };
+    }
+
+    case "VAULT_WC_SUBMIT_CREATE": {
+      // Submit signed create txn, get appId, build setup group for WC step 2
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      // H2: base64ToBytes handles URL-safe base64 from Defly/Lute (atob() rejects it)
+      const signedCreateBytes = base64ToBytes(msg.signedTxnB64);
+
+      // H1: validate the signed create txn matches exactly what VAULT_DEPLOY built
+      const wcCreateMeta = await walletStore.getMeta();
+      const wcCreateAcct = wcCreateMeta.accounts.find((a) => a.id === wcCreateMeta.activeAccountId);
+      if (!wcCreateAcct?.wcSessionTopic) throw new Error("No active WalletConnect account");
+      const createBinding = _pendingVaultWcBinding.get(wcCreateAcct.wcSessionTopic);
+      if (!createBinding) {
+        throw new Error("VAULT_WC_SUBMIT_CREATE: no pending vault create session — please retry deploy");
+      }
+      if (Date.now() > createBinding.expires) {
+        _pendingVaultWcBinding.delete(wcCreateAcct.wcSessionTopic);
+        throw new Error("VAULT_WC_SUBMIT_CREATE: deploy session expired — please retry");
+      }
+      try {
+        const decodedCreate = algosdk.decodeSignedTransaction(signedCreateBytes);
+        const createUnsignedB64 = btoa(String.fromCharCode(...decodedCreate.txn.toByte()));
+        if (createUnsignedB64 !== createBinding.expectedUnsignedB64s[0]) {
+          throw new Error(
+            "VAULT_WC_SUBMIT_CREATE: signed transaction does not match the vault create request. " +
+            "The WalletConnect wallet may have altered the transaction."
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("VAULT_WC_SUBMIT_CREATE:")) throw err;
+        throw new Error(
+          `VAULT_WC_SUBMIT_CREATE: failed to validate signed transaction: ` +
+          `${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+      _pendingVaultWcBinding.delete(wcCreateAcct.wcSessionTopic);
+
+      // C3: use static import instead of dynamic import
+      const algodCreate = getAlgodClient(msg.chain);
+      const { txid }    = await algodCreate.sendRawTransaction(signedCreateBytes).do();
+      await algosdk.waitForConfirmation(algodCreate, txid, 4);
+      const txInfo  = await algodCreate.pendingTransactionInformation(txid).do();
+      const appId   = Number(txInfo.applicationIndex);
+      if (!appId) throw new Error("Create txn confirmed but no app ID returned");
+      const appAddress = algosdk.getApplicationAddress(appId).toString();
+
+      // Build fund + add_agent group for step 2
+      const agentAddr2 = walletStore.getAgentAddress();
+      if (!agentAddr2) throw new Error("No agent key");
+
+      const setupGroup = await buildVaultSetupGroup(msg.chain, wcCreateAcct.address, agentAddr2, appId, appAddress, {
+        globalMaxPerTxn: 0n, globalDailyCap: 0n, globalMaxAsa: 0n, allowlistEnabled: false,
+        agentMaxPerTxn:  BigInt(msg.agentMaxPerTxn),
+        agentDailyCap:   BigInt(msg.agentDailyCap),
+      });
+      const setupGroupBytes = setupGroup.map((txn) => txn.toByte());
+
+      // H1: store expected setup group bytes for binding check in VAULT_WC_SUBMIT_SETUP
+      _pendingVaultWcBinding.set(wcCreateAcct.wcSessionTopic, {
+        expectedUnsignedB64s: setupGroupBytes.map((b) => btoa(String.fromCharCode(...b))),
+        expires: Date.now() + VAULT_WC_BINDING_TTL_MS,
+      });
+
+      return {
+        appId,
+        appAddress,
+        setupGroupB64s: setupGroupBytes.map((b) => btoa(String.fromCharCode(...b))),
+        sessionTopic:   wcCreateAcct.wcSessionTopic,
+        signerAddress:  wcCreateAcct.address,
+        chain:          msg.chain,
+      };
+    }
+
+    case "VAULT_WC_SUBMIT_SETUP": {
+      // Submit signed fund + add_agent group, finalise vault
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      // H2: base64ToBytes handles URL-safe base64 from Defly/Lute
+      const signedSetupGroup = msg.signedGroupB64s.map((b64) => base64ToBytes(b64));
+
+      // H1: validate each signed txn in the group against the expected bytes stored in VAULT_WC_SUBMIT_CREATE
+      const wcSetupMeta = await walletStore.getMeta();
+      const wcSetupAcct = wcSetupMeta.accounts.find((a) => a.id === wcSetupMeta.activeAccountId);
+      if (!wcSetupAcct?.wcSessionTopic) throw new Error("No active WalletConnect account");
+      const setupBinding = _pendingVaultWcBinding.get(wcSetupAcct.wcSessionTopic);
+      if (!setupBinding) {
+        throw new Error("VAULT_WC_SUBMIT_SETUP: no pending vault setup session — please retry deploy");
+      }
+      if (Date.now() > setupBinding.expires) {
+        _pendingVaultWcBinding.delete(wcSetupAcct.wcSessionTopic);
+        throw new Error("VAULT_WC_SUBMIT_SETUP: setup session expired — please retry");
+      }
+      if (signedSetupGroup.length !== setupBinding.expectedUnsignedB64s.length) {
+        throw new Error(
+          `VAULT_WC_SUBMIT_SETUP: expected ${setupBinding.expectedUnsignedB64s.length} signed transactions, ` +
+          `got ${signedSetupGroup.length}`
+        );
+      }
+      for (let i = 0; i < signedSetupGroup.length; i++) {
+        try {
+          const decoded = algosdk.decodeSignedTransaction(signedSetupGroup[i]);
+          const unsignedB64 = btoa(String.fromCharCode(...decoded.txn.toByte()));
+          if (unsignedB64 !== setupBinding.expectedUnsignedB64s[i]) {
+            throw new Error(
+              `VAULT_WC_SUBMIT_SETUP: transaction ${i} does not match the expected vault setup transaction. ` +
+              "The WalletConnect wallet may have altered the transaction."
+            );
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("VAULT_WC_SUBMIT_SETUP:")) throw err;
+          throw new Error(
+            `VAULT_WC_SUBMIT_SETUP: failed to validate transaction ${i}: ` +
+            `${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      }
+      _pendingVaultWcBinding.delete(wcSetupAcct.wcSessionTopic);
+
+      const txId = await submitSignedGroup(msg.chain, signedSetupGroup);
+      await walletStore.saveVaultApp(msg.chain, msg.appId, msg.appAddress);
+      const agentAddr3 = walletStore.getAgentAddress();
+      return { txId, agentAddress: agentAddr3 };
+    }
+
+    case "VAULT_WC_ACTION_SUBMIT": {
+      // Submit a signed owner action txn (suspend/resume/update/withdraw)
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      // H2: base64ToBytes handles URL-safe base64 from Defly/Lute
+      const signedActionBytes = base64ToBytes(msg.signedTxnB64);
+
+      // H1: validate signed txn matches what VAULT_ACTION built
+      const wcActionMeta = await walletStore.getMeta();
+      const wcActionAcct = wcActionMeta.accounts.find((a) => a.id === wcActionMeta.activeAccountId);
+      if (!wcActionAcct?.wcSessionTopic) throw new Error("No active WalletConnect account");
+      const actionBinding = _pendingVaultWcBinding.get(wcActionAcct.wcSessionTopic);
+      if (!actionBinding) {
+        throw new Error("VAULT_WC_ACTION_SUBMIT: no pending vault action session — please retry");
+      }
+      if (Date.now() > actionBinding.expires) {
+        _pendingVaultWcBinding.delete(wcActionAcct.wcSessionTopic);
+        throw new Error("VAULT_WC_ACTION_SUBMIT: action session expired — please retry");
+      }
+      try {
+        const decodedAction = algosdk.decodeSignedTransaction(signedActionBytes);
+        const actionUnsignedB64 = btoa(String.fromCharCode(...decodedAction.txn.toByte()));
+        if (actionUnsignedB64 !== actionBinding.expectedUnsignedB64s[0]) {
+          throw new Error(
+            "VAULT_WC_ACTION_SUBMIT: signed transaction does not match the expected vault action. " +
+            "The WalletConnect wallet may have altered the transaction."
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("VAULT_WC_ACTION_SUBMIT:")) throw err;
+        throw new Error(
+          `VAULT_WC_ACTION_SUBMIT: failed to validate signed transaction: ` +
+          `${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+      _pendingVaultWcBinding.delete(wcActionAcct.wcSessionTopic);
+
+      // C3: use static import instead of dynamic import
+      const algodAction = getAlgodClient(msg.chain);
+      const { txid: txIdAction } = await algodAction.sendRawTransaction(signedActionBytes).do();
+      await algosdk.waitForConfirmation(algodAction, txIdAction, 4);
+      return { txId: txIdAction };
+    }
+
+    case "VAULT_ACTION": {
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+      const actionMeta = await walletStore.getMeta();
+      const actionAccount = actionMeta.accounts.find((a) => a.id === actionMeta.activeAccountId);
+      if (!actionAccount) throw new Error("No active account");
+      const actionVaultApp = walletStore.getVaultApp(msg.chain);
+      if (!actionVaultApp) throw new Error("No vault deployed on this chain");
+      const agentAddrForAction = walletStore.getAgentAddress();
+      if (!agentAddrForAction) throw new Error("No agent key found");
+
+      if (actionAccount.type === "walletconnect") {
+        // WC path: build unsigned txn → popup signs → VAULT_WC_ACTION_SUBMIT
+        if (!actionAccount.wcSessionTopic) throw new Error("No WalletConnect session for this account");
+        const wcActionParams: {
+          maxPerTxn?: bigint; dailyCap?: bigint; maxAsa?: bigint;
+          receiver?: string; amount?: bigint;
+        } = {};
+        if (msg.maxPerTxn) wcActionParams.maxPerTxn = BigInt(msg.maxPerTxn);
+        if (msg.dailyCap)  wcActionParams.dailyCap  = BigInt(msg.dailyCap);
+        if (msg.maxAsa)    wcActionParams.maxAsa    = BigInt(msg.maxAsa);
+        if (msg.receiver)  wcActionParams.receiver  = msg.receiver;
+        if (msg.amount)    wcActionParams.amount    = BigInt(msg.amount);
+        const wcActionTxn  = await buildOwnerActionTxn(
+          msg.chain, actionVaultApp.appId, actionAccount.address, agentAddrForAction, msg.action, wcActionParams
+        );
+        const actionUnsignedB64 = btoa(String.fromCharCode(...wcActionTxn.toByte()));
+        // H1: store expected bytes for binding check in VAULT_WC_ACTION_SUBMIT
+        _pendingVaultWcBinding.set(actionAccount.wcSessionTopic, {
+          expectedUnsignedB64s: [actionUnsignedB64],
+          expires: Date.now() + VAULT_WC_BINDING_TTL_MS,
+        });
+        return {
+          needsWcSign:    true,
+          unsignedTxnB64: actionUnsignedB64,
+          sessionTopic:   actionAccount.wcSessionTopic,
+          signerAddress:  actionAccount.address,
+          chain:          msg.chain,
+        };
+      }
+
+      // Mnemonic path: sign and submit directly
+      const actionOwnerSk = await walletStore.getActiveSecretKey();
+      if (msg.action === "suspend") {
+        const r = await suspendAgent(msg.chain, actionVaultApp.appId, actionOwnerSk, actionAccount.address, agentAddrForAction);
+        return { txId: r.txId };
+      }
+      if (msg.action === "resume") {
+        const r = await resumeAgent(msg.chain, actionVaultApp.appId, actionOwnerSk, actionAccount.address, agentAddrForAction);
+        return { txId: r.txId };
+      }
+      if (msg.action === "update_limits") {
+        if (!msg.maxPerTxn || !msg.dailyCap || !msg.maxAsa) throw new Error("Missing limit params");
+        const r = await updateGlobalLimits(
+          msg.chain, actionVaultApp.appId, actionOwnerSk, actionAccount.address,
+          BigInt(msg.maxPerTxn), BigInt(msg.dailyCap), BigInt(msg.maxAsa)
+        );
+        return { txId: r.txId };
+      }
+      if (msg.action === "withdraw") {
+        if (!msg.receiver || !msg.amount) throw new Error("Missing receiver or amount");
+        // L1: validate receiver address before wasting a fee on a doomed txn
+        if (!algosdk.isValidAddress(msg.receiver)) throw new Error("Invalid withdrawal receiver address");
+        const r = await ownerWithdraw(
+          msg.chain, actionVaultApp.appId, actionOwnerSk, actionAccount.address,
+          msg.receiver, BigInt(msg.amount)
+        );
+        return { txId: r.txId };
+      }
+      throw new Error(`Unknown vault action: ${msg.action}`);
+    }
+
     default:
       throw new Error(`Unknown message type: ${(msg as { type: string }).type}`);
   }
+}
+
+// ── Serialization helpers ─────────────────────────────────────────────────────
+
+/** Convert bigint values to strings for postMessage serialization */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeBigInt(obj: any): any {
+  if (typeof obj === "bigint") return obj.toString();
+  if (obj === null || typeof obj !== "object") return obj;
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, serializeBigInt(v)]));
 }
 
 // ── Broadcast helpers ─────────────────────────────────────────────────────────

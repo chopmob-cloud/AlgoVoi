@@ -89,6 +89,14 @@ export type BgRequest =
   | { type: "AP2_APPROVE"; requestId: string }
   | { type: "AP2_REJECT"; requestId: string }
   | { type: "AP2_LIST_INTENT_MANDATES" }
+  // SpendingCapVault — on-chain agent spending limits
+  | { type: "VAULT_GET_STATE"; chain: ChainId }
+  | { type: "VAULT_DEPLOY"; chain: ChainId; globalMaxPerTxn: string; globalDailyCap: string; globalMaxAsa: string; allowlistEnabled: boolean; agentMaxPerTxn: string; agentDailyCap: string }
+  | { type: "VAULT_ACTION"; chain: ChainId; action: "suspend" | "resume" | "update_limits" | "withdraw"; maxPerTxn?: string; dailyCap?: string; maxAsa?: string; receiver?: string; amount?: string }
+  // WalletConnect vault owner signing (popup signs, background submits)
+  | { type: "VAULT_WC_SUBMIT_CREATE"; signedTxnB64: string; chain: ChainId; agentAddress: string; agentMaxPerTxn: string; agentDailyCap: string }
+  | { type: "VAULT_WC_SUBMIT_SETUP";  signedGroupB64s: string[]; chain: ChainId; appId: number; appAddress: string }
+  | { type: "VAULT_WC_ACTION_SUBMIT"; signedTxnB64: string; chain: ChainId }
   // WalletConnect Web3Wallet — AlgoVoi as wallet for AI agents
   | { type: "W3W_GENERATE_URI" }
   | { type: "W3W_GET_SESSIONS" }
