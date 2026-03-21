@@ -71,6 +71,12 @@ export async function signTransactionWithWC(
     timeoutPromise,
   ]);
 
+  // Brief settle: relay WebSocket is open after init() but internal transport
+  // may not have finished flushing handshake frames / restoring subscriptions.
+  // Without this, client.request() can be queued before the relay is ready,
+  // causing the signing request to never reach the mobile wallet.
+  await new Promise<void>((r) => setTimeout(r, 500));
+
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
   // ARC-0025 / Pera/Defly format: array of transaction groups.
