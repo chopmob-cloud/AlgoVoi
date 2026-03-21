@@ -441,6 +441,75 @@ export async function buildOwnerActionTxn(
 }
 
 /**
+ * Build atomic remap group: pay box MBR to vault + add_agent.
+ * Used when reconnecting an existing vault with a new agent key (no redeploy).
+ * Box MBR = 2_500 + 400*(35 key + 40 value) = 32_500 µ. We send 33_000 for a fee buffer.
+ */
+export async function buildRemapAgentGroup(
+  chain:          ChainId,
+  ownerAddr:      string,
+  agentAddr:      string,
+  appId:          number,
+  appAddress:     string,
+  agentMaxPerTxn: bigint,
+  agentDailyCap:  bigint
+): Promise<algosdk.Transaction[]> {
+  const sp = await getAlgodClient(chain).getTransactionParams().do();
+
+  const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: ownerAddr, receiver: appAddress, amount: 33_000n, suggestedParams: sp,
+  });
+
+  const atc = new algosdk.AtomicTransactionComposer();
+  atc.addMethodCall({
+    appID: appId, method: M.add_agent,
+    methodArgs: [agentAddr, agentMaxPerTxn, agentDailyCap],
+    sender: ownerAddr, suggestedParams: sp, signer: dummySigner,
+    boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+  });
+  const addAgentTxn = atc.buildGroup()[0].txn;
+
+  const txns = [fundTxn, addAgentTxn];
+  algosdk.assignGroupID(txns);
+  return txns;
+}
+
+/**
+ * Mnemonic path: fund box MBR + add_agent as atomic group.
+ * Used when remapping an existing vault with a new agent key.
+ */
+export async function addAgentMnemonic(
+  chain:          ChainId,
+  appId:          number,
+  appAddress:     string,
+  ownerSk:        Uint8Array,
+  ownerAddr:      string,
+  agentAddr:      string,
+  agentMaxPerTxn: bigint,
+  agentDailyCap:  bigint
+): Promise<{ txId: string }> {
+  const algod        = getAlgodClient(chain);
+  const sp           = await algod.getTransactionParams().do();
+  const ownerAccount = accountFromSk(ownerSk);
+  const signer       = algosdk.makeBasicAccountTransactionSigner(ownerAccount);
+
+  const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: ownerAddr, receiver: appAddress, amount: 33_000n, suggestedParams: sp,
+  });
+
+  const atc = new algosdk.AtomicTransactionComposer();
+  atc.addTransaction({ txn: fundTxn, signer });
+  atc.addMethodCall({
+    appID: appId, method: M.add_agent,
+    methodArgs: [agentAddr, agentMaxPerTxn, agentDailyCap],
+    sender: ownerAddr, suggestedParams: sp, signer,
+    boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+  });
+  const result = await atc.execute(algod, 4);
+  return { txId: result.txIDs[0] };
+}
+
+/**
  * Submit an already-signed atomic transaction group (e.g. fund + add_agent).
  */
 export async function submitSignedGroup(
