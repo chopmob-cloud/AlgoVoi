@@ -62,10 +62,13 @@ export function clearPendingAp2Request(id: string): void {
 
 // ── IntentMandate storage ─────────────────────────────────────────────────────
 
+// M2: IntentMandates contain payment metadata (amounts, merchant identity, address
+// correlations). Store in chrome.storage.session — cleared on browser close — rather
+// than chrome.storage.local, so payment history is never persisted unencrypted to disk.
 const INTENT_MANDATE_STORAGE_KEY = "algovou_ap2_intent_mandates";
 
 export async function getIntentMandates(): Promise<IntentMandate[]> {
-  const stored = await chrome.storage.local.get(INTENT_MANDATE_STORAGE_KEY);
+  const stored = await chrome.storage.session.get(INTENT_MANDATE_STORAGE_KEY);
   const mandates = stored[INTENT_MANDATE_STORAGE_KEY];
   if (!Array.isArray(mandates)) return [];
   return mandates as IntentMandate[];
@@ -73,15 +76,17 @@ export async function getIntentMandates(): Promise<IntentMandate[]> {
 
 export async function storeIntentMandate(mandate: IntentMandate): Promise<void> {
   const existing = await getIntentMandates();
-  // Replace if same id, otherwise append
+  // Replace if same id, otherwise append; cap at 100 entries (oldest dropped)
   const updated = existing.filter((m) => m.id !== mandate.id);
   updated.push(mandate);
-  await chrome.storage.local.set({ [INTENT_MANDATE_STORAGE_KEY]: updated });
+  await chrome.storage.session.set({
+    [INTENT_MANDATE_STORAGE_KEY]: updated.slice(-100),
+  });
 }
 
 export async function removeIntentMandate(id: string): Promise<void> {
   const existing = await getIntentMandates();
-  await chrome.storage.local.set({
+  await chrome.storage.session.set({
     [INTENT_MANDATE_STORAGE_KEY]: existing.filter((m) => m.id !== id),
   });
 }
@@ -215,7 +220,14 @@ export async function buildPaymentMandate(params: {
   const contentsJson = JSON.stringify(contents);
   const contentsBytes = new TextEncoder().encode(contentsJson);
 
-  const sk = await walletStore.getActiveSecretKey();
+  // Use agent key if vault is deployed — allows autonomous AP2 credential signing.
+  // Agent key is a standard ed25519 key identical in format to the wallet key.
+  const agentAddr = walletStore.getAgentAddress();
+  const useAgent  = agentAddr && contents.address === agentAddr;
+  const sk = useAgent
+    ? await walletStore.getAgentSecretKey()
+    : await walletStore.getActiveSecretKey();
+
   // algosdk.signBytes signs the raw bytes with the ed25519 key.
   // We do NOT use signBytes' built-in "MX" prefix (ARC-1) because
   // this is not an ARC-0027 operation — it's an AP2 credential.
@@ -252,24 +264,33 @@ export async function handleAp2Payment(params: {
     throw new Error(`Invalid CartMandate: ${validationError}`);
   }
 
-  // Determine signer from active account
+  // Determine signer: prefer agent key (vault) for autonomous operation
   const meta = await walletStore.getMeta();
   const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
   if (!activeAccount) throw new Error("No active account");
 
+  const agentSignerAddr = walletStore.getAgentAddress();
   const isWalletConnect = activeAccount.type === "walletconnect";
   const network = (meta.activeChain as "algorand" | "voi") ?? "algorand";
-  const address = activeAccount.address;
+  // Use agent address when vault is deployed — enables autonomous AP2 signing
+  const address = agentSignerAddr ?? activeAccount.address;
 
-  // Per-tab queue cap (mirrors MPP/x402 handler pattern)
+  // M1: Per-origin queue cap — compare origins, not full URLs, so different paths
+  // on the same site count toward the same cap and cannot bypass it.
   const PENDING_CAP = 5;
+  let ap2PendingOrigin: string;
+  try { ap2PendingOrigin = new URL(params.url).origin; } catch { ap2PendingOrigin = params.url; }
   let tabPendingCount = 0;
   for (const req of _pendingAp2Requests.values()) {
-    if (req.url === params.url) tabPendingCount++;
+    try {
+      if (new URL(req.url).origin === ap2PendingOrigin) tabPendingCount++;
+    } catch {
+      if (req.url === params.url) tabPendingCount++;
+    }
   }
   if (tabPendingCount >= PENDING_CAP) {
     throw new Error(
-      "Too many pending AP2 payment requests from this page. " +
+      "Too many pending AP2 payment requests from this origin. " +
         "Complete or reject existing requests before initiating new ones."
     );
   }
@@ -302,6 +323,33 @@ export async function handleAp2Payment(params: {
     _pendingAp2Requests.delete(requestId);
   }, TTL_MS);
 
+  // ── Vault auto-approval: skip popup when agent key is available ───────────
+  // The agent key is a standard ed25519 key that can sign AP2 credentials
+  // autonomously. No AVM transaction needed — AP2 is credential-only.
+  // On failure, fall through to the approval popup so the user can still approve.
+  if (agentSignerAddr) {
+    try {
+      const intentMandateId = randomId();
+      const paymentMandate  = await buildPaymentMandate({
+        cartMandate: params.cartMandate,
+        intentMandateId,
+        network,
+        address: agentSignerAddr,
+      });
+      _pendingAp2Requests.delete(requestId);
+      chrome.tabs.sendMessage(params.tabId, {
+        type: "AP2_RESULT",
+        requestId: params.inpageRequestId,
+        approved: true,
+        paymentMandate,
+      }).catch(() => {});
+      return requestId;
+    } catch {
+      // Auto-sign failed — fall through to approval popup
+    }
+  }
+
+  // ── Standard approval popup path ─────────────────────────────────────────
   // Queue in the unified approval handler — it opens the popup and manages the TTL.
   // On TTL expiry or popup-open failure, clear the request from our map too.
   requestApproval(pending).catch(() => {
