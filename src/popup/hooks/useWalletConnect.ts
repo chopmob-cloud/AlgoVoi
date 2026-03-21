@@ -172,13 +172,19 @@ export function useWalletConnect(): UseWalletConnectReturn {
     }
 
     // Clear PAIRING-specific localStorage entries so the new client starts with
-    // clean relay subscriptions.  We deliberately keep wc@2:client:session and
-    // wc@2:core:keychain so that existing WC accounts can still sign transactions.
+    // clean relay subscriptions.  We deliberately keep wc@2:client:session,
+    // wc@2:core:keychain, AND wc@2:core:relayer:subscriptions so that existing
+    // WC accounts can still sign transactions after a new pairing attempt.
+    // (Clearing subscriptions was the original "root cause fix" for stale
+    // pairing topics, but it also wiped session subscriptions, causing
+    // client.request() to silently fail for all existing sessions.  The
+    // connect-timeout + retry loop below is sufficient to handle stale pairing
+    // topics without destroying session subscriptions.)
     try {
       const pairingKeys = [
-        "wc@2:core:pairing",              // stale active/pending pairings
-        "wc@2:client:proposal",           // stale unresolved proposals
-        "wc@2:core:relayer:subscriptions",// stale topic subscriptions (root cause fix)
+        "wc@2:core:pairing",   // stale active/pending pairings
+        "wc@2:client:proposal",// stale unresolved proposals
+        // NOT clearing wc@2:core:relayer:subscriptions — would break existing session signing
       ];
       pairingKeys.forEach(k => localStorage.removeItem(k));
     } catch (e) {
@@ -220,7 +226,7 @@ export function useWalletConnect(): UseWalletConnectReturn {
           try { await (clientRef.current as any)?.core?.relayer?.transportClose?.(); } catch {}
           clientRef.current = null;
           try {
-            ["wc@2:core:pairing", "wc@2:client:proposal", "wc@2:core:relayer:subscriptions"]
+            ["wc@2:core:pairing", "wc@2:client:proposal"]
               .forEach(k => localStorage.removeItem(k));
           } catch {}
           client = await getClient();
