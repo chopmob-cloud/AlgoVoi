@@ -30,7 +30,7 @@ import {
   WC_METHOD_SIGN_TXN,
 } from "@shared/constants";
 import { appendDebugLog, sanitizeTopic } from "@shared/debug-log";
-import { extractWCSignedTxn } from "@shared/utils/crypto";
+import { extractWCSignedTxn, base64ToBytes } from "@shared/utils/crypto";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -56,6 +56,17 @@ export interface UseWalletConnectReturn {
     txn: algosdk.Transaction,
     signerAddress: string
   ) => Promise<Uint8Array>;
+  /**
+   * Sign an atomic transaction group via WC in a single round-trip.
+   * All txns must already have a group ID assigned (algosdk.assignGroupID).
+   * Returns one signed Uint8Array per txn that needs signing.
+   */
+  signGroup: (
+    sessionTopic: string,
+    chain: ChainId,
+    txns: algosdk.Transaction[],
+    signerAddress: string
+  ) => Promise<Uint8Array[]>;
   reset: () => void;
 }
 
@@ -459,6 +470,52 @@ export function useWalletConnect(): UseWalletConnectReturn {
     [getClient]
   );
 
+  /**
+   * Sign an atomic transaction group via WalletConnect in a single request.
+   * Sends all txns together (ARC-0025 group format) so Pera/Defly/Lute
+   * shows one combined signing prompt instead of N separate ones.
+   */
+  const signGroup = useCallback(
+    async (
+      sessionTopic: string,
+      chain: ChainId,
+      txns: algosdk.Transaction[],
+      signerAddress: string
+    ): Promise<Uint8Array[]> => {
+      const client  = await getClient();
+      const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
+
+      const txnParams = txns.map((txn) => {
+        const bytes = txn.toByte();
+        return { txn: btoa(String.fromCharCode(...bytes)), signers: [signerAddress] };
+      });
+
+      const result = await client.request<unknown>({
+        topic: sessionTopic,
+        chainId: wcChain,
+        request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+      });
+
+      // WC group response: [signedB64_0, signedB64_1, ...] — one element per txn.
+      // extractWCSignedTxn expects the *full* single-txn response ([signedB64]),
+      // so we must decode each element individually here.
+      const raw = Array.isArray(result) ? result : [result];
+      return raw.map((r): Uint8Array => {
+        if (r instanceof Uint8Array) return r;
+        if (r === null || r === undefined) throw new Error("Wallet did not sign all transactions");
+        // Pera/Lute: plain base64 string per txn
+        if (typeof r === "string") {
+          if (!r) throw new Error("Wallet rejected a transaction in the group");
+          return base64ToBytes(r);
+        }
+        // Some wallets wrap each signed txn in a nested array → delegate to extractor
+        if (Array.isArray(r)) return extractWCSignedTxn(r);
+        throw new Error("Wallet rejected the transaction");
+      });
+    },
+    [getClient]
+  );
+
   const reset = useCallback(() => {
     setQrDataUrl(null);
     setWcUri(null);
@@ -467,5 +524,5 @@ export function useWalletConnect(): UseWalletConnectReturn {
     setError(null);
   }, []);
 
-  return { qrDataUrl, wcUri, connecting, session, error, startPairing, signTransaction, reset };
+  return { qrDataUrl, wcUri, connecting, session, error, startPairing, signTransaction, signGroup, reset };
 }

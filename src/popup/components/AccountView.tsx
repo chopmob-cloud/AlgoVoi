@@ -7,11 +7,12 @@ import { sendBg } from "../App";
 import { abbreviateAddress, formatAmount } from "@shared/utils/format";
 import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
+import VaultPanel from "./VaultPanel";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
-type Tab = "assets" | "history" | "apps" | "agents";
+type Tab = "assets" | "history" | "apps" | "agents" | "vault";
 type Modal = "send" | "receive" | null;
 
 /**
@@ -417,7 +418,7 @@ export default function AccountView() {
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
-        {(["assets", "history", "apps", "agents"] as Tab[]).map((t) => (
+        {(["assets", "history", "apps", "agents", "vault"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -453,6 +454,9 @@ export default function AccountView() {
           <AgentsTab
             isVaultAccount={activeAccount?.type !== "walletconnect"}
           />
+        )}
+        {tab === "vault" && (
+          <VaultPanel chain={activeChain} activeAccount={activeAccount} />
         )}
       </div>
 

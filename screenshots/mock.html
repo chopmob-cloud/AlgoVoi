@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1280"/>
+<title>AlgoVoi Screenshots</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:800px; overflow:hidden; font-family: system-ui,-apple-system,sans-serif; background:#0D1117; color:#fff; }
+
+  /* ── layout ── */
+  .scene { width:1280px; height:800px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .bg-glow-left  { position:absolute; width:400px; height:400px; border-radius:50%; background:radial-gradient(circle,#00C8FF22,transparent 70%); left:-60px; top:150px; pointer-events:none; }
+  .bg-glow-right { position:absolute; width:400px; height:400px; border-radius:50%; background:radial-gradient(circle,#8B5CF622,transparent 70%); right:-60px; top:200px; pointer-events:none; }
+  .tagline { position:absolute; left:80px; top:50%; transform:translateY(-50%); max-width:380px; }
+  .tagline h1 { font-size:38px; font-weight:800; line-height:1.15; margin-bottom:18px; }
+  .tagline h1 span { background:linear-gradient(90deg,#00C8FF,#8B5CF6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .tagline p  { font-size:16px; color:#8B949E; line-height:1.6; margin-bottom:12px; }
+  .tagline .pill { display:inline-block; background:#161B22; border:1px solid #30363D; border-radius:20px; padding:5px 14px; font-size:13px; color:#8B949E; margin:3px 3px 3px 0; }
+
+  /* ── popup shell ── */
+  .popup { width:360px; border-radius:16px; overflow:hidden; box-shadow:0 32px 80px #000A, 0 0 0 1px #30363D; background:#0D1117; flex-shrink:0; margin-left:60px; }
+  .popup2 { width:400px; border-radius:16px; overflow:hidden; box-shadow:0 32px 80px #000A, 0 0 0 1px #30363D; background:#0D1117; flex-shrink:0; }
+
+  /* ── reusable tokens ── */
+  .surface1 { background:#161B22; }
+  .surface2 { background:#21262D; }
+  .algo { color:#00C8FF; }
+  .voi  { color:#8B5CF6; }
+  .gray { color:#8B949E; }
+  .text { color:#E6EDF3; }
+  .small { font-size:11px; }
+  .xs { font-size:10px; }
+  .mono { font-family:monospace; }
+
+  /* ── header ── */
+  .header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; }
+  .logo-wrap { display:flex; align-items:center; gap:8px; }
+  .logo { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#00C8FF,#8B5CF6); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#0D1117; }
+  .header-actions { display:flex; gap:14px; align-items:center; }
+
+  /* ── chain toggle ── */
+  .chain-toggle { margin:0 16px 10px; display:flex; background:#161B22; border-radius:10px; padding:3px; }
+  .chain-btn { flex:1; padding:5px 0; border-radius:8px; font-size:12px; font-weight:600; text-align:center; cursor:pointer; }
+  .chain-btn.active-algo { background:#00C8FF22; color:#00C8FF; border:1px solid #00C8FF44; }
+  .chain-btn.active-voi  { background:#8B5CF622; color:#8B5CF6; border:1px solid #8B5CF644; }
+  .chain-btn.inactive { color:#484F58; }
+
+  /* ── account card ── */
+  .card { margin:0 16px 12px; border-radius:14px; padding:16px; }
+  .card-algo { background:linear-gradient(135deg,#00C8FF11,#161B22); border:1px solid #00C8FF22; }
+  .card-voi  { background:linear-gradient(135deg,#8B5CF611,#161B22); border:1px solid #8B5CF622; }
+  .card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+  .account-name { font-size:11px; color:#8B949E; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .wc-badge { background:#8B5CF622; border:1px solid #8B5CF644; color:#8B5CF6; font-size:9px; border-radius:4px; padding:1px 5px; }
+  .address-btn { font-size:11px; color:#8B949E; font-family:monospace; }
+  .balance { text-align:right; }
+  .balance-num { font-size:26px; font-weight:800; color:#E6EDF3; line-height:1; }
+  .balance-ticker { font-size:13px; color:#8B949E; margin-top:2px; }
+  .card-actions { display:flex; gap:8px; }
+  .card-btn { flex:1; background:#ffffff14; border-radius:9px; padding:7px 0; font-size:12px; font-weight:600; text-align:center; color:#E6EDF3; }
+
+  /* ── tabs ── */
+  .tabs { display:flex; padding:0 16px; gap:4px; border-bottom:1px solid #21262D; margin-bottom:10px; }
+  .tab { padding:7px 12px; font-size:12px; font-weight:600; color:#484F58; border-radius:6px 6px 0 0; }
+  .tab.active { color:#fff; border-bottom:2px solid #00C8FF; }
+
+  /* ── asset list ── */
+  .asset-row { display:flex; align-items:center; justify-content:space-between; padding:9px 16px; }
+  .asset-row:not(:last-child) { border-bottom:1px solid #21262D22; }
+  .asset-icon { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; margin-right:10px; flex-shrink:0; }
+  .asset-left { display:flex; align-items:center; }
+  .asset-name { font-size:13px; font-weight:600; color:#E6EDF3; }
+  .asset-sub  { font-size:10px; color:#8B949E; }
+  .asset-bal  { font-size:13px; font-weight:600; text-align:right; }
+
+  /* ── send modal ── */
+  .modal-overlay { background:#000000CC; display:flex; align-items:center; justify-content:center; position:relative; }
+  .modal-box { background:#161B22; border-radius:18px; padding:20px; width:320px; box-shadow:0 24px 60px #0008; border:1px solid #30363D; }
+  .modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .modal-hdr h2 { font-size:15px; font-weight:700; }
+  .modal-close { color:#484F58; font-size:20px; line-height:1; }
+  .label { font-size:11px; color:#8B949E; margin-bottom:5px; display:block; }
+  .input { background:#21262D; border-radius:10px; padding:9px 12px; font-size:12px; color:#E6EDF3; margin-bottom:12px; border:1px solid #30363D; width:100%; font-family:monospace; }
+  .input-wrap { position:relative; margin-bottom:12px; }
+  .input-wrap .input { margin-bottom:0; }
+  .max-btn { position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:11px; color:#00C8FF; font-weight:700; }
+  .send-btn { width:100%; padding:11px 0; border-radius:12px; background:linear-gradient(90deg,#00C8FF,#8B5CF6); font-size:13px; font-weight:700; color:#0D1117; text-align:center; margin-top:4px; }
+  .asset-select { background:#21262D; border-radius:10px; padding:9px 12px; font-size:12px; color:#E6EDF3; margin-bottom:12px; border:1px solid #30363D; width:100%; }
+
+  /* ── approval ── */
+  .approval { width:400px; background:#0D1117; }
+  .apr-hdr { padding:20px 20px 0; display:flex; align-items:center; gap:10px; }
+  .apr-icon { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#8B5CF6,#00C8FF); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .apr-body { padding:16px 20px; }
+  .apr-site { background:#161B22; border-radius:10px; padding:10px 14px; margin-bottom:12px; border:1px solid #30363D; }
+  .apr-amount { background:linear-gradient(135deg,#8B5CF611,#00C8FF11); border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid #8B5CF633; text-align:center; }
+  .apr-amount .big { font-size:28px; font-weight:800; background:linear-gradient(90deg,#8B5CF6,#00C8FF); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .apr-row { display:flex; justify-content:space-between; font-size:12px; color:#8B949E; margin-bottom:6px; }
+  .apr-row span:last-child { color:#E6EDF3; font-weight:600; }
+  .apr-btns { display:flex; gap:10px; padding:0 20px 20px; }
+  .apr-reject { flex:1; padding:11px 0; border-radius:12px; background:#21262D; font-size:13px; font-weight:700; text-align:center; color:#E6EDF3; border:1px solid #30363D; }
+  .apr-approve { flex:1; padding:11px 0; border-radius:12px; background:linear-gradient(90deg,#8B5CF6,#00C8FF); font-size:13px; font-weight:700; text-align:center; color:#0D1117; }
+
+  /* screen selector */
+  .screen { display:none; }
+  .screen.active { display:flex; }
+</style>
+</head>
+<body>
+
+<!-- ═══ SCREEN 1: Main wallet — Algorand ═══ -->
+<div class="scene screen active" id="s1">
+  <div class="bg-glow-left"></div>
+  <div class="bg-glow-right"></div>
+  <div class="tagline">
+    <h1>Web3 wallet for<br/><span>Algorand & Voi</span></h1>
+    <p>Send tokens, sign transactions, and pay x402 micropayments automatically.</p>
+    <span class="pill">🔒 Non-custodial</span>
+    <span class="pill">⚡ x402 payments</span>
+    <span class="pill">📱 WalletConnect</span>
+    <span class="pill">🔗 ARC-0027</span>
+  </div>
+  <div class="popup">
+    <div class="header">
+      <div class="logo-wrap"><div class="logo">AV</div><span style="font-size:14px;font-weight:700;">AlgoVoi</span></div>
+      <div class="header-actions"><span class="algo" style="font-size:12px;font-weight:600;">+ Connect</span><span class="gray" style="font-size:12px;">Lock</span></div>
+    </div>
+    <div class="chain-toggle">
+      <div class="chain-btn active-algo">Algorand</div>
+      <div class="chain-btn inactive">Voi</div>
+    </div>
+    <div class="card card-algo">
+      <div class="card-top">
+        <div><div class="account-name">Main Wallet</div><div class="address-btn mono">ABC4…XY12 ⎘</div></div>
+        <div class="balance"><div class="balance-num">142.50</div><div class="balance-ticker">ALGO</div></div>
+      </div>
+      <div class="card-actions">
+        <div class="card-btn">Send</div>
+        <div class="card-btn">Receive</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Assets</div>
+      <div class="tab">History</div>
+      <div class="tab">Apps</div>
+    </div>
+    <div style="padding:0 0 8px;">
+      <div class="asset-row">
+        <div class="asset-left">
+          <div class="asset-icon" style="background:#00C8FF22;color:#00C8FF;">Ⓐ</div>
+          <div><div class="asset-name">Algorand</div><div class="asset-sub">ALGO · native</div></div>
+        </div>
+        <div><div class="asset-bal algo">142.50</div><div class="xs gray" style="text-align:right">$21.38</div></div>
+      </div>
+      <div class="asset-row">
+        <div class="asset-left">
+          <div class="asset-icon" style="background:#2775CA22;color:#2775CA;">$</div>
+          <div><div class="asset-name">USD Coin</div><div class="asset-sub">USDC · #31566704</div></div>
+        </div>
+        <div><div class="asset-bal" style="color:#2775CA;">50.00</div><div class="xs gray" style="text-align:right">$50.00</div></div>
+      </div>
+      <div class="asset-row">
+        <div class="asset-left">
+          <div class="asset-icon" style="background:#FF6B3522;color:#FF6B35;">◈</div>
+          <div><div class="asset-name">Folks rALGO</div><div class="asset-sub">rALGO · #1138500612</div></div>
+        </div>
+        <div><div class="asset-bal" style="color:#FF6B35;">100.00</div><div class="xs gray" style="text-align:right"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2: Send modal (ASA) ═══ -->
+<div class="scene screen" id="s2">
+  <div class="bg-glow-left"></div>
+  <div class="bg-glow-right"></div>
+  <div class="tagline">
+    <h1>Send any<br/><span>token or ASA</span></h1>
+    <p>Native coins and ASA tokens in one unified send flow, on both Algorand and Voi.</p>
+    <span class="pill">🌐 enVoi name resolution</span>
+    <span class="pill">🔢 BigInt-safe amounts</span>
+    <span class="pill">📋 Optional memo</span>
+  </div>
+  <div class="popup">
+    <div style="background:#161B22;border-radius:18px;padding:20px;margin:16px;box-shadow:0 8px 30px #0006;border:1px solid #30363D;">
+      <div class="modal-hdr">
+        <h2>Send USDC</h2>
+        <span class="modal-close">×</span>
+      </div>
+      <label class="label">Asset</label>
+      <select class="asset-select">
+        <option>USD Coin (USDC) · #31566704</option>
+      </select>
+      <label class="label">Recipient <span class="gray">or .voi name</span></label>
+      <div class="input mono" style="margin-bottom:12px;color:#8B949E;">RECV…ADDR</div>
+      <label class="label">Amount <span class="gray">(available: 50.00 USDC)</span></label>
+      <div class="input-wrap">
+        <div class="input">25.00</div>
+        <span class="max-btn">MAX</span>
+      </div>
+      <label class="label">Note (optional)</label>
+      <div class="input" style="color:#8B949E;">Coffee ☕</div>
+      <div class="send-btn">Send USDC</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 3: Voi wallet + WalletConnect badge ═══ -->
+<div class="scene screen" id="s3">
+  <div class="bg-glow-left" style="background:radial-gradient(circle,#8B5CF622,transparent 70%);"></div>
+  <div class="bg-glow-right" style="background:radial-gradient(circle,#00C8FF22,transparent 70%);"></div>
+  <div class="tagline">
+    <h1>Connect your<br/><span>mobile wallet</span></h1>
+    <p>Pair Pera, Defly, or Voi Wallet via WalletConnect. Chain-aware sessions — Algorand and Voi stay separate.</p>
+    <span class="pill">📱 Pera Wallet</span>
+    <span class="pill">📱 Defly</span>
+    <span class="pill">📱 Voi Wallet</span>
+  </div>
+  <div class="popup">
+    <div class="header">
+      <div class="logo-wrap"><div class="logo">AV</div><span style="font-size:14px;font-weight:700;">AlgoVoi</span></div>
+      <div class="header-actions"><span class="voi" style="font-size:12px;font-weight:600;">+ Connect</span><span class="gray" style="font-size:12px;">Lock</span></div>
+    </div>
+    <div class="chain-toggle">
+      <div class="chain-btn inactive">Algorand</div>
+      <div class="chain-btn active-voi">Voi</div>
+    </div>
+    <div class="card card-voi">
+      <div class="card-top">
+        <div>
+          <div class="account-name">Voi Mobile <span class="wc-badge">Voi Wallet · <span class="voi">Voi</span></span></div>
+          <div class="address-btn mono">VPAB…7G3K ⎘</div>
+        </div>
+        <div class="balance"><div class="balance-num">88.12</div><div class="balance-ticker">VOI</div></div>
+      </div>
+      <div class="card-actions">
+        <div class="card-btn">Send</div>
+        <div class="card-btn">Receive</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Assets</div>
+      <div class="tab">History</div>
+      <div class="tab">Apps</div>
+    </div>
+    <div style="padding:0 0 8px;">
+      <div class="asset-row">
+        <div class="asset-left">
+          <div class="asset-icon" style="background:#8B5CF622;color:#8B5CF6;">◈</div>
+          <div><div class="asset-name">Voi</div><div class="asset-sub">VOI · native</div></div>
+        </div>
+        <div><div class="asset-bal voi">88.12</div></div>
+      </div>
+      <div class="asset-row">
+        <div class="asset-left">
+          <div class="asset-icon" style="background:#2775CA22;color:#2775CA;">$</div>
+          <div><div class="asset-name">Arcpay USDC</div><div class="asset-sub">aUSDC · #302190</div></div>
+        </div>
+        <div><div class="asset-bal" style="color:#2775CA">120.00</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 4: x402 payment approval ═══ -->
+<div class="scene screen" id="s4">
+  <div class="bg-glow-left" style="background:radial-gradient(circle,#8B5CF622,transparent 70%);"></div>
+  <div class="bg-glow-right" style="background:radial-gradient(circle,#00C8FF22,transparent 70%);"></div>
+  <div class="tagline">
+    <h1>Automatic<br/><span>x402 payments</span></h1>
+    <p>AlgoVoi intercepts HTTP 402 responses and handles micropayments invisibly — no copy-paste, no manual steps.</p>
+    <span class="pill">⚡ Sub-second payments</span>
+    <span class="pill">🛡️ Spending caps</span>
+    <span class="pill">🔁 Auto-retry fetch</span>
+  </div>
+  <div class="popup2">
+    <div class="apr-hdr">
+      <div class="apr-icon">⚡</div>
+      <div><div style="font-size:15px;font-weight:700;">Payment Required</div><div class="xs gray" style="margin-top:2px;">x402 · Voi Mainnet</div></div>
+    </div>
+    <div class="apr-body">
+      <div class="apr-site">
+        <div class="xs gray" style="margin-bottom:2px;">Requesting site</div>
+        <div style="font-size:13px;font-weight:600;">x402.ilovechicken.co.uk</div>
+        <div class="xs gray" style="margin-top:2px;">/api/content/premium-article</div>
+      </div>
+      <div class="apr-amount">
+        <div class="xs gray" style="margin-bottom:4px;">Payment amount</div>
+        <div class="big">1.00 VOI</div>
+        <div class="xs gray" style="margin-top:4px;">≈ $0.003 USD</div>
+      </div>
+      <div class="apr-row"><span>From</span><span class="mono">VPAB…7G3K</span></div>
+      <div class="apr-row"><span>Network</span><span>Voi Mainnet</span></div>
+      <div class="apr-row"><span>Protocol</span><span>x402 / exact</span></div>
+      <div class="apr-row"><span>Spending cap</span><span class="algo">10 VOI remaining</span></div>
+    </div>
+    <div class="apr-btns">
+      <div class="apr-reject">Reject</div>
+      <div class="apr-approve">Approve & Pay</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Export each screen as a 1280×800 PNG using canvas — no crossorigin issues since all inline
+const screens = ['s1','s2','s3','s4'];
+let current = 0;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// URL param support: ?s=s1 ?s=s2 etc. (used by headless Chrome screenshot)
+const initParam = new URLSearchParams(location.search).get('s');
+if (initParam && screens.includes(initParam)) {
+  current = screens.indexOf(initParam);
+  showScreen(initParam);
+}
+
+// Keyboard nav for manual preview
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') { current = (current+1)%screens.length; showScreen(screens[current]); }
+  if (e.key === 'ArrowLeft')  { current = (current-1+screens.length)%screens.length; showScreen(screens[current]); }
+  if (e.key >= '1' && e.key <= '4') { current = parseInt(e.key)-1; showScreen(screens[current]); }
+});
+</script>
+</body>
+</html>

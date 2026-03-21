@@ -407,6 +407,44 @@ export const walletStore = {
     }
   },
 
+  // ── SpendingCapVault agent key + app registry ─────────────────────────────
+  // All vault data lives inside the AES-GCM encrypted vault — never plaintext.
+
+  /** Generate (or replace) the agent keypair. Returns the new agent address. */
+  async createAgentKey(): Promise<string> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    const mn      = algosdk.secretKeyToMnemonic(algosdk.generateAccount().sk);
+    const address = algosdk.mnemonicToSecretKey(mn).addr.toString();
+    _vaultData.agentKey = { mnemonic: mn, address };
+    await persistVaultData();
+    return address;
+  },
+
+  /** Returns the 64-byte agent secret key (wallet must be unlocked). */
+  async getAgentSecretKey(): Promise<Uint8Array> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    if (!_vaultData.agentKey) throw new Error("No agent key — deploy vault first");
+    return algosdk.mnemonicToSecretKey(_vaultData.agentKey.mnemonic).sk;
+  },
+
+  /** Returns the agent's public address (wallet must be unlocked). */
+  getAgentAddress(): string | null {
+    return _vaultData?.agentKey?.address ?? null;
+  },
+
+  /** Save a deployed app ID+address for a chain (persisted in encrypted vault). */
+  async saveVaultApp(chain: string, appId: number, appAddress: string): Promise<void> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    if (!_vaultData.vaultApps) _vaultData.vaultApps = {};
+    _vaultData.vaultApps[chain] = { appId, appAddress };
+    await persistVaultData();
+  },
+
+  /** Returns the deployed app for a chain, or null if not yet deployed. */
+  getVaultApp(chain: string): { appId: number; appAddress: string } | null {
+    return _vaultData?.vaultApps?.[chain] ?? null;
+  },
+
   async getConnectedAddresses(origin: string): Promise<string[]> {
     // Prefer vault (encrypted, up-to-date); fall back to legacy meta when locked
     if (_vaultData?.connectedSites) {
