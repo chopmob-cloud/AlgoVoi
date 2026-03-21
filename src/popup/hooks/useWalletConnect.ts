@@ -171,44 +171,21 @@ export function useWalletConnect(): UseWalletConnectReturn {
       clientRef.current = null;
     }
 
-    // Surgically clear stale PAIRING subscriptions while preserving SESSION
-    // subscriptions.  Clearing wc@2:core:relayer:subscriptions entirely wipes
-    // session-topic subscriptions, causing client.request() to silently fail
-    // for existing WC accounts ("nothing hitting the wallet").  We instead
-    // read both stores, keep only the subscriptions whose topic is also an
-    // active session, write that back, then clear pairing and proposal keys.
+    // Clear PAIRING-specific localStorage entries so the new client starts with
+    // clean relay subscriptions.  We deliberately keep wc@2:client:session and
+    // wc@2:core:keychain so that existing WC accounts can still sign transactions.
+    // wc@2:core:relayer:subscriptions is also cleared to remove stale pairing-
+    // topic subscriptions that block SignClient.init() resubscription; signing
+    // recovery is handled by the explicit relayer.subscribe() call in wc-sign.ts.
     try {
-      const sessionRaw = localStorage.getItem("wc@2:client:session");
-      const subsRaw    = localStorage.getItem("wc@2:core:relayer:subscriptions");
-
-      if (sessionRaw && subsRaw) {
-        // WC SDK v2 stores both as JSON.stringify(mapToObj(map)) —
-        // a plain object whose keys are the topics.
-        const sessions = JSON.parse(sessionRaw) as Record<string, unknown>;
-        const subs     = JSON.parse(subsRaw)    as Record<string, unknown>;
-        const sessionTopics = new Set(Object.keys(sessions));
-
-        // Retain only subscriptions that are for active sessions.
-        const kept: Record<string, unknown> = {};
-        for (const [topic, sub] of Object.entries(subs)) {
-          if (sessionTopics.has(topic)) kept[topic] = sub;
-        }
-
-        // Replace subscriptions store with session-only entries.
-        // (Removes stale pairing-topic subscriptions that blocked new pairings.)
-        localStorage.setItem("wc@2:core:relayer:subscriptions", JSON.stringify(kept));
-      } else {
-        // No sessions or no subscriptions — safe to wipe subscriptions entirely.
-        localStorage.removeItem("wc@2:core:relayer:subscriptions");
-      }
-
-      // Always clear stale pairing and proposal state.
-      ["wc@2:core:pairing", "wc@2:client:proposal"].forEach(k => localStorage.removeItem(k));
+      const pairingKeys = [
+        "wc@2:core:pairing",              // stale active/pending pairings
+        "wc@2:client:proposal",           // stale unresolved proposals
+        "wc@2:core:relayer:subscriptions",// stale topic subscriptions (root cause fix)
+      ];
+      pairingKeys.forEach(k => localStorage.removeItem(k));
     } catch (e) {
-      // Parse failed — fall back to full clear so pairing can proceed.
-      console.warn("[WC] Could not surgically clear pairing data, falling back:", e);
-      ["wc@2:core:pairing", "wc@2:client:proposal", "wc@2:core:relayer:subscriptions"]
-        .forEach(k => localStorage.removeItem(k));
+      console.warn("[WC] Could not clear stale pairing data:", e);
     }
 
     // Resolve CAIP-2 chain id; fall back to Algorand mainnet for unknown chains
