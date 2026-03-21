@@ -6,7 +6,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.1.4-brightgreen)
+![Version](https://img.shields.io/badge/version-0.2.0-brightgreen)
 
 ---
 
@@ -19,6 +19,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **MPP payments** — Machine Payments Protocol (`WWW-Authenticate: Payment`) support using AVM on-chain transactions
 - **AP2 credentials** — Google Agent Payments Protocol; sign verifiable payment mandates for AI agent commerce
 - **AI agent wallet** — WalletConnect Web3Wallet mode lets AI agents connect to AlgoVoi and request transaction signing without ever touching private keys
+- **SpendingCapVault** — Deploy an AVM smart contract that enforces per-transaction and daily spending caps for autonomous agent payments; owner actions (suspend, resume, withdraw, update limits) via mnemonic or WalletConnect
 - **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
 - **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
@@ -154,7 +155,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–X complete).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XI complete).
 
 ---
 

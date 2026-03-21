@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.1.4
+**Version:** 0.2.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Final Status: All Issues Resolved
@@ -15,6 +15,8 @@
 **Hardening IX (v0.1.3 — March 2026):** MPP (Machine Payments Protocol) implementation + full re-audit. All new findings closed in same pass.
 
 **Hardening X (v0.1.4 — March 2026):** AP2 (Google Agent Payments Protocol) implementation + 3-agent parallel audit. All new findings closed in same pass.
+
+**Hardening XI (v0.2.0 — March 2026):** SpendingCapVault feature (AVM smart contract + WalletConnect owner actions). Full re-audit + Comet AI dual-validation. All 8 new findings closed in same pass.
 
 ---
 
@@ -100,13 +102,43 @@
 | Queue cap | Per-page limit of 5 pending AP2 approval requests |
 | TTL cleanup | 6-minute safety cleanup if approval popup crashes |
 | Expiry enforcement | `Ap2Page` disables Approve button when `CartMandate.expiry` has passed |
-| IntentMandates | Stored in `chrome.storage.local` (not encrypted — not secret) |
+| IntentMandates | Stored in `chrome.storage.session` — cleared on browser close, capped at 100 entries |
 
 ### ARC27_SIGN_AND_SEND guard (M7)
 `provider-bridge.ts` `ARC27_SIGN_AND_SEND` case now validates `Array.isArray(payload.txns)` before destructuring, preventing an uncaught `TypeError` if a malicious page passes `null`.
 
 ### Removed phantom dependency
 `@modelcontextprotocol/sdk` removed from `package.json` — was listed in `dependencies` but never imported. MCP interaction uses raw `fetch()` JSON-RPC calls in `mcp-client.ts`.
+
+---
+
+## Hardening XI — SpendingCapVault Implementation (v0.2.0)
+
+### New attack surface introduced
+- `src/background/vault-store.ts` — AVM SpendingCapVault contract interaction (deploy, setup, owner actions, state reads)
+- `src/popup/components/VaultPanel.tsx` — WalletConnect vault deployment and owner action UI (2-round signing)
+- `src/background/message-handler.ts` — 5 new vault case handlers + 3 WC submit handlers
+
+### Findings and resolutions
+
+**WC vault transaction binding (H1):** A compromised WalletConnect relay could substitute a different transaction (e.g. rekey, drain) after the background validates and returns an unsigned txn to the popup. Fix: `_pendingVaultWcBinding` Map stores the expected unsigned txn bytes (as base64) keyed by WC session topic with a 5-minute TTL. All three WC submit handlers (`VAULT_WC_SUBMIT_CREATE`, `VAULT_WC_SUBMIT_SETUP`, `VAULT_WC_ACTION_SUBMIT`) decode the signed txn, re-encode the unsigned bytes, and compare against the binding before submitting to the node. Binding is deleted immediately after validation.
+
+**URL-safe base64 decoding (H2):** `atob()` rejects URL-safe base64 (uses `-` and `_`) returned by Defly and Lute wallets, causing silent failures. Fix: All WC txn decoding replaced with `base64ToBytes()` from `@shared/utils/crypto`, which normalises padding and URL-safe characters before decoding. Applied in all 3 WC submit handlers and all 3 decode sites in `VaultPanel.tsx`.
+
+**AP2 queue cap origin comparison (M1):** Per-origin pending request cap was comparing full URLs — different paths on the same site counted as separate origins, bypassing the cap. Fix: cap now extracts `.origin` via `new URL(url).origin` for both the incoming request and each queued request. Falls back to exact string match when URL parsing fails (conservative, does not weaken the cap).
+
+**IntentMandates session storage (M2):** AP2 `IntentMandate` objects contain payment metadata (amounts, merchant identity, address correlations) and were stored in `chrome.storage.local` — persisted unencrypted to disk. Fix: moved to `chrome.storage.session` (cleared when browser closes) with a 100-entry rolling cap. All three helpers (`getIntentMandates`, `storeIntentMandate`, `removeIntentMandate`) updated.
+
+**Withdraw address validation (L1):** `ownerWithdraw()` would attempt an on-chain transaction with an invalid receiver address, wasting a fee. Fix: `algosdk.isValidAddress(msg.receiver)` pre-flight check added before calling `ownerWithdraw()`.
+
+**Auto-lock reset on vault poll (L2):** `VAULT_GET_STATE` is polled continuously by the VaultPanel but was not calling `resetAutoLock()`, so the auto-lock timer could fire while the user was actively using the vault UI. Fix: `resetAutoLock()` added to `VAULT_GET_STATE` handler.
+
+**µAlgo formatting precision (L3):** The `fmt()` helper in vault-store used plain `.toString()` on the fractional µAlgo remainder, dropping leading zeros (e.g. `1_000_001n` rendered as `"1.1"` instead of `"1.000001"`). Fix: `.padStart(6, "0").replace(/0+$/, "")` — pads to 6 digits then strips trailing zeros only.
+
+**Static getAlgodClient import (C3):** Three vault WC submit handlers used `await import("./chain-clients")` dynamically, adding latency and risking silent breakage on module rename. Fix: `getAlgodClient` promoted to a static top-level import alongside other chain-client helpers.
+
+### Validation
+All 8 findings validated by local grep scan (19/19 checks PASS) and independently by Comet AI dual-validation (19/19 checks PASS).
 
 ---
 
@@ -145,7 +177,7 @@
 
 ---
 
-## Files Audited (v0.1.4)
+## Files Audited (v0.2.0)
 
 ```
 manifest.json
@@ -153,6 +185,7 @@ package.json
 src/background/index.ts
 src/background/message-handler.ts
 src/background/wallet-store.ts
+src/background/vault-store.ts
 src/background/x402-handler.ts
 src/background/mpp-handler.ts
 src/background/ap2-handler.ts
@@ -164,6 +197,7 @@ src/content/provider-bridge.ts
 src/inpage/index.ts
 src/popup/App.tsx
 src/popup/components/AccountView.tsx
+src/popup/components/VaultPanel.tsx
 src/popup/hooks/useWalletConnect.ts
 src/approval/index.tsx
 src/shared/constants.ts
