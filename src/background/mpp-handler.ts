@@ -18,6 +18,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
+import { vaultPay } from "./vault-store";
 import {
   getSuggestedParams,
   hasOptedIn,
@@ -306,7 +307,28 @@ export async function buildAndSignMppPayment(
     throw new Error("Use buildMppPaymentTxnForWC() for WalletConnect accounts");
   }
 
-  const { txn, chain } = await buildMppTransaction(req);
+  const { txn, chain, asaId } = await buildMppTransaction(req);
+
+  // ── Vault auto-payment path ──────────────────────────────────────────────
+  const vaultApp  = walletStore.getVaultApp(chain);
+  const agentAddr = walletStore.getAgentAddress();
+  if (vaultApp && agentAddr && asaId === 0) {
+    const agentSk  = await walletStore.getAgentSecretKey();
+    const avmReq   = req.avmRequest;
+    const amount   = BigInt(String(avmReq.amount));
+    const note     = `mpp:${avmReq.recipient}`.slice(0, 1000);
+    const { txId } = await vaultPay(chain, vaultApp.appId, agentSk, agentAddr, avmReq.recipient, amount, note);
+    await waitForConfirmation(chain, txId, 8);
+    await waitForIndexed(chain, txId);
+    const credential: MppCredential = {
+      challenge: req.challenge,
+      source: `did:pkh:avm:${avmReq.network}:${vaultApp.appAddress}`,
+      payload: { txId, transaction: "" },
+    };
+    return { authorizationHeader: serializeMppCredential(credential), txId };
+  }
+
+  // ── Standard owner key path ──────────────────────────────────────────────
 
   // Sign, submit, wait for confirmation
   const sk = await walletStore.getActiveSecretKey();
@@ -515,11 +537,35 @@ export async function handleMpp(params: {
   };
   // requestApproval opens the popup and waits for user action; we fire-and-forget
   // here because the popup sends MPP_APPROVE / MPP_REJECT independently.
+  // ── Vault auto-payment: skip popup entirely ──────────────────────────────
+  // Native coin: currency is "ALGO" or "VOI" (not a numeric ASA ID)
+  const mppAsaId  = /^\d+$/.test(avmRequest.currency) ? 1 : 0;
+  const mppChain  = resolveMppChain(avmRequest.network);
+  const mppVault  = mppChain ? walletStore.getVaultApp(mppChain) : null;
+  const mppAgent  = walletStore.getAgentAddress();
+
+  if (mppVault && mppAgent && mppAsaId === 0 && mppChain) {
+    try {
+      const { authorizationHeader, txId } = await buildAndSignMppPayment(pending);
+      clearPendingMppRequest(requestId);
+      chrome.tabs.sendMessage(params.tabId, {
+        type: "MPP_RESULT",
+        requestId: params.inpageRequestId ?? requestId,
+        approved: true,
+        authorizationHeader,
+        txId,
+      }).catch(() => {});
+      return requestId;
+    } catch {
+      // Vault auto-pay failed — fall through to approval popup
+    }
+  }
+
+  // ── Standard approval popup path ─────────────────────────────────────────
   requestApproval(mppApproval).catch(() => {
     // User rejected or TTL fired — clean up the pending request
     _pendingMppRequests.delete(requestId);
   });
-
 
   return requestId;
 }
