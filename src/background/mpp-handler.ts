@@ -574,25 +574,8 @@ export async function handleMpp(params: {
         txId,
       }).catch(() => {});
       return requestId;
-    } catch (vaultErr) {
-      const vaultErrMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
-      // Balance errors are definitive — no point falling through to WC popup.
-      // Surface them directly so the user can fund the vault.
-      if (
-        vaultErrMsg.includes("balance") ||
-        vaultErrMsg.includes("locked") ||
-        vaultErrMsg.includes("agent")
-      ) {
-        _pendingMppRequests.delete(requestId);
-        chrome.tabs.sendMessage(params.tabId, {
-          type: "MPP_RESULT",
-          requestId: params.inpageRequestId ?? requestId,
-          approved: false,
-          error: `MPP vault payment failed: ${vaultErrMsg}`,
-        }).catch(() => {});
-        return requestId;
-      }
-      // Other errors (network, etc.) — fall through to approval popup
+    } catch {
+      // Vault auto-pay failed for any reason — fall through to approval popup
     }
   }
 
