@@ -20,8 +20,7 @@ import {
 import { extractWCSignedTxn } from "@shared/utils/crypto";
 import type { ChainId } from "@shared/types/chain";
 
-const RELAY_TIMEOUT_MS   = 20_000;
-const REQUEST_TIMEOUT_MS = 90_000; // 90 s — mobile wallet must be open and connected
+const RELAY_TIMEOUT_MS = 20_000;
 
 /**
  * Sign an unsigned transaction (base64 msgpack) via an existing WalletConnect session.
@@ -71,51 +70,18 @@ export async function signTransactionWithWC(
     timeoutPromise,
   ]);
 
-  // Explicitly subscribe to the session topic before sending the signing request.
-  //
-  // wc@2:core:relayer:subscriptions is cleared by startPairing() to remove
-  // stale pairing topics. The WC SDK restores relay subscriptions from that
-  // key on SignClient.init() — it does NOT automatically re-subscribe session
-  // topics just because they appear in wc@2:client:session. So if the key was
-  // cleared between the last pairing and this signing call, client.request()
-  // silently sends to an unsubscribed topic ("nothing hitting the wallet").
-  //
-  // Calling relayer.subscribe() is idempotent: if the topic is already
-  // subscribed the SDK returns the existing subscription without a relay
-  // round-trip; if missing it sends a subscribe request and awaits the ACK
-  // before returning, guaranteeing delivery when client.request() fires next.
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (client as any).core?.relayer?.subscribe?.(sessionTopic);
-  } catch {
-    // Non-fatal — if subscription fails the request may still succeed if the
-    // relay retained the subscription from a prior session. Log and continue.
-    console.warn("[WC] Explicit session-topic subscribe failed; proceeding with client.request()");
-  }
-
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
   // ARC-0025 / Pera/Defly format: array of transaction groups.
   // Use `unknown` — Defly may return [[string]] (nested) instead of [string] (flat).
-  const result = await Promise.race([
-    client.request<unknown>({
-      topic: sessionTopic,
-      chainId: wcChain,
-      request: {
-        method: WC_METHOD_SIGN_TXN,
-        params: [[{ txn: unsignedTxnB64, signers: [signerAddress] }]],
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error(
-          `WalletConnect signing timed out after ${REQUEST_TIMEOUT_MS / 1000}s. ` +
-          `Make sure your wallet app is open and connected.`
-        )),
-        REQUEST_TIMEOUT_MS
-      )
-    ),
-  ]);
+  const result = await client.request<unknown>({
+    topic: sessionTopic,
+    chainId: wcChain,
+    request: {
+      method: WC_METHOD_SIGN_TXN,
+      params: [[{ txn: unsignedTxnB64, signers: [signerAddress] }]],
+    },
+  });
 
   return extractWCSignedTxn(result);
 }

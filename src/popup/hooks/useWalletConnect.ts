@@ -30,7 +30,7 @@ import {
   WC_METHOD_SIGN_TXN,
 } from "@shared/constants";
 import { appendDebugLog, sanitizeTopic } from "@shared/debug-log";
-import { extractWCSignedTxn, base64ToBytes } from "@shared/utils/crypto";
+import { extractWCSignedTxn } from "@shared/utils/crypto";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -56,11 +56,6 @@ export interface UseWalletConnectReturn {
     txn: algosdk.Transaction,
     signerAddress: string
   ) => Promise<Uint8Array>;
-  /**
-   * Sign an atomic transaction group via WC in a single round-trip.
-   * All txns must already have a group ID assigned (algosdk.assignGroupID).
-   * Returns one signed Uint8Array per txn that needs signing.
-   */
   signGroup: (
     sessionTopic: string,
     chain: ChainId,
@@ -174,9 +169,6 @@ export function useWalletConnect(): UseWalletConnectReturn {
     // Clear PAIRING-specific localStorage entries so the new client starts with
     // clean relay subscriptions.  We deliberately keep wc@2:client:session and
     // wc@2:core:keychain so that existing WC accounts can still sign transactions.
-    // wc@2:core:relayer:subscriptions is also cleared to remove stale pairing-
-    // topic subscriptions that block SignClient.init() resubscription; signing
-    // recovery is handled by the explicit relayer.subscribe() call in wc-sign.ts.
     try {
       const pairingKeys = [
         "wc@2:core:pairing",              // stale active/pending pairings
@@ -223,7 +215,7 @@ export function useWalletConnect(): UseWalletConnectReturn {
           try { await (clientRef.current as any)?.core?.relayer?.transportClose?.(); } catch {}
           clientRef.current = null;
           try {
-            ["wc@2:core:pairing", "wc@2:client:proposal"]
+            ["wc@2:core:pairing", "wc@2:client:proposal", "wc@2:core:relayer:subscriptions"]
               .forEach(k => localStorage.removeItem(k));
           } catch {}
           client = await getClient();
@@ -473,11 +465,6 @@ export function useWalletConnect(): UseWalletConnectReturn {
     [getClient]
   );
 
-  /**
-   * Sign an atomic transaction group via WalletConnect in a single request.
-   * Sends all txns together (ARC-0025 group format) so Pera/Defly/Lute
-   * shows one combined signing prompt instead of N separate ones.
-   */
   const signGroup = useCallback(
     async (
       sessionTopic: string,
@@ -500,18 +487,15 @@ export function useWalletConnect(): UseWalletConnectReturn {
       });
 
       // WC group response: [signedB64_0, signedB64_1, ...] — one element per txn.
-      // extractWCSignedTxn expects the *full* single-txn response ([signedB64]),
-      // so we must decode each element individually here.
       const raw = Array.isArray(result) ? result : [result];
       return raw.map((r): Uint8Array => {
         if (r instanceof Uint8Array) return r;
         if (r === null || r === undefined) throw new Error("Wallet did not sign all transactions");
-        // Pera/Lute: plain base64 string per txn
         if (typeof r === "string") {
           if (!r) throw new Error("Wallet rejected a transaction in the group");
-          return base64ToBytes(r);
+          // decode URL-safe or standard base64
+          return Uint8Array.from(atob(r.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
         }
-        // Some wallets wrap each signed txn in a nested array → delegate to extractor
         if (Array.isArray(r)) return extractWCSignedTxn(r);
         throw new Error("Wallet rejected the transaction");
       });
