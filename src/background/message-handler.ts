@@ -43,6 +43,8 @@ import {
   buildVaultCreateTxn,
   buildVaultSetupGroup,
   buildOwnerActionTxn,
+  buildRemapAgentGroup,
+  addAgentMnemonic,
   submitSignedGroup,
 } from "./vault-store";
 import {
@@ -1496,6 +1498,112 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         return { txId: r.txId };
       }
       throw new Error(`Unknown vault action: ${msg.action}`);
+    }
+
+    case "VAULT_REMAP": {
+      // Reconnect an existing on-chain vault with a fresh agent key.
+      // No redeploy — only registers a new agent box and saves the app ID.
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      const remapMeta    = await walletStore.getMeta();
+      const remapAccount = remapMeta.accounts.find((a) => a.id === remapMeta.activeAccountId);
+      if (!remapAccount) throw new Error("No active account");
+
+      // Verify the app exists on-chain and derive its address
+      const remapAlgod = getAlgodClient(msg.chain);
+      await remapAlgod.getApplicationByID(msg.appId).do(); // throws if app not found
+      const remapAppAddress = algosdk.getApplicationAddress(msg.appId).toString();
+
+      // Always generate a fresh agent key for the remap
+      const remapAgentAddr = await walletStore.createAgentKey();
+      const remapMaxPerTxn = BigInt(msg.agentMaxPerTxn);
+      const remapDailyCap  = BigInt(msg.agentDailyCap);
+
+      if (remapAccount.type === "walletconnect") {
+        if (!remapAccount.wcSessionTopic) throw new Error("No WalletConnect session for this account");
+        const remapGroup = await buildRemapAgentGroup(
+          msg.chain, remapAccount.address, remapAgentAddr,
+          msg.appId, remapAppAddress, remapMaxPerTxn, remapDailyCap
+        );
+        const remapGroupBytes = remapGroup.map((txn) => txn.toByte());
+        // H1: store expected bytes for binding check in VAULT_WC_REMAP_SUBMIT
+        _pendingVaultWcBinding.set(remapAccount.wcSessionTopic, {
+          expectedUnsignedB64s: remapGroupBytes.map((b) => btoa(String.fromCharCode(...b))),
+          expires: Date.now() + VAULT_WC_BINDING_TTL_MS,
+        });
+        return {
+          needsWcSign:    true,
+          step:           "remap",
+          setupGroupB64s: remapGroupBytes.map((b) => btoa(String.fromCharCode(...b))),
+          sessionTopic:   remapAccount.wcSessionTopic,
+          signerAddress:  remapAccount.address,
+          appId:          msg.appId,
+          appAddress:     remapAppAddress,
+          agentAddress:   remapAgentAddr,
+          chain:          msg.chain,
+        };
+      }
+
+      // Mnemonic path: sign and submit fund + add_agent atomically
+      const remapOwnerSk = await walletStore.getActiveSecretKey();
+      const remapResult  = await addAgentMnemonic(
+        msg.chain, msg.appId, remapAppAddress, remapOwnerSk, remapAccount.address,
+        remapAgentAddr, remapMaxPerTxn, remapDailyCap
+      );
+      await walletStore.saveVaultApp(msg.chain, msg.appId, remapAppAddress);
+      return { txId: remapResult.txId, appId: msg.appId, appAddress: remapAppAddress, agentAddress: remapAgentAddr };
+    }
+
+    case "VAULT_WC_REMAP_SUBMIT": {
+      // Submit signed fund + add_agent group for WC remap, then save vault app
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      const signedRemapGroup = msg.signedGroupB64s.map((b64) => base64ToBytes(b64));
+
+      // H1: validate signed group against what VAULT_REMAP built
+      const wcRemapMeta = await walletStore.getMeta();
+      const wcRemapAcct = wcRemapMeta.accounts.find((a) => a.id === wcRemapMeta.activeAccountId);
+      if (!wcRemapAcct?.wcSessionTopic) throw new Error("No active WalletConnect account");
+      const remapBinding = _pendingVaultWcBinding.get(wcRemapAcct.wcSessionTopic);
+      if (!remapBinding) {
+        throw new Error("VAULT_WC_REMAP_SUBMIT: no pending remap session — please retry");
+      }
+      if (Date.now() > remapBinding.expires) {
+        _pendingVaultWcBinding.delete(wcRemapAcct.wcSessionTopic);
+        throw new Error("VAULT_WC_REMAP_SUBMIT: remap session expired — please retry");
+      }
+      if (signedRemapGroup.length !== remapBinding.expectedUnsignedB64s.length) {
+        throw new Error(
+          `VAULT_WC_REMAP_SUBMIT: expected ${remapBinding.expectedUnsignedB64s.length} signed transactions, ` +
+          `got ${signedRemapGroup.length}`
+        );
+      }
+      for (let i = 0; i < signedRemapGroup.length; i++) {
+        try {
+          const decoded     = algosdk.decodeSignedTransaction(signedRemapGroup[i]);
+          const unsignedB64 = btoa(String.fromCharCode(...decoded.txn.toByte()));
+          if (unsignedB64 !== remapBinding.expectedUnsignedB64s[i]) {
+            throw new Error(
+              `VAULT_WC_REMAP_SUBMIT: transaction ${i} does not match the expected remap transaction. ` +
+              "The WalletConnect wallet may have altered the transaction."
+            );
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("VAULT_WC_REMAP_SUBMIT:")) throw err;
+          throw new Error(
+            `VAULT_WC_REMAP_SUBMIT: failed to validate transaction ${i}: ` +
+            `${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      }
+      _pendingVaultWcBinding.delete(wcRemapAcct.wcSessionTopic);
+
+      const remapTxId = await submitSignedGroup(msg.chain, signedRemapGroup);
+      await walletStore.saveVaultApp(msg.chain, msg.appId, msg.appAddress);
+      const remapAgentAddrFinal = walletStore.getAgentAddress();
+      return { txId: remapTxId, agentAddress: remapAgentAddrFinal };
     }
 
     default:

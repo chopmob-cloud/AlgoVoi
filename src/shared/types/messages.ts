@@ -97,6 +97,9 @@ export type BgRequest =
   | { type: "VAULT_WC_SUBMIT_CREATE"; signedTxnB64: string; chain: ChainId; agentAddress: string; agentMaxPerTxn: string; agentDailyCap: string }
   | { type: "VAULT_WC_SUBMIT_SETUP";  signedGroupB64s: string[]; chain: ChainId; appId: number; appAddress: string }
   | { type: "VAULT_WC_ACTION_SUBMIT"; signedTxnB64: string; chain: ChainId }
+  // Remap an existing vault (new agent key, without redeploying the contract)
+  | { type: "VAULT_REMAP"; chain: ChainId; appId: number; agentMaxPerTxn: string; agentDailyCap: string }
+  | { type: "VAULT_WC_REMAP_SUBMIT"; signedGroupB64s: string[]; chain: ChainId; appId: number; appAddress: string }
   // WalletConnect Web3Wallet — AlgoVoi as wallet for AI agents
   | { type: "W3W_GENERATE_URI" }
   | { type: "W3W_GET_SESSIONS" }
@@ -144,6 +147,10 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "AP2_PAYMENT_REQUEST" ? { requestId: string } :
   // IntentMandate management (used by popup)
   T extends "AP2_LIST_INTENT_MANDATES" ? { mandates: IntentMandate[] } :
+  T extends "VAULT_REMAP" ?
+    | { txId: string; appId: number; appAddress: string; agentAddress: string }
+    | { needsWcSign: true; step: "remap"; setupGroupB64s: string[]; sessionTopic: string; signerAddress: string; appId: number; appAddress: string; agentAddress: string; chain: ChainId } :
+  T extends "VAULT_WC_REMAP_SUBMIT" ? { txId: string; agentAddress: string } :
   // Web3Wallet (AlgoVoi as WC wallet for AI agents)
   T extends "W3W_GENERATE_URI" ? { uri: string } :
   T extends "W3W_GET_SESSIONS" ? { sessions: Record<string, unknown> } :
