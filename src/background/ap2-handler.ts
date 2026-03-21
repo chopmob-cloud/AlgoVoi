@@ -185,22 +185,30 @@ export async function buildPaymentMandate(params: {
     throw new Error("Wallet is locked");
   }
 
-  const meta = await walletStore.getMeta();
-  const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
-  if (!activeAccount) throw new Error("No active account");
+  // Determine signing key: agent key (vault) takes priority over active account key.
+  // Check this BEFORE the WC account guard so vault users with a WC active account
+  // can still sign AP2 credentials autonomously via the agent key.
+  const agentAddr = walletStore.getAgentAddress();
+  const useAgent  = !!(agentAddr && params.address === agentAddr);
 
-  if (activeAccount.type === "walletconnect") {
-    throw new Error(
-      "WalletConnect accounts cannot sign AP2 payment credentials. " +
-        "Switch to a vault account."
-    );
-  }
+  if (!useAgent) {
+    const meta = await walletStore.getMeta();
+    const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
+    if (!activeAccount) throw new Error("No active account");
 
-  // Validate requested address matches active account
-  if (params.address !== activeAccount.address) {
-    throw new Error(
-      `AP2: requested signer ${params.address} does not match active account ${activeAccount.address}`
-    );
+    if (activeAccount.type === "walletconnect") {
+      throw new Error(
+        "⚠ WalletConnect accounts cannot sign AP2 credentials. AP2 requires " +
+        "ed25519 byte signing which WalletConnect mobile wallets do not support. " +
+        "Switch to a vault (mnemonic) account in AlgoVoi settings to use AP2."
+      );
+    }
+
+    if (params.address !== activeAccount.address) {
+      throw new Error(
+        `AP2: requested signer ${params.address} does not match active account ${activeAccount.address}`
+      );
+    }
   }
 
   // Hash the CartMandate for tamper detection
@@ -220,10 +228,6 @@ export async function buildPaymentMandate(params: {
   const contentsJson = JSON.stringify(contents);
   const contentsBytes = new TextEncoder().encode(contentsJson);
 
-  // Use agent key if vault is deployed — allows autonomous AP2 credential signing.
-  // Agent key is a standard ed25519 key identical in format to the wallet key.
-  const agentAddr = walletStore.getAgentAddress();
-  const useAgent  = agentAddr && contents.address === agentAddr;
   const sk = useAgent
     ? await walletStore.getAgentSecretKey()
     : await walletStore.getActiveSecretKey();

@@ -592,10 +592,11 @@ function EnvoiPage({ requestId }: { requestId: string }) {
 
 function MppPage({ requestId }: { requestId: string }) {
   const [approval, setApproval] = useState<PendingMppApproval | null>(null);
-  const [loading,   setLoading]  = useState(true);
-  const [approving, setApproving] = useState(false);
-  const [wcWaiting, setWcWaiting] = useState(false);
-  const [error,     setError]    = useState("");
+  const [loading,      setLoading]     = useState(true);
+  const [approving,    setApproving]   = useState(false);
+  const [wcWaiting,    setWcWaiting]   = useState(false);
+  const [wcConfirming, setWcConfirming] = useState(false);
+  const [error,        setError]       = useState("");
 
   useEffect(() => {
     sendBg<{ request: PendingMppApproval | null }>({ type: "MPP_GET_PENDING", requestId })
@@ -623,12 +624,15 @@ function MppPage({ requestId }: { requestId: string }) {
             result.unsignedTxnB64,
             result.signerAddress
           );
+          setWcWaiting(false);
+          setWcConfirming(true);
           const signedTxnB64 = btoa(String.fromCharCode(...signedBytes));
           await sendBg({ type: "MPP_WC_SIGNED", requestId, signedTxnB64 });
           window.close();
         } catch (err) {
           setError(err instanceof Error ? err.message : "Wallet rejected the payment");
           setWcWaiting(false);
+          setWcConfirming(false);
         }
         return;
       }
@@ -722,6 +726,13 @@ function MppPage({ requestId }: { requestId: string }) {
         </div>
       )}
 
+      {wcConfirming && (
+        <div className="bg-green-900/30 border border-green-700/50 rounded-xl p-3 flex items-center gap-2">
+          <Spinner size={4} />
+          <p className="text-sm text-green-300">Confirming on-chain…</p>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
           <p className="text-sm text-red-400">{error}</p>
@@ -734,7 +745,7 @@ function MppPage({ requestId }: { requestId: string }) {
         onApprove={approve}
         onReject={reject}
         approving={approving}
-        disabled={approving || wcWaiting}
+        disabled={approving || wcWaiting || wcConfirming}
       />
     </div>
   );

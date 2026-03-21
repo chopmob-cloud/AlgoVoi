@@ -81,7 +81,7 @@ export const STORAGE_KEY_VAULT = "algovou_vault";
 export const STORAGE_KEY_META = "algovou_meta";
 
 /** Auto-lock timeout in minutes */
-export const DEFAULT_AUTO_LOCK_MINUTES = 15;
+export const DEFAULT_AUTO_LOCK_MINUTES = 5;
 
 // ── WalletConnect v2 ──────────────────────────────────────────────────────────
 
