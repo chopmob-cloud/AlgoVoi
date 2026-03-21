@@ -20,7 +20,8 @@ import {
 import { extractWCSignedTxn } from "@shared/utils/crypto";
 import type { ChainId } from "@shared/types/chain";
 
-const RELAY_TIMEOUT_MS = 20_000;
+const RELAY_TIMEOUT_MS   = 20_000;
+const REQUEST_TIMEOUT_MS = 90_000; // 90 s — mobile wallet must be open and connected
 
 /**
  * Sign an unsigned transaction (base64 msgpack) via an existing WalletConnect session.
@@ -74,14 +75,25 @@ export async function signTransactionWithWC(
 
   // ARC-0025 / Pera/Defly format: array of transaction groups.
   // Use `unknown` — Defly may return [[string]] (nested) instead of [string] (flat).
-  const result = await client.request<unknown>({
-    topic: sessionTopic,
-    chainId: wcChain,
-    request: {
-      method: WC_METHOD_SIGN_TXN,
-      params: [[{ txn: unsignedTxnB64, signers: [signerAddress] }]],
-    },
-  });
+  const result = await Promise.race([
+    client.request<unknown>({
+      topic: sessionTopic,
+      chainId: wcChain,
+      request: {
+        method: WC_METHOD_SIGN_TXN,
+        params: [[{ txn: unsignedTxnB64, signers: [signerAddress] }]],
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(
+          `WalletConnect signing timed out after ${REQUEST_TIMEOUT_MS / 1000}s. ` +
+          `Make sure your wallet app is open and connected.`
+        )),
+        REQUEST_TIMEOUT_MS
+      )
+    ),
+  ]);
 
   return extractWCSignedTxn(result);
 }

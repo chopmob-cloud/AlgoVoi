@@ -856,6 +856,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (!mppAccount) throw new Error("Active account not found for MPP payment");
       if (mppAccount.type === "walletconnect") {
         const wcData = await buildMppPaymentTxnForWC(mppReq);
+        // Persist the updated request (with expectedUnsignedTxnB64 set by buildMppPaymentTxnForWC)
+        // to session storage so MPP_WC_SIGNED can recover it if the SW is suspended during
+        // the 30-60s the user spends approving on their mobile wallet.
+        await chrome.storage.session.set({ [`algovou_mpp_wc_${mppReq.id}`]: mppReq });
         return { needsWcSign: true, ...wcData };
       }
 
@@ -900,8 +904,15 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "MPP_WC_SIGNED": {
-      const mppWcReq = getPendingMppRequest(msg.requestId);
-      if (!mppWcReq) throw new Error("Pending MPP request not found");
+      let mppWcReq = getPendingMppRequest(msg.requestId);
+      if (!mppWcReq) {
+        // SW may have been suspended during mobile wallet approval — recover from session storage.
+        const stored = await chrome.storage.session.get(`algovou_mpp_wc_${msg.requestId}`);
+        mppWcReq = (stored[`algovou_mpp_wc_${msg.requestId}`] as typeof mppWcReq) ?? null;
+      }
+      if (!mppWcReq) throw new Error("Pending MPP request not found (expired or already processed)");
+      // Always clean up session storage regardless of outcome
+      chrome.storage.session.remove(`algovou_mpp_wc_${msg.requestId}`).catch(() => {});
 
       const avmReq = mppWcReq.avmRequest;
       const chain = resolveMppChain(avmReq.network);

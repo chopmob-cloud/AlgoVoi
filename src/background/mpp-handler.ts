@@ -535,19 +535,37 @@ export async function handleMpp(params: {
     timestamp: Date.now(),
     isWalletConnect,
   };
-  // requestApproval opens the popup and waits for user action; we fire-and-forget
-  // here because the popup sends MPP_APPROVE / MPP_REJECT independently.
-  // ── Vault auto-payment: skip popup entirely ──────────────────────────────
-  // Native coin: currency is "ALGO" or "VOI" (not a numeric ASA ID)
-  const mppAsaId  = /^\d+$/.test(avmRequest.currency) ? 1 : 0;
-  const mppChain  = resolveMppChain(avmRequest.network);
-  const mppVault  = mppChain ? walletStore.getVaultApp(mppChain) : null;
-  const mppAgent  = walletStore.getAgentAddress();
+  // ── Vault auto-payment: skip popup for native-coin MPP when agent key is available ──
+  // Mirrors the AP2 vault auto-sign path. Uses vaultPay directly so the balance check
+  // runs against the vault app account, not the active (possibly WC) account.
+  // The source in the credential is the vault app address, matching what the merchant
+  // expects when the payment originates from the spending-cap vault.
+  // On any failure, fall through to the standard approval popup.
+  const isNativeCoin =
+    avmRequest.currency.toUpperCase() === "ALGO" ||
+    avmRequest.currency.toUpperCase() === "VOI" ||
+    avmRequest.currency === "0";
+  const mppVaultApp = walletStore.getVaultApp(chain);
+  const mppAgent    = walletStore.getAgentAddress();
 
-  if (mppVault && mppAgent && mppAsaId === 0 && mppChain) {
+  if (mppVaultApp && mppAgent && isNativeCoin) {
     try {
-      const { authorizationHeader, txId } = await buildAndSignMppPayment(pending);
-      clearPendingMppRequest(requestId);
+      const agentSk = await walletStore.getAgentSecretKey();
+      const amount  = BigInt(avmRequest.amount);
+      const note    = `mpp:${avmRequest.recipient}`.slice(0, 1000);
+      const { txId } = await vaultPay(
+        chain, mppVaultApp.appId, agentSk, mppAgent,
+        avmRequest.recipient, amount, note
+      );
+      await waitForConfirmation(chain, txId, 8);
+      await waitForIndexed(chain, txId);
+      const credential: MppCredential = {
+        challenge,
+        source: `did:pkh:avm:${avmRequest.network}:${mppVaultApp.appAddress}`,
+        payload: { txId, transaction: "" },
+      };
+      const authorizationHeader = serializeMppCredential(credential);
+      _pendingMppRequests.delete(requestId);
       chrome.tabs.sendMessage(params.tabId, {
         type: "MPP_RESULT",
         requestId: params.inpageRequestId ?? requestId,
@@ -556,12 +574,31 @@ export async function handleMpp(params: {
         txId,
       }).catch(() => {});
       return requestId;
-    } catch {
-      // Vault auto-pay failed — fall through to approval popup
+    } catch (vaultErr) {
+      const vaultErrMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
+      // Balance errors are definitive — no point falling through to WC popup.
+      // Surface them directly so the user can fund the vault.
+      if (
+        vaultErrMsg.includes("balance") ||
+        vaultErrMsg.includes("locked") ||
+        vaultErrMsg.includes("agent")
+      ) {
+        _pendingMppRequests.delete(requestId);
+        chrome.tabs.sendMessage(params.tabId, {
+          type: "MPP_RESULT",
+          requestId: params.inpageRequestId ?? requestId,
+          approved: false,
+          error: `MPP vault payment failed: ${vaultErrMsg}`,
+        }).catch(() => {});
+        return requestId;
+      }
+      // Other errors (network, etc.) — fall through to approval popup
     }
   }
 
   // ── Standard approval popup path ─────────────────────────────────────────
+  // requestApproval opens the popup and waits for user action; we fire-and-forget
+  // here because the popup sends MPP_APPROVE / MPP_REJECT independently.
   requestApproval(mppApproval).catch(() => {
     // User rejected or TTL fired — clean up the pending request
     _pendingMppRequests.delete(requestId);
