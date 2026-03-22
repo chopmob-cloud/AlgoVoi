@@ -24,6 +24,7 @@ import {
   clearPendingMppRequest,
   resolveMppChain,
 } from "./mpp-handler";
+import type { MppCredential } from "@shared/types/mpp";
 import {
   handleAp2Payment,
   buildPaymentMandate,
@@ -46,6 +47,7 @@ import {
   buildRemapAgentGroup,
   addAgentMnemonic,
   submitSignedGroup,
+  vaultPay,
 } from "./vault-store";
 import {
   generatePairingUri,
@@ -689,9 +691,40 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const activeAccount = approveMeta.accounts.find((a) => a.id === approveMeta.activeAccountId);
 
       if (activeAccount?.type === "walletconnect") {
+        // ── Vault-first: sign locally with agent key if vault is deployed ──
+        // This avoids the unreliable WC relay round-trip for native coin payments.
+        // Falls through to WC signing if: no vault, ASA payment, or vault error.
+        const x402PayChain = resolveChain(req.paymentRequirements.network);
+        const x402AsaId = req.paymentRequirements.asset === "0" || !req.paymentRequirements.asset
+          ? 0 : parseInt(req.paymentRequirements.asset, 10);
+        const x402Vault = x402PayChain ? walletStore.getVaultApp(x402PayChain) : null;
+        const x402Agent = walletStore.getAgentAddress();
+
+        if (x402Vault && x402Agent && x402AsaId === 0) {
+          try {
+            // buildAndSignPayment has its own vault check — calls vaultPay()
+            // with the agent key. No WC type guard inside that function.
+            const { paymentHeader: vaultPH, txId: vaultTxId } = await buildAndSignPayment(req);
+            clearPendingRequest(msg.requestId);
+            chrome.tabs.sendMessage(req.tabId, {
+              type: "X402_RESULT",
+              requestId: req.inpageRequestId ?? req.id,
+              approved: true,
+              paymentHeader: vaultPH,
+              txId: vaultTxId,
+            });
+            return { paymentHeader: vaultPH, txId: vaultTxId };
+          } catch (vaultErr) {
+            // Vault failed (cap exceeded, insufficient balance, suspended, etc.)
+            // Fall through to WC signing as fallback.
+            console.warn("[x402] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
+          }
+        }
+
+        // ── WC fallback path (unchanged) ──
         // Guard: WC sessions are chain-specific — reject before touching the WC SDK
         // if the payment's chain differs from the chain the session was approved for.
-        const paymentChain = resolveChain(req.paymentRequirements.network);
+        const paymentChain = x402PayChain;
         const accountChain = (activeAccount.wcChain ?? paymentChain ?? "algorand") as ChainId;
         // Only block when wcChain is explicitly recorded and mismatches the payment chain.
         // Accounts created before this field was added (wcChain undefined) skip the guard
@@ -874,6 +907,58 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       if (!mppAccount) throw new Error("Active account not found for MPP payment");
       if (mppAccount.type === "walletconnect") {
+        // ── Vault-first: sign locally with agent key if vault is deployed ──
+        // Inline vault logic because buildAndSignMppPayment() has a WC guard
+        // (locked file — can't modify). Falls through to WC on failure.
+        const mppAvmReq   = mppReq.avmRequest;
+        const mppPayChain = resolveMppChain(mppAvmReq.network);
+        const mppIsNative =
+          mppAvmReq.currency.toUpperCase() === "ALGO" ||
+          mppAvmReq.currency.toUpperCase() === "VOI" ||
+          mppAvmReq.currency === "0";
+        const mppVault     = mppPayChain ? walletStore.getVaultApp(mppPayChain) : null;
+        const mppAgentAddr = walletStore.getAgentAddress();
+
+        if (mppVault && mppAgentAddr && mppIsNative && mppPayChain) {
+          try {
+            const agentSk   = await walletStore.getAgentSecretKey();
+            const mppAmount = BigInt(String(mppAvmReq.amount));
+            const mppNote   = `mpp:${mppAvmReq.recipient}`.slice(0, 1000);
+            const { txId }  = await vaultPay(
+              mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
+              mppAvmReq.recipient, mppAmount, mppNote
+            );
+            await waitForConfirmation(mppPayChain, txId, 8);
+            await waitForIndexed(mppPayChain, txId);
+
+            const credential: MppCredential = {
+              challenge: mppReq.challenge,
+              source: `did:pkh:avm:${mppAvmReq.network}:${mppVault.appAddress}`,
+              payload: { txId, transaction: "" },
+            };
+            const authorizationHeader = serializeMppCredential(credential);
+
+            const mppVaultPopupId = getApprovalWindowId(msg.requestId);
+            clearPendingMppRequest(msg.requestId);
+            chrome.tabs.sendMessage(mppReq.tabId, {
+              type: "MPP_RESULT",
+              requestId: mppReq.inpageRequestId ?? mppReq.id,
+              approved: true,
+              authorizationHeader,
+              txId,
+            }).catch(() => {});
+            if (mppVaultPopupId !== undefined) {
+              chrome.windows.remove(mppVaultPopupId).catch(() => {});
+            }
+            return { authorizationHeader, txId };
+          } catch (vaultErr) {
+            // Vault failed (cap exceeded, balance low, suspended, etc.)
+            // Fall through to WC signing as fallback.
+            console.warn("[mpp] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
+          }
+        }
+
+        // ── WC fallback path (unchanged) ──
         const wcData = await buildMppPaymentTxnForWC(mppReq);
         // Persist the updated request (with expectedUnsignedTxnB64 set by buildMppPaymentTxnForWC)
         // to session storage so MPP_WC_SIGNED can recover it if the SW is suspended during
