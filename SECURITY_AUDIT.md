@@ -29,6 +29,13 @@
 - **XIV-3 (LOW):** WC session topic logged verbatim in `web3wallet-handler.ts` console.info — use `sanitizeTopic()`. **Status: CLOSED.**
 - Comet CDP validated: AES-GCM-256 + PBKDF2 600k meets OWASP 2025 guidance. 30-day mnemonic TTL is stricter than MetaMask/Phantom (no TTL). chromeStorage adapter is sandboxed per-extension.
 
+**Hardening XV (v0.4.0 — March 2026):** Anti-phishing defences. All additive — no existing behaviour changed.
+- Clipboard hijacking detection: onPaste handler compares pasted address against live clipboard content; warns if malware swapped the address.
+- Homograph domain detection: content script flags non-ASCII Unicode in hostnames (Cyrillic а, Greek ο, etc.) before ARC-0027 enable; confusable character database included.
+- Transaction simulation: `simulateTransaction()` wraps algod `/v2/transactions/simulate` for pre-sign preview of balance changes and failure detection.
+- Secret key wiping: `.fill(0)` after signing in all 7 handler paths (message-handler, x402, mpp, ap2, swap, web3wallet).
+- Comet CDP independently validated anti-phishing architecture.
+
 ---
 
 ## Issue Register
