@@ -6,13 +6,14 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.2.0-brightgreen)
+![Version](https://img.shields.io/badge/version-0.3.0-brightgreen)
 
 ---
 
 ## Features
 
 - **Multi-chain wallet** — Algorand mainnet and Voi mainnet from a single extension
+- **DEX token swaps** — Swap any Algorand ASA via Haystack Router (best-route aggregation across all Algorand DEXes, ALGO→USDC→USDt and beyond); mnemonic and WalletConnect paths both supported
 - **ARC-0027 provider** — `window.algorand` injected into every page, compatible with Pera, Defly, and Lute dApps
 - **WalletConnect v2** — Pair with any WalletConnect-compatible mobile wallet (Pera, Defly, Voi Wallet)
 - **x402 micropayments** — Automatic HTTP 402 payment handling; pay for API calls and content without leaving the page
@@ -44,13 +45,13 @@ MPP is checked first; x402 second. Both submit real AVM on-chain transactions. A
 
 ```
 src/
-├── background/     Service worker: wallet store, chain clients, x402/MPP/AP2/Web3Wallet handlers, message router
+├── background/     Service worker: wallet store, chain clients, x402/MPP/AP2/Web3Wallet/swap handlers, message router
 ├── content/        Content script: bridges inpage ↔ background messages
 ├── inpage/         Injected into pages: window.algorand provider + fetch x402/MPP intercept
-├── popup/          React wallet UI (360 × 600 px) — includes Agent Sessions tab
+├── popup/          React wallet UI (360 × 600 px) — includes Agent Sessions + Swap tabs
 ├── approval/       Payment approval popup (x402, MPP, AP2, agent sign requests)
 ├── devtools/       Chrome DevTools panel (TxnInspector, X402Inspector, BazaarPanel)
-└── shared/         Types, constants, crypto utils, debug logger
+└── shared/         Types, constants, crypto utils, ASA metadata cache, debug logger
 ```
 
 **Message flow:**
@@ -122,6 +123,8 @@ Edit `.env` and fill in your values:
 ```env
 VITE_WC_PROJECT_ID=your_walletconnect_project_id
 VITE_WC_APP_URL=https://your-public-url.com
+VITE_HAYSTACK_ROUTER_API_KEY=your_haystack_api_key   # required for DEX swaps — get one at txnlab.dev
+VITE_HAYSTACK_REFERRER_ADDRESS=                       # optional: your Algorand address for referral fees
 ```
 
 ### Build
@@ -155,7 +158,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XI complete).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XII complete, Comet CDP independently validated v0.3.0).
 
 ---
 

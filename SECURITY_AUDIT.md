@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Final Status: All Issues Resolved
@@ -17,6 +17,8 @@
 **Hardening X (v0.1.4 — March 2026):** AP2 (Google Agent Payments Protocol) implementation + 3-agent parallel audit. All new findings closed in same pass.
 
 **Hardening XI (v0.2.0 — March 2026):** SpendingCapVault feature (AVM smart contract + WalletConnect owner actions). Full re-audit + Comet AI dual-validation. All 8 new findings closed in same pass.
+
+**Hardening XII (v0.3.0 — March 2026):** Haystack Router DEX swap integration + WalletConnect signing hardening + ASA metadata cache. Full security audit + independent Comet CDP validation (all 7 claims CONFIRMED). All 3 new findings closed in same pass.
 
 ---
 
@@ -55,6 +57,9 @@
 | I2 | Info | ✅ CLOSED | MPP TTL 6-min safety cleanup if popup crashes |
 | I3 | Info | ✅ CLOSED | MPP recipient address truncated in approval UI |
 | I4 | Info | ✅ CLOSED | Dual-protocol warning if both MPP + x402 headers present |
+| SW-1 | Low | ✅ CLOSED | `swap-handler.ts::parseDecimal` — uint64 overflow check added |
+| SW-2 | Low | ✅ CLOSED | `executeSwap` — address ownership + WC account type assertion before secret key use |
+| FIND-B | Low | ✅ CLOSED | `SwapPanel.tsx::parseDecimal` — uint64 overflow guard added to match background |
 
 ---
 
@@ -142,6 +147,36 @@ All 8 findings validated by local grep scan (19/19 checks PASS) and independentl
 
 ---
 
+## Hardening XII — Haystack DEX Swap Integration (v0.3.0)
+
+### New attack surface introduced
+- `src/background/swap-handler.ts` — DEX swap quote + execution; all signing stays in service worker
+- `src/popup/components/SwapPanel.tsx` — Swap UI; WC path runs `RouterClient` in popup with `signGroupIndexed`
+- `src/shared/utils/asset-cache.ts` — Persistent ASA metadata cache in `chrome.storage.local`
+- `src/popup/hooks/useWalletConnect.ts` — New `signGroupIndexed` method for grouped WC signing
+- `manifest.json` — `hayrouter.txnlab.dev` added to `host_permissions` and `connect-src`
+
+### Findings and resolutions
+
+**SW-1 (Low) — uint64 overflow in `swap-handler.ts::parseDecimal`:** The popup copy of `parseDecimal` lacked the AVM uint64 maximum check (`> 18_446_744_073_709_551_615n`) present in `parseDecimalToAtomic` in `message-handler.ts`. Extremely large amounts would reach Haystack/algosdk and produce an opaque error rather than a clear rejection. Fix: uint64 overflow check added to `parseDecimal` in `swap-handler.ts`.
+
+**SW-2 (Low) — No address ownership assertion in `executeSwap`:** `executeSwap` accepted `params.address` from the popup without verifying it matched the active account's address. A stale popup state (e.g. account switched mid-session) could cause the background to sign a swap for a different vault key than expected. Not exploitable via content scripts (SWAP_EXECUTE is not in the inpage switch). Fix: `executeSwap` now reads `walletStore.getMeta()`, asserts `activeAccount.address === params.address`, and explicitly rejects `walletconnect` account types with a clear error before calling `getActiveSecretKey()`.
+
+**FIND-B (Low) — `SwapPanel.tsx::parseDecimal` diverged from background:** The UI copy of `parseDecimal` was missing the uint64 overflow guard added in SW-1, creating a maintenance divergence where a future UI-side enforcement path could silently accept overflowing values. Fix: uint64 overflow check added to `SwapPanel.tsx::parseDecimal` to keep both copies identical.
+
+### Additional hardening (same pass)
+- **WC session staleness guard:** All three signing methods in `useWalletConnect.ts` (`signTransaction`, `signGroup`, `signGroupIndexed`) now call `client.session.get(sessionTopic)` before sending to the relay — throws immediately with an actionable "session expired, reconnect" error if the session is stale.
+- **WC signing timeout:** 60-second `Promise.race` on all three signing methods — prevents indefinite hang if the user's phone is unreachable.
+- **ASA batch rate-limiting:** Asset metadata fetches batched at 5 per 150ms gap to avoid 429 errors from Algorand indexer.
+- **Asset cache write error handling (W2):** `writeAssetCache` now uses callback form of `chrome.storage.local.set()` and checks `chrome.runtime.lastError`.
+- **algodUri pinned in both paths:** Both `swap-handler.ts` (background) and `SwapPanel.tsx` (popup WC path) hardcode `algodUri: "https://mainnet-api.algonode.cloud"` — prevents the RouterClient default (`mainnet-api.4160.nodely.dev`) from violating the manifest CSP.
+- **SWAP_QUOTE/EXECUTE not in inpage switch:** Confirmed — `routeToBackground` in `provider-bridge.ts` has no SWAP cases; dApps cannot trigger swaps on behalf of the user.
+
+### Validation
+All 7 security claims independently validated by **Comet CDP** (all CONFIRMED). BUG-A (Comet finding: `remaining` undeclared) confirmed false positive — `remaining` is declared on line 90 of `checkUnlockRate`. FIND-C (genesis check variable binding) confirmed intentional — post-approval re-fetch of `freshMeta` is the designed defence against chain switches during approval.
+
+---
+
 ## Cryptographic Foundations — Confirmed Sound
 
 | Component | Implementation |
@@ -177,7 +212,7 @@ All 8 findings validated by local grep scan (19/19 checks PASS) and independentl
 
 ---
 
-## Files Audited (v0.2.0)
+## Files Audited (v0.3.0)
 
 ```
 manifest.json
@@ -186,6 +221,7 @@ src/background/index.ts
 src/background/message-handler.ts
 src/background/wallet-store.ts
 src/background/vault-store.ts
+src/background/swap-handler.ts          ← new v0.3.0
 src/background/x402-handler.ts
 src/background/mpp-handler.ts
 src/background/ap2-handler.ts
@@ -197,11 +233,13 @@ src/content/provider-bridge.ts
 src/inpage/index.ts
 src/popup/App.tsx
 src/popup/components/AccountView.tsx
+src/popup/components/SwapPanel.tsx      ← new v0.3.0
 src/popup/components/VaultPanel.tsx
 src/popup/hooks/useWalletConnect.ts
 src/approval/index.tsx
 src/shared/constants.ts
 src/shared/utils/crypto.ts
+src/shared/utils/asset-cache.ts         ← new v0.3.0
 src/shared/types/wallet.ts
 src/shared/types/messages.ts
 src/shared/types/approval.ts
