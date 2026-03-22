@@ -21,7 +21,16 @@ function sendBg<T = unknown>(msg: object): Promise<T> {
     chrome.runtime.sendMessage(msg, (res: { ok: boolean; data: T; error?: string }) => {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
       if (res.ok) resolve(res.data);
-      else reject(new Error(res.error));
+      else {
+        // MV3 service workers suspend when idle, wiping in-memory vault key.
+        // When the SW wakes it has no active session so any protected handler
+        // returns "Wallet is locked" — but no LOCK_STATE_CHANGED is broadcast.
+        // Intercept here so ANY caller automatically surfaces the unlock screen.
+        if (res.error?.startsWith("Wallet is locked") || res.error?.startsWith("Wallet locked")) {
+          document.dispatchEvent(new Event("algovou:wallet-locked"));
+        }
+        reject(new Error(res.error));
+      }
     });
   });
 }
@@ -44,7 +53,7 @@ export default function App() {
       })
       .catch(() => setView("setup"));
 
-    // Listen for lock state changes from background
+    // Listen for explicit lock state changes broadcast by the background SW
     const listener = (msg: { type: string; lockState?: LockState }) => {
       if (msg.type === "LOCK_STATE_CHANGED" && msg.lockState) {
         if (msg.lockState === "locked") {
@@ -61,7 +70,18 @@ export default function App() {
       }
     };
     chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+
+    // MV3 SW suspension lock: the service worker wipes _vaultData from memory
+    // when Chrome suspends it. No LOCK_STATE_CHANGED is broadcast in this case.
+    // sendBg() fires this event when any response contains "Wallet is locked" so
+    // the unlock screen appears regardless of how the lock was triggered.
+    const handleImplicitLock = () => setView("unlock");
+    document.addEventListener("algovou:wallet-locked", handleImplicitLock);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+      document.removeEventListener("algovou:wallet-locked", handleImplicitLock);
+    };
   }, []);
 
   if (view === "loading") {
