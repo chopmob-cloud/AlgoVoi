@@ -201,6 +201,34 @@ function SwapForm({
         const sessionTopic = activeAccount.wcSessionTopic;
         if (!sessionTopic) throw new Error("WalletConnect session not found");
 
+        // Re-fetch a fresh quote right before building the swap group.
+        //
+        // The WC signing flow takes 1–5 minutes (user must open wallet app
+        // manually). The quote obtained during "Get Quote" can be stale by
+        // then: the minimum output amounts baked into the AVM app call are
+        // calculated from the quote price, so if the pool moves more than
+        // slippage % between quote time and submission the contract asserts.
+        // Re-quoting here shrinks the staleness window to only the signing
+        // wait (unavoidable), rather than quoting wait + signing wait.
+        console.log("[swap-wc] re-fetching fresh quote before newSwap...");
+        const freshClient = makePopupClient();
+        const freshQ = await freshClient.newQuote({
+          fromASAID: fromAsset.assetId,
+          toASAID:   toAsset.assetId,
+          amount:    parseDecimal(trimAmt, fromAsset.decimals),
+          address:   activeAccount.address,
+        });
+        // Update the displayed quote so the user can see the refreshed output
+        // amount while waiting for WC approval.
+        setQuote({
+          quoteAmount: formatAtomic(freshQ.quote, toAsset.decimals),
+          priceImpact: freshQ.userPriceImpact ?? null,
+          usdIn:       freshQ.usdIn  ?? null,
+          usdOut:      freshQ.usdOut ?? null,
+          routeCount:  freshQ.route?.length ?? 0,
+        });
+        console.log("[swap-wc] fresh quote received — quote:", freshQ.quote?.toString());
+
         const signer: SignerFunction = async (txnGroup, indexesToSign) => {
           console.log("[swap-wc] signer called — txns:", txnGroup.length, "toSign:", indexesToSign);
           return signGroupIndexedWithWC(
@@ -212,10 +240,10 @@ function SwapForm({
           );
         };
 
-        console.log("[swap-wc] calling newSwap...");
+        console.log("[swap-wc] calling newSwap with fresh quote...");
         const client = makePopupClient();
         const swap   = await client.newSwap({
-          quote:    wcQuote,
+          quote:    freshQ,
           address:  activeAccount.address,
           signer,
           slippage: slippageNum,
@@ -243,7 +271,25 @@ function SwapForm({
         setAmount("");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Swap failed");
+      const raw = err instanceof Error ? err.message : String(err);
+      // Detect AVM slippage assertion failures from DEX pool contracts.
+      // These appear as "logic eval error: assert failed" in the algod response
+      // and mean the pool price moved past the slippage tolerance while the
+      // transaction group was in flight (especially likely on the WC path
+      // where signing takes minutes). Surface an actionable message instead
+      // of the raw AVM error string.
+      const isSlippageError =
+        raw.includes("assert failed") ||
+        raw.includes("logic eval error") ||
+        raw.includes("assert") && raw.includes("pc=");
+      if (isSlippageError) {
+        setError(
+          "Swap rejected — pool price moved past your slippage tolerance while waiting for approval.\n" +
+          "Try again immediately, or increase slippage tolerance."
+        );
+      } else {
+        setError(raw);
+      }
     } finally {
       clearInterval(keepAlive);
       setExecuting(false);
