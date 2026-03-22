@@ -262,6 +262,36 @@ export default function VaultPanel({
 
   // ── Vault dashboard ───────────────────────────────────────────────────────
 
+  // Fetch vault ASA balances for display
+  const [vaultAssets, setVaultAssets] = useState<Array<{ id: number; name: string; balance: string }>>([]);
+  useEffect(() => {
+    if (!state?.appAddress) return;
+    (async () => {
+      try {
+        const vCfg   = CHAINS[chain];
+        const vAlgod = new algosdk.Algodv2(vCfg.algod.token, vCfg.algod.url, vCfg.algod.port);
+        const vInfo  = await vAlgod.accountInformation(state.appAddress!).do();
+        const holdings = (vInfo as { assets?: Array<{ assetId: bigint | number; amount: bigint | number }> }).assets ?? [];
+        const cache  = await readAssetCache(chain);
+        const result = holdings
+          .filter((h) => Number(h.amount) > 0 || true) // show all opted-in
+          .map((h) => {
+            const id   = Number(h.assetId);
+            const meta = cache[String(id)];
+            const decimals = meta?.decimals ?? 6;
+            const raw  = BigInt(h.amount);
+            const whole = raw / BigInt(10 ** decimals);
+            const frac  = ((raw % BigInt(10 ** decimals)) * 100n) / BigInt(10 ** decimals);
+            const bal   = frac === 0n ? whole.toString() : `${whole}.${frac.toString().padStart(2, "0")}`;
+            const label = meta?.unitName || meta?.name
+              || (id === vCfg.defaultPaymentAsset?.asaId ? vCfg.defaultPaymentAsset.ticker : `ASA #${id}`);
+            return { id, name: label, balance: bal };
+          });
+        setVaultAssets(result);
+      } catch { /* ignore */ }
+    })();
+  }, [state?.appAddress, chain]);
+
   const { appId, appAddress, agentAddress, global: g, agent: a } = state;
   const explorerBase = cfg.explorer;
   const agentEnabled = a?.enabled ?? false;
@@ -291,6 +321,12 @@ export default function VaultPanel({
             {microToDisplay(g?.vaultBalance ?? "0")} {cfg.ticker}
           </span>
         </div>
+        {vaultAssets.map((va) => (
+          <div key={va.id} className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">{va.name}</span>
+            <span className="text-xs font-semibold">{va.balance}</span>
+          </div>
+        ))}
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-400">Total paid</span>
           <span className="text-xs text-gray-300">
