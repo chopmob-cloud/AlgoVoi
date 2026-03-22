@@ -77,12 +77,10 @@ export async function signGroupIndexedWithWC(
   );
 
   // Restore persisted WC session data. Returns false if snapshot is missing or
-  // expired (>30 days since pairing) — session.get() below will then throw and
-  // the WcSwapWindow stale phase will prompt re-pair.
-  const restored = await restoreWCStorage();
-  if (!restored) {
-    throw new Error(RE_PAIR_MSG);
-  }
+  // expired (>30 days since pairing). Don't throw — session might still be in
+  // localStorage from a recent pairing. session.get() below catches truly
+  // missing sessions and routes to the stale/re-pair UI.
+  await restoreWCStorage();
 
   console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([
