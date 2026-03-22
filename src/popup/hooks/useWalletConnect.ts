@@ -120,9 +120,10 @@ export function useWalletConnect(): UseWalletConnectReturn {
 
 
     // Restore persisted WC session data so SignClient finds existing sessions
-    // even after a lock/unlock cycle wiped localStorage. The lock handler in
-    // App.tsx clears all wc@2:* keys; restoring here ensures the keychain and
-    // session data are present before init() reads them.
+    // even after a lock/unlock cycle wiped localStorage. Returns false if the
+    // snapshot is missing or older than 30 days (expired) — in that case we
+    // proceed without session data, and session.get() will throw downstream,
+    // prompting the user to re-pair.
     await restoreWCStorage();
 
     // The WC relay WebSocket can hang silently in extension contexts (Chrome
