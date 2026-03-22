@@ -186,6 +186,13 @@ function SwapForm({
     setError(null);
     setTxIds(null);
 
+    // Keep the vault unlocked while waiting for the user to approve in their
+    // wallet app. Without this, the 5-minute auto-lock fires and shows the
+    // lock screen mid-swap. Interval cleared in the finally block.
+    const keepAlive = isWC
+      ? setInterval(() => void sendBg({ type: "KEEP_ALIVE" }), 30_000)
+      : undefined;
+
     try {
       if (isWC) {
         // ── WC path: sign in popup via WalletConnect ─────────────────────
@@ -238,6 +245,7 @@ function SwapForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Swap failed");
     } finally {
+      clearInterval(keepAlive);
       setExecuting(false);
     }
   }
