@@ -1,11 +1,18 @@
 /**
  * Standalone WalletConnect indexed-group transaction signing.
  *
- * Mirrors wc-sign.ts exactly (fresh SignClient per call, no settle delay,
- * no session guard) — extended to handle multi-txn groups where only a subset
- * of transactions need the user's signature (e.g. Haystack swap groups).
- *
  * Used by SwapPanel for the WC signing path.
+ *
+ * Dead-session detection strategy:
+ *   1. After SignClient.init(), wait 1.5 s so the relay can deliver any
+ *      pending `session_delete` messages the wallet app sent when it
+ *      disconnected. The client processes them and removes the session from
+ *      localStorage.
+ *   2. Call client.session.get(topic) — throws if the session was removed.
+ *   3. Check the session expiry timestamp.
+ *   4. Wrap client.request() in a 2-minute timeout: for swaps the user must
+ *      have the wallet app open anyway; if nothing responds, the session is
+ *      dead and we surface a clear re-pair message.
  */
 
 import SignClient from "@walletconnect/sign-client";
@@ -20,7 +27,13 @@ import { extractWCSignedTxn } from "@shared/utils/crypto";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
-const RELAY_TIMEOUT_MS = 20_000;
+const RELAY_TIMEOUT_MS  = 20_000;
+const SESSION_SETTLE_MS = 1_500;   // time for relay to deliver pending session_delete events
+const SIGN_TIMEOUT_MS   = 120_000; // 2 min — swap requires wallet app open; dead sessions surface here
+
+const RE_PAIR_MSG =
+  "WalletConnect session is no longer active — your wallet disconnected.\n" +
+  "Remove this account from AlgoVoi and re-pair via + Connect.";
 
 /**
  * Sign a transaction group via WalletConnect where only indexed slots need
@@ -43,16 +56,10 @@ export async function signGroupIndexedWithWC(
     );
   }
 
-  // Race SignClient.init() against a timeout — the relay WebSocket can hang
-  // silently in extension contexts (same guard as wc-sign.ts).
-  const timeoutPromise = new Promise<never>((_, reject) =>
+  // ── 1. Connect to relay ────────────────────────────────────────────────────
+  const relayTimeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(
-      () =>
-        reject(
-          new Error(
-            `Could not connect to WalletConnect relay after ${RELAY_TIMEOUT_MS / 1000}s`
-          )
-        ),
+      () => reject(new Error(`Could not connect to WalletConnect relay after ${RELAY_TIMEOUT_MS / 1000}s`)),
       RELAY_TIMEOUT_MS
     )
   );
@@ -61,7 +68,7 @@ export async function signGroupIndexedWithWC(
   const client = await Promise.race([
     SignClient.init({
       projectId: WC_PROJECT_ID,
-      relayUrl: WC_RELAY_URL,
+      relayUrl:  WC_RELAY_URL,
       metadata: {
         name: "AlgoVoi",
         description: "Web3 wallet for Algorand + Voi with x402 payments",
@@ -69,10 +76,38 @@ export async function signGroupIndexedWithWC(
         icons: [],
       },
     }),
-    timeoutPromise,
+    relayTimeoutPromise,
   ]);
-  console.log("[wc-sign-group] SignClient ready — sending request to relay...");
 
+  // ── 2. Settle: let relay deliver pending session_delete / session_expire ───
+  // When a Defly/Pera user disconnects from their app, the wallet sends a
+  // session_delete message to the relay. If the extension was closed at that
+  // moment it missed the event. On reconnect the relay replays pending
+  // messages; this delay gives the client time to process them and remove
+  // the dead session from localStorage before we check it.
+  await new Promise<void>((r) => setTimeout(r, SESSION_SETTLE_MS));
+  console.log("[wc-sign-group] SignClient ready — checking session...");
+
+  // ── 3. Verify session is still live ───────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let sessionExpiry = 0;
+  try {
+    // client.session.get() throws if the topic is not in the local store
+    // (e.g. session_delete was just processed in the settle window above).
+    const s = client.session.get(sessionTopic) as { expiry?: number };
+    sessionExpiry = s.expiry ?? 0;
+  } catch {
+    throw new Error(RE_PAIR_MSG);
+  }
+
+  if (sessionExpiry > 0 && Math.floor(Date.now() / 1000) > sessionExpiry) {
+    throw new Error(
+      "WalletConnect session has expired.\n" +
+      "Remove this account from AlgoVoi and re-pair via + Connect."
+    );
+  }
+
+  // ── 4. Build and dispatch signing request ─────────────────────────────────
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
   // ARC-0025: send the full group; signers:[] = wallet skips (pre-signed txn).
@@ -81,16 +116,36 @@ export async function signGroupIndexedWithWC(
     signers: indexesToSign.includes(i) ? [signerAddress] : [],
   }));
 
-  // No timeout on client.request() — relay delivery + phone approval legitimately
-  // exceeds 60–90 s. The relay timeout above covers relay connection only.
-  console.log("[wc-sign-group] client.request dispatched — topic:", sessionTopic.slice(0, 16), "txns:", txns.length, "signing:", indexesToSign);
-  const result = await client.request<unknown>({
-    topic: sessionTopic,
-    chainId: wcChain,
-    request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
-  });
+  console.log(
+    "[wc-sign-group] dispatching request — topic:", sessionTopic.slice(0, 16),
+    "txns:", txns.length, "signing:", indexesToSign
+  );
 
-  console.log("[wc-sign-group] wallet responded — result type:", typeof result, Array.isArray(result) ? `array[${(result as unknown[]).length}]` : "");
+  // 2-minute timeout: swap requires the wallet app to be open (push notifications
+  // don't fire for extension origins). If nothing responds after 2 min the
+  // session is dead on the relay side — surface a re-pair message.
+  const signTimeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(RE_PAIR_MSG)),
+      SIGN_TIMEOUT_MS
+    )
+  );
+
+  const result = await Promise.race([
+    client.request<unknown>({
+      topic:   sessionTopic,
+      chainId: wcChain,
+      request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+    }),
+    signTimeoutPromise,
+  ]);
+
+  console.log(
+    "[wc-sign-group] wallet responded — result:",
+    typeof result, Array.isArray(result) ? `array[${(result as unknown[]).length}]` : ""
+  );
+
+  // ── 5. Decode signed bytes ─────────────────────────────────────────────────
   // WC returns one element per txn; unsigned slots come back as null/"".
   const raw = Array.isArray(result) ? result : [result];
   return txns.map((_, i) => {

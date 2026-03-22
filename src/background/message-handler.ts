@@ -193,6 +193,13 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { success: true };
     }
 
+    case "KEEP_ALIVE":
+      // Resets the auto-lock timer without side-effects. Called every 30 s by
+      // the popup during long WC signing waits so the vault stays unlocked
+      // while the user approves a transaction in their wallet app.
+      if (walletStore.getLockState() === "unlocked") walletStore.resetAutoLock();
+      return { alive: true };
+
     case "WALLET_LOCK":
       walletStore.lock();
       broadcastLockState();
