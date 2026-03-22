@@ -1,282 +1,348 @@
-﻿{
-    "contract":  {
-                     "name":  "SpendingCapVault",
-                     "desc":  "Multi-agent spending cap vault. Owner deploys; agents make autonomous payments within on-chain limits.",
-                     "methods":  [
-                                     {
-                                         "name":  "create",
-                                         "desc":  "Deploy the vault. Agents added separately via add_agent().",
-                                         "args":  [
-                                                      {
-                                                          "name":  "global_max_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "global_daily_cap",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "global_max_asa_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "allowlist_enabled",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "add_agent",
-                                         "desc":  "Register a new agent. 0 limits = use global defaults.",
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "max_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "daily_cap",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "update_agent",
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "max_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "daily_cap",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "suspend_agent",
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "resume_agent",
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "remove_agent",
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "add_recipient",
-                                         "args":  [
-                                                      {
-                                                          "name":  "recipient",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "max_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "daily_cap",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "remove_recipient",
-                                         "args":  [
-                                                      {
-                                                          "name":  "recipient",
-                                                          "type":  "address"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "update_global_limits",
-                                         "args":  [
-                                                      {
-                                                          "name":  "max_per_txn",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "daily_cap",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "max_asa_per_txn",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "set_allowlist_enabled",
-                                         "args":  [
-                                                      {
-                                                          "name":  "enabled",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "pay",
-                                         "desc":  "Pay native coin (ALGO/VOI) to receiver. Agent-only.",
-                                         "args":  [
-                                                      {
-                                                          "name":  "receiver",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "amount",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "note",
-                                                          "type":  "string"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "pay_asa",
-                                         "desc":  "Transfer ASA (USDC/aUSDC) to receiver. Agent-only.",
-                                         "args":  [
-                                                      {
-                                                          "name":  "receiver",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "asset",
-                                                          "type":  "asset"
-                                                      },
-                                                      {
-                                                          "name":  "amount",
-                                                          "type":  "uint64"
-                                                      },
-                                                      {
-                                                          "name":  "note",
-                                                          "type":  "string"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "owner_withdraw",
-                                         "args":  [
-                                                      {
-                                                          "name":  "receiver",
-                                                          "type":  "address"
-                                                      },
-                                                      {
-                                                          "name":  "amount",
-                                                          "type":  "uint64"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "opt_in_asa",
-                                         "args":  [
-                                                      {
-                                                          "name":  "asset",
-                                                          "type":  "asset"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "void"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "get_global_state",
-                                         "readonly":  true,
-                                         "args":  [
-
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "(uint64,uint64,uint64,uint64,uint64,uint64,uint64)"
-                                                     }
-                                     },
-                                     {
-                                         "name":  "get_agent_state",
-                                         "readonly":  true,
-                                         "args":  [
-                                                      {
-                                                          "name":  "agent",
-                                                          "type":  "address"
-                                                      }
-                                                  ],
-                                         "returns":  {
-                                                         "type":  "(uint64,uint64,uint64,uint64,uint64)"
-                                                     }
-                                     }
-                                 ]
-                 },
-    "byteCode":  {
-                     "approval":  "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",
-                     "clear":  "CoEBQw=="
-                 },
-    "schema":  {
-                   "globalInts":  7,
-                   "globalByteSlices":  1,
-                   "localInts":  0,
-                   "localByteSlices":  0
-               },
-    "_note":  "Run \u0027algokit compile contracts/spending_cap.py\u0027 then paste the base64 approval/clear bytecode above before deploying."
+{
+    "contract": {
+        "name": "SpendingCapVault",
+        "desc": "Multi-agent spending cap vault. Owner deploys; agents make autonomous payments within on-chain limits.",
+        "methods": [
+            {
+                "name": "create",
+                "args": [
+                    {
+                        "name": "global_max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "global_daily_cap",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "global_max_asa_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "allowlist_enabled",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Deploy the vault. No agents are added yet \u2014 use add_agent() after deployment."
+            },
+            {
+                "name": "pay",
+                "args": [
+                    {
+                        "name": "receiver",
+                        "type": "address"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "note",
+                        "type": "string"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Pay ALGO/VOI to receiver. Any registered, enabled agent may call this.\nEnforces (in order):   1. Agent must be registered and enabled   2. Amount \u2264 agent's effective max_per_txn   3. Agent's effective daily_cap not exceeded   4. If allowlist_enabled=1: receiver must have a RecipientConfig entry   5. Amount \u2264 recipient's effective max_per_txn (if config exists)   6. Recipient's effective daily_cap not exceeded (if config exists)"
+            },
+            {
+                "name": "pay_asa",
+                "args": [
+                    {
+                        "name": "receiver",
+                        "type": "address"
+                    },
+                    {
+                        "name": "asset",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "note",
+                        "type": "string"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Transfer ASA (USDC / aUSDC) to receiver. Any registered, enabled agent may call.\nUses global_max_asa_per_txn as the limit (no per-recipient ASA cap in this version)."
+            },
+            {
+                "name": "add_agent",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    },
+                    {
+                        "name": "max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "daily_cap",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Register a new agent. Set max_per_txn=0 and/or daily_cap=0 to use global defaults.\nOverwrites existing config if agent already registered.\nNote: caller must fund the vault for the box MBR (~0.033 ALGO per agent)."
+            },
+            {
+                "name": "update_agent",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    },
+                    {
+                        "name": "max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "daily_cap",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Update an existing agent's limits without resetting spend counters."
+            },
+            {
+                "name": "suspend_agent",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Immediately block an agent from making payments (e.g. key compromise)."
+            },
+            {
+                "name": "resume_agent",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Re-enable a suspended agent."
+            },
+            {
+                "name": "remove_agent",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Remove an agent entirely and reclaim box MBR."
+            },
+            {
+                "name": "add_recipient",
+                "args": [
+                    {
+                        "name": "recipient",
+                        "type": "address"
+                    },
+                    {
+                        "name": "max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "daily_cap",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Add or update a recipient config. Set limits to 0 to use global defaults.\nWhen allowlist_enabled=1, any recipient not in this map is blocked.\nNote: caller must fund the vault for the box MBR (~0.030 ALGO per recipient)."
+            },
+            {
+                "name": "update_recipient",
+                "args": [
+                    {
+                        "name": "recipient",
+                        "type": "address"
+                    },
+                    {
+                        "name": "max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "daily_cap",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Update recipient limits without resetting spend counters."
+            },
+            {
+                "name": "remove_recipient",
+                "args": [
+                    {
+                        "name": "recipient",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Remove a recipient config and reclaim box MBR."
+            },
+            {
+                "name": "update_global_limits",
+                "args": [
+                    {
+                        "name": "max_per_txn",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "daily_cap",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "max_asa_per_txn",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Update global fallback limits (affects agents/recipients with 0 custom limits)."
+            },
+            {
+                "name": "set_allowlist_enabled",
+                "args": [
+                    {
+                        "name": "enabled",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Toggle recipient allowlist enforcement."
+            },
+            {
+                "name": "owner_withdraw",
+                "args": [
+                    {
+                        "name": "receiver",
+                        "type": "address"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Owner withdraws native coin from vault."
+            },
+            {
+                "name": "owner_withdraw_asa",
+                "args": [
+                    {
+                        "name": "receiver",
+                        "type": "address"
+                    },
+                    {
+                        "name": "asset",
+                        "type": "uint64"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Owner withdraws ASA from vault."
+            },
+            {
+                "name": "opt_in_asa",
+                "args": [
+                    {
+                        "name": "asset",
+                        "type": "uint64"
+                    }
+                ],
+                "returns": {
+                    "type": "void"
+                },
+                "desc": "Opt the vault account into an ASA before first pay_asa(). Owner only."
+            },
+            {
+                "name": "get_global_state",
+                "args": [],
+                "returns": {
+                    "type": "(uint64,uint64,uint64,uint64,uint64,uint64,uint64)"
+                },
+                "desc": "Global vault state \u2014 simulate, no fee.",
+                "readonly": true
+            },
+            {
+                "name": "get_agent_state",
+                "args": [
+                    {
+                        "name": "agent",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "(uint64,uint64,uint64,uint64,uint64)"
+                },
+                "desc": "Return the AgentConfig for a given agent address \u2014 simulate, no fee.",
+                "readonly": true
+            },
+            {
+                "name": "get_recipient_state",
+                "args": [
+                    {
+                        "name": "recipient",
+                        "type": "address"
+                    }
+                ],
+                "returns": {
+                    "type": "(uint64,uint64,uint64,uint64)"
+                },
+                "desc": "Return the RecipientConfig for a given recipient \u2014 simulate, no fee.",
+                "readonly": true
+            }
+        ]
+    },
+    "byteCode": {
+        "approval": "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",
+        "clear": "CoEBQw=="
+    },
+    "schema": {
+        "globalInts": 7,
+        "globalByteSlices": 1,
+        "localInts": 0,
+        "localByteSlices": 0
+    },
+    "_note": "Run 'algokit compile contracts/spending_cap.py' then paste the base64 approval/clear bytecode above before deploying."
 }
