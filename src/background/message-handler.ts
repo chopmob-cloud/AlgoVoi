@@ -221,6 +221,18 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { account };
     }
 
+    case "WALLET_IMPORT_TIMED": {
+      const timedAccount = await walletStore.importTimeLimitedAccount(
+        msg.name, msg.mnemonic, msg.ttlDays
+      );
+      return { account: timedAccount };
+    }
+
+    case "WALLET_GET_EXPIRY": {
+      const expiresAt = walletStore.getAccountExpiry(msg.accountId);
+      return { expiresAt };
+    }
+
     case "WALLET_REMOVE_ACCOUNT": {
       await walletStore.removeAccount(msg.id);
       // If no WC accounts remain, clear the WC session snapshot so stale relay
