@@ -749,13 +749,22 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
               return { paymentHeader, txId: asaTxId };
             }
           } catch (vaultErr) {
-            // Vault failed (cap exceeded, insufficient balance, not opted in, etc.)
-            // Fall through to WC signing as fallback.
-            console.warn("[x402] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
+            // Vault IS deployed but payment failed — surface the error directly.
+            // Don't fall through to WC (which is unreliable and will just show
+            // "session disconnected" after a timeout). The user needs to fix the
+            // vault issue (fund it, opt-in to the ASA, increase cap, etc.).
+            const vaultMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
+            throw new Error(
+              `Vault payment failed: ${vaultMsg}\n\n` +
+              `Check your vault in AlgoVoi → Vault tab:\n` +
+              `• Is the vault funded with enough ${x402AsaId === 0 ? "ALGO" : "of this token"}?\n` +
+              `• Is the token opted in? (Manage tokens → Add to vault)\n` +
+              `• Is the spending cap high enough?`
+            );
           }
         }
 
-        // ── WC fallback path (unchanged) ──
+        // ── WC fallback path (only reached when NO vault is deployed) ──
         // Guard: WC sessions are chain-specific — reject before touching the WC SDK
         // if the payment's chain differs from the chain the session was approved for.
         const paymentChain = x402PayChain;
@@ -1002,13 +1011,19 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
             }
             return { authorizationHeader, txId };
           } catch (vaultErr) {
-            // Vault failed (cap exceeded, balance low, not opted in, etc.)
-            // Fall through to WC signing as fallback.
-            console.warn("[mpp] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
+            // Vault IS deployed but payment failed — surface the error directly.
+            const vaultMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
+            throw new Error(
+              `Vault payment failed: ${vaultMsg}\n\n` +
+              `Check your vault in AlgoVoi → Vault tab:\n` +
+              `• Is the vault funded?\n` +
+              `• Is the token opted in? (Manage tokens → Add to vault)\n` +
+              `• Is the spending cap high enough?`
+            );
           }
         }
 
-        // ── WC fallback path (unchanged) ──
+        // ── WC fallback path (only reached when NO vault is deployed) ──
         const wcData = await buildMppPaymentTxnForWC(mppReq);
         // Persist the updated request (with expectedUnsignedTxnB64 set by buildMppPaymentTxnForWC)
         // to session storage so MPP_WC_SIGNED can recover it if the SW is suspended during
