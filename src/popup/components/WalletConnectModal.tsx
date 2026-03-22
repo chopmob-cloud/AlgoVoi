@@ -14,6 +14,7 @@ import { useState, useEffect } from "react";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import { STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
 import { appendDebugLog, exportDebugLog, sanitizeAddress, sanitizeTopic } from "@shared/debug-log";
+import { snapshotWCStorage } from "@shared/utils/wc-storage";
 import type { Account, WalletMeta } from "@shared/types/wallet";
 import type { ChainId } from "@shared/types/chain";
 
@@ -211,6 +212,13 @@ export default function WalletConnectModal({ chain = "algorand", onConnected, on
         } catch (e) { clearTimeout(timer); reject(e); }
       });
       appendDebugLog("modal:storage_write_ok", { topic: sanitizeTopic(session.topic) });
+
+      // Snapshot WC session data (keychain + session) from localStorage into
+      // chrome.storage.local so it survives the next lock/unlock cycle.
+      // The lock handler in App.tsx wipes all wc@2:* keys; without this snapshot
+      // the stored wcSessionTopic becomes unusable after the first auto-lock.
+      await snapshotWCStorage();
+      appendDebugLog("modal:wc_snapshot_done");
 
       // Clear the dedup guard. Do NOT call onConnected here — in the WalletSetup
       // inline path onConnected calls onComplete() which triggers setView("wallet")
