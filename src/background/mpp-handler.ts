@@ -535,49 +535,9 @@ export async function handleMpp(params: {
     timestamp: Date.now(),
     isWalletConnect,
   };
-  // ── Vault auto-payment: skip popup for native-coin MPP when agent key is available ──
-  // Mirrors the AP2 vault auto-sign path. Uses vaultPay directly so the balance check
-  // runs against the vault app account, not the active (possibly WC) account.
-  // The source in the credential is the vault app address, matching what the merchant
-  // expects when the payment originates from the spending-cap vault.
-  // On any failure, fall through to the standard approval popup.
-  const isNativeCoin =
-    avmRequest.currency.toUpperCase() === "ALGO" ||
-    avmRequest.currency.toUpperCase() === "VOI" ||
-    avmRequest.currency === "0";
-  const mppVaultApp = walletStore.getVaultApp(chain);
-  const mppAgent    = walletStore.getAgentAddress();
-
-  if (mppVaultApp && mppAgent && isNativeCoin) {
-    try {
-      const agentSk = await walletStore.getAgentSecretKey();
-      const amount  = BigInt(avmRequest.amount);
-      const note    = `mpp:${avmRequest.recipient}`.slice(0, 1000);
-      const { txId } = await vaultPay(
-        chain, mppVaultApp.appId, agentSk, mppAgent,
-        avmRequest.recipient, amount, note
-      );
-      await waitForConfirmation(chain, txId, 8);
-      await waitForIndexed(chain, txId);
-      const credential: MppCredential = {
-        challenge,
-        source: `did:pkh:avm:${avmRequest.network}:${mppVaultApp.appAddress}`,
-        payload: { txId, transaction: "" },
-      };
-      const authorizationHeader = serializeMppCredential(credential);
-      _pendingMppRequests.delete(requestId);
-      chrome.tabs.sendMessage(params.tabId, {
-        type: "MPP_RESULT",
-        requestId: params.inpageRequestId ?? requestId,
-        approved: true,
-        authorizationHeader,
-        txId,
-      }).catch(() => {});
-      return requestId;
-    } catch {
-      // Vault auto-pay failed for any reason — fall through to approval popup
-    }
-  }
+  // Vault auto-pay disabled for MPP — MPP servers expect standard Payment/
+  // AssetTransfer transactions, not application calls with inner transactions.
+  // The vault's pay() produces an app call which is rejected as wrong tx type.
 
   // ── Standard approval popup path ─────────────────────────────────────────
   // requestApproval opens the popup and waits for user action; we fire-and-forget
