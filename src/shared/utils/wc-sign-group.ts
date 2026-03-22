@@ -35,7 +35,7 @@ import {
   WC_METHOD_SIGN_TXN,
 } from "@shared/constants";
 import { extractWCSignedTxn } from "@shared/utils/crypto";
-import { restoreWCStorage } from "@shared/utils/wc-storage";
+import { chromeStorage } from "@shared/utils/wc-chrome-storage";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -76,17 +76,12 @@ export async function signGroupIndexedWithWC(
     )
   );
 
-  // Restore persisted WC session data. Returns false if snapshot is missing or
-  // expired (>30 days since pairing). Don't throw — session might still be in
-  // localStorage from a recent pairing. session.get() below catches truly
-  // missing sessions and routes to the stale/re-pair UI.
-  await restoreWCStorage();
-
   console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([
     SignClient.init({
       projectId: WC_PROJECT_ID,
       relayUrl:  WC_RELAY_URL,
+      storage:   chromeStorage,
       metadata: {
         name: "AlgoVoi",
         description: "Web3 wallet for Algorand + Voi with x402 payments",

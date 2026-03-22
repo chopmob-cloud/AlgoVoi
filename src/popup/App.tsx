@@ -62,10 +62,9 @@ export default function App() {
     const listener = (msg: { type: string; lockState?: LockState }) => {
       if (msg.type === "LOCK_STATE_CHANGED" && msg.lockState) {
         if (msg.lockState === "locked") {
-          // L5*: Best-effort — clear WC SDK session data from popup localStorage
-          // on lock so a physical-access attacker cannot read cached session keys
-          // from DevTools. Only effective while the popup is open; closing the
-          // popup without locking leaves the data intact (acceptable trade-off).
+          // L5*: Clear any residual WC SDK data from localStorage on lock.
+          // WC sessions are now stored in chrome.storage.local via the
+          // chromeStorage adapter, but legacy entries may exist in localStorage.
           Object.keys(localStorage)
             .filter((k) => k.startsWith("wc@2:"))
             .forEach((k) => localStorage.removeItem(k));
