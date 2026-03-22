@@ -189,11 +189,13 @@ function SwapForm({
     try {
       if (isWC) {
         // ── WC path: sign in popup via WalletConnect ─────────────────────
+        console.log("[swap-wc] execute start — wcQuote:", !!wcQuote, "sessionTopic:", activeAccount.wcSessionTopic?.slice(0, 16));
         if (!wcQuote) throw new Error("Quote expired — get a new quote first");
         const sessionTopic = activeAccount.wcSessionTopic;
         if (!sessionTopic) throw new Error("WalletConnect session not found");
 
         const signer: SignerFunction = async (txnGroup, indexesToSign) => {
+          console.log("[swap-wc] signer called — txns:", txnGroup.length, "toSign:", indexesToSign);
           return signGroupIndexedWithWC(
             sessionTopic,
             "algorand",
@@ -203,6 +205,7 @@ function SwapForm({
           );
         };
 
+        console.log("[swap-wc] calling newSwap...");
         const client = makePopupClient();
         const swap   = await client.newSwap({
           quote:    wcQuote,
@@ -210,6 +213,7 @@ function SwapForm({
           signer,
           slippage: slippageNum,
         });
+        console.log("[swap-wc] calling execute...");
         const result = await swap.execute();
         setTxIds(result.txIds);
         setQuote(null);
