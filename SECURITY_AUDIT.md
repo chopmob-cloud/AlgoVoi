@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.3.0
+**Version:** 0.3.1
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Final Status: All Issues Resolved
@@ -19,6 +19,8 @@
 **Hardening XI (v0.2.0 — March 2026):** SpendingCapVault feature (AVM smart contract + WalletConnect owner actions). Full re-audit + Comet AI dual-validation. All 8 new findings closed in same pass.
 
 **Hardening XII (v0.3.0 — March 2026):** Haystack Router DEX swap integration + WalletConnect signing hardening + ASA metadata cache. Full security audit + independent Comet CDP validation (all 7 claims CONFIRMED). All 3 new findings closed in same pass.
+
+**Hardening XIII (v0.3.1 — March 2026):** WalletConnect swap reliability + MV3 vault lock hardening. Dead-session detection (settle delay + session expiry check + 2-min relay timeout), vault keep-alive during WC signing, MV3 SW suspension lock correctly surfaced to UI. All 4 new findings closed in same pass.
 
 ---
 
@@ -60,6 +62,10 @@
 | SW-1 | Low | ✅ CLOSED | `swap-handler.ts::parseDecimal` — uint64 overflow check added |
 | SW-2 | Low | ✅ CLOSED | `executeSwap` — address ownership + WC account type assertion before secret key use |
 | FIND-B | Low | ✅ CLOSED | `SwapPanel.tsx::parseDecimal` — uint64 overflow guard added to match background |
+| XIII-1 | Medium | ✅ CLOSED | WC swap: dead-session detection — 1.5 s relay settle + `session.get()` + expiry check + 2-min relay timeout with re-pair message |
+| XIII-2 | Low | ✅ CLOSED | WC swap: vault auto-locks during signing wait — `KEEP_ALIVE` message + 30 s popup interval prevents MV3 5-min lock |
+| XIII-3 | Medium | ✅ CLOSED | MV3 SW suspension silently locks vault — `sendBg()` detects "Wallet is locked" and fires `algovou:wallet-locked` DOM event; App.tsx shows unlock screen |
+| XIII-4 | Low | ✅ CLOSED | WC swap: `useWalletConnect` hook diverged from `wc-sign.ts` (cached client, settle delay, session guard) — replaced with standalone `wc-sign-group.ts` mirroring proven pattern |
 
 ---
 
