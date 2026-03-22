@@ -78,7 +78,9 @@ export const HEADER_PAYMENT_RESPONSE  = "PAYMENT-RESPONSE"  as const;
 
 /** Storage keys */
 export const STORAGE_KEY_VAULT = "algovou_vault";
-export const STORAGE_KEY_META = "algovou_meta";
+export const STORAGE_KEY_META  = "algovou_meta";
+/** Immutable ASA metadata cache — keyed by chain then assetId. Never expires. */
+export const STORAGE_KEY_ASSET_CACHE = "algovou_asset_cache";
 
 /** Auto-lock timeout in minutes */
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;

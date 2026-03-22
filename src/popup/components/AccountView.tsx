@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { readAssetCache, writeAssetCache } from "@shared/utils/asset-cache";
 import algosdk from "algosdk";
 import QRCode from "qrcode";
 import ChainToggle from "./ChainToggle";
@@ -8,11 +9,12 @@ import { abbreviateAddress, formatAmount } from "@shared/utils/format";
 import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import VaultPanel from "./VaultPanel";
+import SwapPanel from "./SwapPanel";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
-type Tab = "assets" | "history" | "apps" | "agents" | "vault";
+type Tab = "assets" | "swap" | "history" | "apps" | "agents" | "vault";
 type Modal = "send" | "receive" | null;
 
 /**
@@ -96,30 +98,68 @@ function createPairTab(url: string) {
  * Fetch account state directly from algonode — no chrome.runtime.sendMessage.
  * This avoids the freeze that occurs when the WC relay WebSocket is still alive
  * in the popup's JS context right after pairing.
- * Also enriches each ASA with on-chain metadata (name, unitName, decimals).
+ *
+ * ASA metadata (name, unitName, decimals) is immutable on-chain and cached
+ * permanently in chrome.storage.local. Only balances are fetched live.
+ * On repeat opens the API call count is: 1 (account info) + N_uncached (new ASAs).
  */
 async function fetchChainStateDirect(
   address: string,
   chain: ChainId
 ): Promise<AccountState> {
-  const cfg = CHAINS[chain];
+  const cfg  = CHAINS[chain];
   const algod = new algosdk.Algodv2(cfg.algod.token, cfg.algod.url, cfg.algod.port);
+
+  // ── 1. Fetch live account data (balances + held asset IDs) ──────────────
   const info = await algod.accountInformation(address).do();
-  const holdings: algosdk.modelsv2.AssetHolding[] = (info as { assets?: algosdk.modelsv2.AssetHolding[] }).assets ?? [];
+  const holdings: algosdk.modelsv2.AssetHolding[] =
+    (info as { assets?: algosdk.modelsv2.AssetHolding[] }).assets ?? [];
 
-  // Fetch metadata for all held ASAs in parallel; individual failures are non-fatal
-  const metaResults = await Promise.allSettled(
-    holdings.map((h) => algod.getAssetByID(Number(h.assetId)).do())
-  );
+  // ── 2. Read metadata cache; find which ASAs are missing ─────────────────
+  const cache = await readAssetCache(chain);
+  const uncached = holdings.filter((h) => !cache[String(h.assetId)]);
 
-  const assets: AccountAsset[] = holdings.map((h, i) => {
-    const result = metaResults[i];
-    const params = result.status === "fulfilled" ? result.value.params : undefined;
+  // ── 3. Fetch metadata only for uncached ASAs (typically 0 on repeat opens) ──
+  if (uncached.length > 0) {
+    const BATCH = 5;
+    const fetched: Record<number, import("@shared/utils/asset-cache").AssetMeta> = {};
+
+    for (let i = 0; i < uncached.length; i += BATCH) {
+      const chunk = uncached.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        chunk.map((h) => algod.getAssetByID(Number(h.assetId)).do())
+      );
+      results.forEach((result, j) => {
+        const assetId = Number(chunk[j].assetId);
+        const params = result.status === "fulfilled" ? result.value.params : undefined;
+        fetched[assetId] = {
+          name:     params?.name     ?? "",
+          unitName: params?.unitName ?? "",
+          decimals: Number(params?.decimals ?? 0),
+        };
+      });
+      if (i + BATCH < uncached.length) {
+        await new Promise<void>((r) => setTimeout(r, 150));
+      }
+    }
+
+    // Persist new entries (fire-and-forget — non-blocking)
+    writeAssetCache(chain, fetched).catch(() => { /* storage quota: best-effort */ });
+
+    // Merge into local cache view so the rest of this call can use it
+    for (const [id, meta] of Object.entries(fetched)) {
+      cache[id] = meta;
+    }
+  }
+
+  // ── 4. Build asset list from live balances + cached metadata ────────────
+  const assets: AccountAsset[] = holdings.map((h) => {
+    const meta = cache[String(h.assetId)];
     return {
       assetId:  Number(h.assetId),
-      name:     params?.name     ?? "",
-      unitName: params?.unitName ?? "",
-      decimals: Number(params?.decimals ?? 0),
+      name:     meta?.name     ?? "",
+      unitName: meta?.unitName ?? "",
+      decimals: meta?.decimals ?? 0,
       amount:   h.amount,
       frozen:   h.isFrozen,
     };
@@ -418,11 +458,14 @@ export default function AccountView() {
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
-        {(["assets", "history", "apps", "agents", "vault"] as Tab[]).map((t) => (
+        {(activeChain === "algorand"
+          ? ["assets", "swap", "history", "apps", "agents", "vault"]
+          : ["assets", "history", "apps", "agents", "vault"]
+        ).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-t-md capitalize transition-colors ${
+            onClick={() => setTab(t as Tab)}
+            className={`text-xs font-medium px-2 py-1.5 rounded-t-md capitalize transition-colors ${
               tab === t
                 ? "text-white border-b-2 border-algo"
                 : "text-gray-400 hover:text-white"
@@ -438,6 +481,13 @@ export default function AccountView() {
         {tab === "assets" && (
           <AssetList
             chain={activeChain}
+            balance={chainState?.balance ?? 0n}
+            assets={chainState?.assets ?? []}
+          />
+        )}
+        {tab === "swap" && activeAccount && (
+          <SwapPanel
+            activeAccount={activeAccount}
             balance={chainState?.balance ?? 0n}
             assets={chainState?.assets ?? []}
           />

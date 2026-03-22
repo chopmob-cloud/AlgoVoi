@@ -62,6 +62,19 @@ export interface UseWalletConnectReturn {
     txns: algosdk.Transaction[],
     signerAddress: string
   ) => Promise<Uint8Array[]>;
+  /**
+   * Sign a transaction group where only a subset of transactions need the
+   * user's signature (e.g. a Haystack swap group containing logic-sig txns).
+   * Transactions NOT in indexesToSign are sent with signers:[] (wallet skips them).
+   * Returns a parallel array: Uint8Array for signed slots, null for unsigned slots.
+   */
+  signGroupIndexed: (
+    sessionTopic: string,
+    chain: ChainId,
+    txns: algosdk.Transaction[],
+    indexesToSign: number[],
+    signerAddress: string
+  ) => Promise<(Uint8Array | null)[]>;
   reset: () => void;
 }
 
@@ -442,6 +455,13 @@ export function useWalletConnect(): UseWalletConnectReturn {
       signerAddress: string
     ): Promise<Uint8Array> => {
       const client = await getClient();
+
+      if (!client.session.get(sessionTopic)) {
+        throw new Error(
+          "WalletConnect session expired — remove and reconnect your wallet via the + Connect button."
+        );
+      }
+
       const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
       // Encode unsigned transaction as base64 msgpack
@@ -450,14 +470,25 @@ export function useWalletConnect(): UseWalletConnectReturn {
 
       // ARC-0025 / Pera/Defly format: array of txn groups.
       // Use `unknown` — Defly may return [[string]] (nested) instead of [string] (flat).
-      const result = await client.request<unknown>({
-        topic: sessionTopic,
-        chainId: wcChain,
-        request: {
-          method: WC_METHOD_SIGN_TXN,
-          params: [[{ txn: txnB64, signers: [signerAddress] }]],
-        },
-      });
+      const result = await Promise.race([
+        client.request<unknown>({
+          topic: sessionTopic,
+          chainId: wcChain,
+          request: {
+            method: WC_METHOD_SIGN_TXN,
+            params: [[{ txn: txnB64, signers: [signerAddress] }]],
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(
+              "Wallet did not respond in 60s — open your wallet app and try again. " +
+              "If this keeps happening, remove and reconnect the account."
+            )),
+            60_000
+          )
+        ),
+      ]);
 
       // extractWCSignedTxn flattens [[str]] → [str] and decodes URL-safe base64.
       return extractWCSignedTxn(result);
@@ -473,6 +504,13 @@ export function useWalletConnect(): UseWalletConnectReturn {
       signerAddress: string
     ): Promise<Uint8Array[]> => {
       const client  = await getClient();
+
+      if (!client.session.get(sessionTopic)) {
+        throw new Error(
+          "WalletConnect session expired — remove and reconnect your wallet via the + Connect button."
+        );
+      }
+
       const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
       const txnParams = txns.map((txn) => {
@@ -480,11 +518,22 @@ export function useWalletConnect(): UseWalletConnectReturn {
         return { txn: btoa(String.fromCharCode(...bytes)), signers: [signerAddress] };
       });
 
-      const result = await client.request<unknown>({
-        topic: sessionTopic,
-        chainId: wcChain,
-        request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
-      });
+      const result = await Promise.race([
+        client.request<unknown>({
+          topic: sessionTopic,
+          chainId: wcChain,
+          request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(
+              "Wallet did not respond in 60s — open your wallet app and try again. " +
+              "If this keeps happening, remove and reconnect the account."
+            )),
+            60_000
+          )
+        ),
+      ]);
 
       // WC group response: [signedB64_0, signedB64_1, ...] — one element per txn.
       const raw = Array.isArray(result) ? result : [result];
@@ -503,6 +552,71 @@ export function useWalletConnect(): UseWalletConnectReturn {
     [getClient]
   );
 
+  const signGroupIndexed = useCallback(
+    async (
+      sessionTopic: string,
+      chain: ChainId,
+      txns: algosdk.Transaction[],
+      indexesToSign: number[],
+      signerAddress: string
+    ): Promise<(Uint8Array | null)[]> => {
+      const client  = await getClient();
+      const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
+
+      // Guard: check the session is still live in the local WC store before
+      // sending a request that will hang indefinitely on a dead topic.
+      if (!client.session.get(sessionTopic)) {
+        throw new Error(
+          "WalletConnect session expired — remove and reconnect your wallet via the + Connect button."
+        );
+      }
+
+      // Send every txn for context; signers:[] tells the wallet to skip unsigned ones.
+      const txnParams = txns.map((txn, i) => ({
+        txn: btoa(String.fromCharCode(...txn.toByte())),
+        signers: indexesToSign.includes(i) ? [signerAddress] : [],
+      }));
+
+      // 60-second timeout — if the relay delivers but the phone never responds,
+      // surface a reconnect hint rather than hanging for minutes.
+      const SIGN_TIMEOUT_MS = 60_000;
+      const result = await Promise.race([
+        client.request<unknown>({
+          topic:   sessionTopic,
+          chainId: wcChain,
+          request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(
+              "Wallet did not respond in 60s — open your wallet app and try again. " +
+              "If this keeps happening, remove and reconnect the account."
+            )),
+            SIGN_TIMEOUT_MS
+          )
+        ),
+      ]);
+
+      // WC returns one element per txn; unsigned slots come back as null/"".
+      const raw = Array.isArray(result) ? result : [result];
+      return txns.map((_, i) => {
+        if (!indexesToSign.includes(i)) return null;
+        const r = raw[i];
+        if (!r) return null;
+        if (r instanceof Uint8Array) return r;
+        if (typeof r === "string" && r) {
+          return Uint8Array.from(
+            atob(r.replace(/-/g, "+").replace(/_/g, "/")),
+            (c) => c.charCodeAt(0)
+          );
+        }
+        if (Array.isArray(r)) return extractWCSignedTxn(r);
+        return null;
+      });
+    },
+    [getClient]
+  );
+
   const reset = useCallback(() => {
     setQrDataUrl(null);
     setWcUri(null);
@@ -511,5 +625,5 @@ export function useWalletConnect(): UseWalletConnectReturn {
     setError(null);
   }, []);
 
-  return { qrDataUrl, wcUri, connecting, session, error, startPairing, signTransaction, signGroup, reset };
+  return { qrDataUrl, wcUri, connecting, session, error, startPairing, signTransaction, signGroup, signGroupIndexed, reset };
 }
