@@ -46,6 +46,8 @@ const M = {
   resume_agent:         method("resume_agent"),
   update_global_limits: method("update_global_limits"),
   pay:                  method("pay"),
+  pay_asa:              method("pay_asa"),
+  opt_in_asa:           method("opt_in_asa"),
   owner_withdraw:       method("owner_withdraw"),
 };
 
@@ -561,6 +563,61 @@ export async function vaultPay(
     atc.addMethodCall({
       appID: appId, method: M.pay,
       methodArgs: [receiver, amount, note],
+      sender:      agentAddr,
+      suggestedParams: sp,
+      signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
+      boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+    });
+  });
+}
+
+/**
+ * Transfer an ASA (USDC, aUSDC, etc.) from the vault to a receiver.
+ * Mirrors vaultPay() but calls the contract's pay_asa method which issues
+ * an inner ASA transfer instead of a native payment.
+ *
+ * The vault must already be opted in to the asset (via opt_in_asa).
+ */
+export async function vaultAsaPay(
+  chain:     ChainId,
+  appId:     number,
+  agentSk:   Uint8Array,
+  agentAddr: string,
+  receiver:  string,
+  assetId:   number,
+  amount:    bigint,
+  note:      string
+): Promise<{ txId: string }> {
+  // Pre-flight: check the vault holds enough of this ASA
+  const algod     = getAlgodClient(chain);
+  const vaultAddr = algosdk.getApplicationAddress(appId).toString();
+  const accInfo   = await algod.accountInformation(vaultAddr).do();
+
+  // Find the ASA holding
+  const holding = (accInfo.assets as Array<{ assetId: number; amount: number }>)
+    ?.find((a: { assetId: number }) => a.assetId === assetId);
+  const asaBalance = holding ? BigInt(holding.amount) : 0n;
+  if (asaBalance < amount) {
+    throw new Error(
+      `Vault ASA balance too low. The vault holds ${asaBalance} units of asset ${assetId} ` +
+      `but the payment requires ${amount}. Fund the vault with more of this asset.`
+    );
+  }
+
+  // Also check native balance covers fees (outer + inner)
+  const balance  = BigInt(accInfo.amount);
+  const mbr      = BigInt(accInfo.minBalance);
+  const feeGuard = mbr + 3_000n; // MBR + outer fee + inner fee + buffer
+  if (balance < feeGuard) {
+    throw new Error(
+      "Vault needs a small ALGO balance to cover transaction fees for ASA transfers."
+    );
+  }
+
+  return runAtc(chain, (atc, sp) => {
+    atc.addMethodCall({
+      appID: appId, method: M.pay_asa,
+      methodArgs: [receiver, assetId, amount, note],
       sender:      agentAddr,
       suggestedParams: sp,
       signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
