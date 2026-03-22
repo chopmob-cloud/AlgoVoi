@@ -308,6 +308,23 @@ export const walletStore = {
     if (!algosdk.isValidAddress(address)) {
       throw new Error("Invalid Algorand address — cannot add WalletConnect account");
     }
+    const meta = await loadMeta();
+
+    // Upsert: if an account with this address already exists as a WC account,
+    // update its session topic rather than creating a duplicate. This is the
+    // re-pair path — the user's Algorand address never changes, only the WC
+    // session changes when the wallet app disconnects or is reinstalled.
+    const existing = meta.accounts.find(
+      (a) => a.address === address && a.type === "walletconnect"
+    );
+    if (existing) {
+      existing.wcSessionTopic = sessionTopic;
+      existing.wcPeerName     = peerName;
+      if (chain) existing.wcChain = chain;
+      await saveMeta(meta);
+      return existing;
+    }
+
     const id = randomId();
     const account: Account = {
       id,
@@ -318,7 +335,6 @@ export const walletStore = {
       wcPeerName: peerName,
       ...(chain ? { wcChain: chain } : {}),
     };
-    const meta = await loadMeta();
     meta.accounts.push(account);
     if (!meta.activeAccountId) meta.activeAccountId = id;
     await saveMeta(meta);
