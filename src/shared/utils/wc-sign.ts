@@ -66,7 +66,12 @@ export async function signTransactionWithWC(
   // ── 1. Restore session data ────────────────────────────────────────────────
   // Lock/unlock cycles wipe wc@2:* from localStorage. Restore the snapshot so
   // SignClient.init() finds the existing session.
-  await restoreWCStorage();
+  // Returns false if no snapshot exists or snapshot is older than 30 days —
+  // fail immediately rather than waiting for the ping/sign timeout.
+  const restored = await restoreWCStorage();
+  if (!restored) {
+    throw new Error(RE_PAIR_MSG);
+  }
 
   // ── 2. Connect to relay ────────────────────────────────────────────────────
   const timeoutPromise = new Promise<never>((_, reject) =>
