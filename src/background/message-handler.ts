@@ -110,6 +110,15 @@ async function clearUnlockRate(key: string): Promise<void> {
   await chrome.storage.session.set({ [RATE_LIMIT_SESSION_KEY]: rateMap });
 }
 
+/**
+ * Wipe a secret key Uint8Array by filling with zeros.
+ * Best-effort in JS (GC timing is unpredictable), but reduces the window
+ * of exposure in memory. Call in finally blocks after signing.
+ */
+function wipeKey(sk: Uint8Array): void {
+  sk.fill(0);
+}
+
 /** Parse decimal amount string → atomic BigInt without float rounding errors */
 function parseDecimalToAtomic(amount: string, decimals: number): bigint {
   const clean = amount.trim();
@@ -299,25 +308,24 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const senderAddress = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;
       if (!senderAddress) throw new Error("No active account");
       const sk = await walletStore.getActiveSecretKey();
-      const params = await getSuggestedParams(chain);
-      const cfg = CHAINS[chain];
-      // BigInt-safe decimal → atomic conversion (avoids float rounding errors)
-      const amountAtomic = parseDecimalToAtomic(msg.amount, cfg.decimals);
-      // Encode then byte-slice to the AVM 1000-byte note limit (safer than char-slice
-      // which would overshoot for multi-byte characters).
-      const note = msg.note
-        ? new TextEncoder().encode(msg.note).slice(0, 1000)
-        : undefined;
-      const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: senderAddress,
-        receiver: msg.to,
-        amount: amountAtomic,
-        note,
-        suggestedParams: params,
-      });
-      const signedBytes = txn.signTxn(sk);
-      const txId = await submitTransaction(chain, signedBytes);
-      return { txId };
+      try {
+        const params = await getSuggestedParams(chain);
+        const cfg = CHAINS[chain];
+        const amountAtomic = parseDecimalToAtomic(msg.amount, cfg.decimals);
+        const note = msg.note
+          ? new TextEncoder().encode(msg.note).slice(0, 1000)
+          : undefined;
+        const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: senderAddress,
+          receiver: msg.to,
+          amount: amountAtomic,
+          note,
+          suggestedParams: params,
+        });
+        const signedBytes = txn.signTxn(sk);
+        const txId = await submitTransaction(chain, signedBytes);
+        return { txId };
+      } finally { wipeKey(sk); }
     }
 
     case "CHAIN_SEND_ASSET": {
@@ -335,23 +343,24 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const senderAddress = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;
       if (!senderAddress) throw new Error("No active account");
       const sk = await walletStore.getActiveSecretKey();
-      const params = await getSuggestedParams(chain);
-      // Use msg.decimals passed by the frontend (frontend has full AccountAsset metadata)
-      const amountAtomic = parseDecimalToAtomic(msg.amount, msg.decimals);
-      const note = msg.note
-        ? new TextEncoder().encode(msg.note).slice(0, 1000)
-        : undefined;
-      const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        sender: senderAddress,
-        receiver: msg.to,
-        assetIndex: msg.assetId,
-        amount: amountAtomic,
-        note,
-        suggestedParams: params,
-      });
-      const signedBytes = txn.signTxn(sk);
-      const txId = await submitTransaction(chain, signedBytes);
-      return { txId };
+      try {
+        const params = await getSuggestedParams(chain);
+        const amountAtomic = parseDecimalToAtomic(msg.amount, msg.decimals);
+        const note = msg.note
+          ? new TextEncoder().encode(msg.note).slice(0, 1000)
+          : undefined;
+        const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: senderAddress,
+          receiver: msg.to,
+          assetIndex: msg.assetId,
+          amount: amountAtomic,
+          note,
+          suggestedParams: params,
+        });
+        const signedBytes = txn.signTxn(sk);
+        const txId = await submitTransaction(chain, signedBytes);
+        return { txId };
+      } finally { wipeKey(sk); }
     }
 
     // ── Submit pre-signed transaction (WalletConnect flow) ────────────────────

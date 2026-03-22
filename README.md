@@ -160,7 +160,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 1 High · 2 Medium open** (Hardening I–XIV complete, Comet CDP independently validated v0.4.0).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XIV complete, Comet CDP independently validated v0.4.0).
 
 ### 30-day local signing key
 

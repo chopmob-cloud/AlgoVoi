@@ -139,6 +139,7 @@ export async function executeSwap(params: {
   });
 
   const result = await swap.execute();
+  sk.fill(0); // XIV-1: wipe secret key after swap completes
 
   return {
     txIds: result.txIds,

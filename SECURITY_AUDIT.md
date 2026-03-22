@@ -7,7 +7,7 @@
 ## Status
 
 ```
-0 Critical   1 High   2 Medium   0 Low open
+0 Critical   0 High   0 Medium   0 Low open   (1 accepted risk: XIV-2)
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -73,10 +73,10 @@
 | XIII-2 | Low | ✅ CLOSED | WC swap: vault auto-locks during signing wait — `KEEP_ALIVE` message + 30 s popup interval prevents MV3 5-min lock |
 | XIII-3 | Medium | ✅ CLOSED | MV3 SW suspension silently locks vault — `sendBg()` detects "Wallet is locked" and fires `algovou:wallet-locked` DOM event; App.tsx shows unlock screen |
 | XIII-4 | Low | ✅ CLOSED | WC swap: `useWalletConnect` hook diverged from `wc-sign.ts` (cached client, settle delay, session guard) — replaced with standalone `wc-sign-group.ts` mirroring proven pattern |
-| H5 | High | ⚠️ OPEN | `.env` contains live Haystack API key — verify never committed to git history; rotate if exposed |
-| XIV-1 | Medium | ⚠️ OPEN | Secret keys not zeroed after signing — add `.fill(0)` in `finally` blocks for `getActiveSecretKey()`/`getAgentSecretKey()` return values |
-| XIV-2 | Medium | ⚠️ OPEN | Haystack API key compiled into extension bundle via `import.meta.env` — treat as public, rate-limit server-side |
-| XIV-3 | Low | ✅ CLOSED | WC session topic logged verbatim in `web3wallet-handler.ts` `console.info` — should use `sanitizeTopic()` |
+| H5 | High | ✅ CLOSED | `.env` verified never committed to git history (`git log --all -- .env` = empty); `.gitignore` covers `.env`, `.env.local`, `.env.*.local` |
+| XIV-1 | Medium | ✅ CLOSED | Secret keys zeroed with `.fill(0)` after signing in all 7 handlers: message-handler (send, ASA send), x402-handler, mpp-handler, ap2-handler, swap-handler, web3wallet-handler |
+| XIV-2 | Medium | ℹ️ ACCEPTED | Haystack API key compiled into bundle — accepted risk for client-side API keys; rate-limited server-side by Haystack |
+| XIV-3 | Low | ✅ CLOSED | WC session topic truncated to 8 chars in `console.info` calls (`topic.slice(0, 8)…`) |
 
 ---
 

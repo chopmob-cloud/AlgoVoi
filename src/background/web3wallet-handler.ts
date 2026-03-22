@@ -276,7 +276,7 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
       // using 1 explicitly avoids CWS reviewer concern about aggressive keepalive.
       chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
 
-      console.info(`[AlgoVoi W3W] Agent session approved: ${topic} (${session.peer.metadata.name})`);
+      console.info(`[AlgoVoi W3W] Agent session approved: ${topic.slice(0, 8)}… (${session.peer.metadata.name})`);
     } catch (err) {
       console.error("[AlgoVoi W3W] session_proposal handler error:", err);
     }
@@ -470,7 +470,7 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
     if (topic) {
       const topics = await getStoredTopics();
       await storeSessions(topics.filter((t) => t !== topic));
-      console.info(`[AlgoVoi W3W] Session deleted by peer: ${topic}`);
+      console.info(`[AlgoVoi W3W] Session deleted by peer: ${topic.slice(0, 8)}…`);
       // Stop keepalive only if no sessions AND no pending pairings remain
       const remaining = w3w.getActiveSessions();
       if (Object.keys(remaining).length === 0 && getActivePairings() === 0) {
