@@ -749,13 +749,23 @@ function TokenManagementCard({
     if (!activeAccount) return;
     setLoadingAssets(true);
     try {
-      // Fetch wallet's assets
-      const stateResult = await sendBg<{ balance: string; assets: Array<{ assetId: number; name: string; unitName: string }> }>({
-        type: "GET_ACCOUNT_STATE",
+      // Fetch wallet's assets via CHAIN_GET_ACCOUNT_STATE
+      const stateResult = await sendBg<{ state: { assets: Array<{ assetId: number; name: string; unitName: string }> } | null }>({
+        type: "CHAIN_GET_ACCOUNT_STATE",
         address: activeAccount.address,
         chain,
       });
-      setWalletAssets(stateResult.assets ?? []);
+      // Enrich asset names — algod returns empty name/unitName; use known labels
+      const cfg = CHAINS[chain];
+      const knownAsaId = cfg.defaultPaymentAsset?.asaId;
+      const knownTicker = cfg.defaultPaymentAsset?.ticker;
+      const rawAssets = stateResult.state?.assets ?? [];
+      const enriched = rawAssets.map((a) => ({
+        ...a,
+        unitName: a.unitName || (a.assetId === knownAsaId ? knownTicker ?? `ASA #${a.assetId}` : `ASA #${a.assetId}`),
+        name: a.name || (a.assetId === knownAsaId ? knownTicker ?? "" : ""),
+      }));
+      setWalletAssets(enriched);
 
       // Fetch vault's opted-in assets
       const optResult = await sendBg<{ assetIds: number[] }>({ type: "VAULT_GET_OPTED_ASSETS", chain });
