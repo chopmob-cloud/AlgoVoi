@@ -19,13 +19,18 @@ export default function VaultScreen() {
             Spending cap<br />
             <span className="gradient-text">vault</span>
           </h2>
-          <p className="text-gray leading-relaxed mb-6">
-            Deploy a smart contract vault with a spending cap. Micropayments flow
-            automatically — the on-chain agent key authorises each transfer up to
-            your cap, with no wallet prompt required.
+          <p className="text-gray leading-relaxed mb-4">
+            Deploy a smart contract vault with a spending cap. x402 and MPP
+            micropayments flow automatically — the local agent key signs every
+            transfer instantly with no phone interaction or WalletConnect relay.
+          </p>
+          <p className="text-gray leading-relaxed mb-6 text-sm">
+            Supports ALGO, VOI, USDC, aUSDC and any ASA. Opt the vault into a
+            token, fund it, and payments happen in sub-second — all enforced
+            on-chain by the AVM contract.
           </p>
           <div className="flex flex-wrap gap-2">
-            {['🤖 Agent key on-chain', '🔒 Spending cap enforced', '⚡ Zero-prompt auto-pay', '📋 App ID always visible'].map(p => (
+            {['🤖 Local agent key', '🔒 On-chain spending cap', '⚡ No phone needed', '💱 ALGO + USDC + any ASA'].map(p => (
               <span key={p} className="bg-surf1 border border-border rounded-full px-3 py-1 text-xs text-gray">{p}</span>
             ))}
           </div>
@@ -90,9 +95,9 @@ export default function VaultScreen() {
             <div className="bg-surf1 rounded-[10px] px-3.5 py-2.5 border border-border">
               <div className="text-[10px] text-gray mb-2">Recent auto-payments</div>
               {[
-                { site: 'x402.ilovechicken.co.uk', amount: '1.00 ALGO', proto: 'x402' },
+                { site: 'x402.ilovechicken.co.uk', amount: '0.25 USDC', proto: 'x402' },
                 { site: 'api.merchant.io',          amount: '0.50 ALGO', proto: 'MPP' },
-                { site: 'data.apiservice.com',      amount: '0.40 ALGO', proto: 'x402' },
+                { site: 'data.apiservice.com',      amount: '0.10 USDC', proto: 'x402' },
               ].map((p, i) => (
                 <div key={i} className="flex justify-between items-center text-[10px] mb-1 last:mb-0">
                   <span className="text-gray truncate max-w-[180px]">{p.site}</span>
