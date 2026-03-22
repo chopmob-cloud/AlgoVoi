@@ -2,8 +2,7 @@ import { useState, useMemo } from "react";
 import { RouterClient } from "@txnlab/haystack-router";
 import type { SwapQuote, SignerFunction } from "@txnlab/haystack-router";
 import { sendBg } from "../App";
-import { useWalletConnect } from "../hooks/useWalletConnect";
-import { WC_CHAIN_ID } from "@shared/constants";
+import { signGroupIndexedWithWC } from "@shared/utils/wc-sign-group";
 import type { Account } from "@shared/types/wallet";
 import type { AccountAsset } from "@shared/types/chain";
 
@@ -56,9 +55,6 @@ function SwapForm({
   assets: AccountAsset[];
 }) {
   const isWC = activeAccount.type === "walletconnect";
-
-  // WC signing hook — cheap to initialise; getClient() is lazy
-  const { signGroupIndexed } = useWalletConnect();
 
   // Build asset option list: ALGO + held ASAs + popular assets not yet held
   const assetOptions: AssetOption[] = useMemo(() => {
@@ -198,7 +194,7 @@ function SwapForm({
         if (!sessionTopic) throw new Error("WalletConnect session not found");
 
         const signer: SignerFunction = async (txnGroup, indexesToSign) => {
-          return signGroupIndexed(
+          return signGroupIndexedWithWC(
             sessionTopic,
             "algorand",
             txnGroup,
@@ -445,5 +441,4 @@ function formatAtomic(atomic: bigint, decimals: number): string {
   return fracStr ? `${int}.${fracStr}` : `${int}`;
 }
 
-// WC_CHAIN_ID is imported but only used indirectly via useWalletConnect's signGroupIndexed
-void WC_CHAIN_ID;
+
