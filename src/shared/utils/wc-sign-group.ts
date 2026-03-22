@@ -57,6 +57,7 @@ export async function signGroupIndexedWithWC(
     )
   );
 
+  console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([
     SignClient.init({
       projectId: WC_PROJECT_ID,
@@ -70,6 +71,7 @@ export async function signGroupIndexedWithWC(
     }),
     timeoutPromise,
   ]);
+  console.log("[wc-sign-group] SignClient ready — sending request to relay...");
 
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
@@ -81,12 +83,14 @@ export async function signGroupIndexedWithWC(
 
   // No timeout on client.request() — relay delivery + phone approval legitimately
   // exceeds 60–90 s. The relay timeout above covers relay connection only.
+  console.log("[wc-sign-group] client.request dispatched — topic:", sessionTopic.slice(0, 16), "txns:", txns.length, "signing:", indexesToSign);
   const result = await client.request<unknown>({
     topic: sessionTopic,
     chainId: wcChain,
     request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
   });
 
+  console.log("[wc-sign-group] wallet responded — result type:", typeof result, Array.isArray(result) ? `array[${(result as unknown[]).length}]` : "");
   // WC returns one element per txn; unsigned slots come back as null/"".
   const raw = Array.isArray(result) ? result : [result];
   return txns.map((_, i) => {
