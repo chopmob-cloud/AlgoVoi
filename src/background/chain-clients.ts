@@ -53,6 +53,44 @@ export async function getAccountState(
   };
 }
 
+/**
+ * Simulate a transaction group to preview balance changes and detect failures
+ * before the user signs. Uses algod's /v2/transactions/simulate endpoint.
+ * Returns a simplified result safe for display in the approval popup.
+ */
+export async function simulateTransaction(
+  chain: ChainId,
+  unsignedTxnBytes: Uint8Array[]
+): Promise<{
+  wouldSucceed: boolean;
+  failureMessage?: string;
+  budgetConsumed?: number;
+}> {
+  try {
+    const algod = getAlgodClient(chain);
+    const request = new algosdk.modelsv2.SimulateRequest({
+      txnGroups: [
+        new algosdk.modelsv2.SimulateRequestTransactionGroup({
+          txns: unsignedTxnBytes.map((b) => algosdk.decodeObj(b) as algosdk.EncodedSignedTransaction),
+        }),
+      ],
+      allowEmptySignatures: true,
+      allowUnnamedResources: true,
+    });
+    const result = await algod.simulateTransactions(request).do();
+    const group = result.txnGroups?.[0];
+    const failed = group?.failureMessage;
+    return {
+      wouldSucceed: !failed,
+      failureMessage: failed ?? undefined,
+      budgetConsumed: Number(group?.appBudgetConsumed ?? 0),
+    };
+  } catch {
+    // Simulation failed (node unreachable, etc.) — don't block the user
+    return { wouldSucceed: true };
+  }
+}
+
 export async function getSuggestedParams(chain: ChainId): Promise<algosdk.SuggestedParams> {
   return getAlgodClient(chain).getTransactionParams().do();
 }
