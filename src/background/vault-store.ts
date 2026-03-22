@@ -112,6 +112,16 @@ function agentBoxKey(agentAddress: string): Uint8Array {
   return key;
 }
 
+/** Box key for a recipient: prefix "rc_" (3 bytes) + 32-byte public key */
+function recipientBoxKey(recipientAddress: string): Uint8Array {
+  const prefix = new TextEncoder().encode("rc_");
+  const pk     = algosdk.decodeAddress(recipientAddress).publicKey;
+  const key    = new Uint8Array(prefix.length + pk.length);
+  key.set(prefix);
+  key.set(pk, prefix.length);
+  return key;
+}
+
 /** Parse algod TealKeyValue array → typed map (key → bigint for uint values) */
 function parseGlobalState(raw: algosdk.modelsv2.TealKeyValue[]): Record<string, bigint> {
   const map: Record<string, bigint> = {};
@@ -584,7 +594,10 @@ export async function vaultPay(
       sender:      agentAddr,
       suggestedParams: sp,
       signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
-      boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+      boxes: [
+        { appIndex: appId, name: agentBoxKey(agentAddr) },
+        { appIndex: appId, name: recipientBoxKey(receiver) },
+      ],
       appAccounts: [receiver],
     });
   });
@@ -640,7 +653,10 @@ export async function vaultAsaPay(
       sender:      agentAddr,
       suggestedParams: sp,
       signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
-      boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+      boxes: [
+        { appIndex: appId, name: agentBoxKey(agentAddr) },
+        { appIndex: appId, name: recipientBoxKey(receiver) },
+      ],
       appAccounts: [receiver],
       appForeignAssets: [assetId],
     });

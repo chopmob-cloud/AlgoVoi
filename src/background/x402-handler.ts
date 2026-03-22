@@ -255,26 +255,8 @@ export async function buildAndSignPayment(
   const asaId  = pr.asset === "0" || !pr.asset ? 0 : parseInt(pr.asset, 10);
   const amount = BigInt(String(pr.maxAmountRequired));
 
-  // ── Vault auto-payment path ──────────────────────────────────────────────
-  // When a SpendingCapVault is deployed on this chain, the agent key pays
-  // directly via the contract — no owner key needed, no popup required.
-  // The AVM contract enforces all caps; any violation rejects on-chain.
-  const vaultApp  = walletStore.getVaultApp(chain);
-  const agentAddr = walletStore.getAgentAddress();
-  if (vaultApp && agentAddr && asaId === 0) {
-    const agentSk  = await walletStore.getAgentSecretKey();
-    const note     = `x402:${req.url}`.slice(0, 1000);
-    const { txId } = await vaultPay(chain, vaultApp.appId, agentSk, agentAddr, pr.payTo, amount, note);
-    await waitForConfirmation(chain, txId, 8);
-    await waitForIndexed(chain, txId);
-    const payload: X402PaymentPayload = {
-      x402Version: X402_VERSION,
-      scheme:  pr.scheme,
-      network: pr.network,
-      payload: { txId, payer: vaultApp.appAddress },
-    };
-    return { paymentHeader: btoa(JSON.stringify(payload)), txId };
-  }
+  // Vault auto-pay disabled for x402 — x402 servers expect standard Payment/
+  // AssetTransfer transactions, not application calls with inner transactions.
 
   // ── Standard owner key path ──────────────────────────────────────────────
   const { txn, senderAddress } = await buildPaymentTransaction(req);
@@ -457,40 +439,6 @@ export async function handleX402(params: {
     // echoed as the PAYMENT-REQUIRED header on retry for server-side correlation.
     rawPaymentRequired: params.rawPaymentRequired,
   };
-
-  // ── Vault auto-payment: skip popup entirely ──────────────────────────────
-  // If a SpendingCapVault is deployed on the payment chain and the agent key
-  // is available, pay autonomously — the AVM contract enforces all limits.
-  // Only native coin (asaId=0) is auto-paid; ASA payments still need approval.
-  const paymentAsaId = chosen.asset === "0" || !chosen.asset ? 0 : parseInt(chosen.asset, 10);
-  const payChain     = resolveChain(chosen.network);
-  const vaultApp     = payChain ? walletStore.getVaultApp(payChain) : null;
-  const agentAddr    = walletStore.getAgentAddress();
-
-  if (vaultApp && agentAddr && paymentAsaId === 0 && payChain) {
-    // Queue so getPendingRequest() can still find it during the async pay call
-    _pendingRequests.set(requestId, pending);
-    try {
-      const { paymentHeader, txId } = await buildAndSignPayment(pending);
-      clearPendingRequest(requestId);
-      chrome.tabs.sendMessage(params.tabId, {
-        type: "X402_RESULT",
-        requestId: params.inpageRequestId ?? requestId,
-        approved: true,
-        paymentHeader,
-        txId,
-      }).catch(() => {});
-    } catch (err) {
-      clearPendingRequest(requestId);
-      chrome.tabs.sendMessage(params.tabId, {
-        type: "X402_RESULT",
-        requestId: params.inpageRequestId ?? requestId,
-        approved: false,
-        error: err instanceof Error ? err.message : String(err),
-      }).catch(() => {});
-    }
-    return requestId;
-  }
 
   // ── Standard approval popup path ─────────────────────────────────────────
   _pendingRequests.set(requestId, pending);
