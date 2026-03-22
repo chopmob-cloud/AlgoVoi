@@ -6,6 +6,7 @@ reply.txt
 # Tooling / dev artifacts
 .agent-bridge/
 .claude/
+CLAUDE.md
 mcp/
 .mcp.json
 *.ps1
