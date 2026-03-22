@@ -16,11 +16,12 @@ export default function WalletScreen() {
             <span className="gradient-text">Algorand &amp; Voi</span>
           </h2>
           <p className="text-gray leading-relaxed mb-6">
-            Send tokens, sign transactions, and handle x402, MPP &amp; AP2 payments automatically.
-            Supports AI agent signing via WalletConnect. Manage both chains from one sleek extension.
+            Send tokens, swap ASAs across every Algorand DEX, sign transactions, and handle x402, MPP &amp; AP2
+            payments automatically. Supports AI agent signing via WalletConnect. Manage both chains
+            from one sleek extension.
           </p>
           <div className="flex flex-wrap gap-2">
-            {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '🤖 AI agents', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
+            {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '💱 DEX swaps', '🤖 AI agents', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
               <span key={p} className="bg-surf1 border border-border rounded-full px-3 py-1 text-xs text-gray">{p}</span>
             ))}
           </div>
@@ -71,7 +72,8 @@ export default function WalletScreen() {
           <div className="flex px-4 gap-1 border-b border-surf2 mb-2.5">
             <div className="px-3 py-1.5 text-xs font-semibold text-white border-b-2 border-algo rounded-t">Assets</div>
             <div className="px-3 py-1.5 text-xs font-semibold text-muted">History</div>
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted">Apps</div>
+            <div className="px-3 py-1.5 text-xs font-semibold text-muted">Swap</div>
+            <div className="px-3 py-1.5 text-xs font-semibold text-muted">Agents</div>
           </div>
 
           {/* Asset list */}
