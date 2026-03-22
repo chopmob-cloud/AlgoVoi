@@ -92,7 +92,8 @@ export type BgRequest =
   // SpendingCapVault — on-chain agent spending limits
   | { type: "VAULT_GET_STATE"; chain: ChainId }
   | { type: "VAULT_DEPLOY"; chain: ChainId; globalMaxPerTxn: string; globalDailyCap: string; globalMaxAsa: string; allowlistEnabled: boolean; agentMaxPerTxn: string; agentDailyCap: string }
-  | { type: "VAULT_ACTION"; chain: ChainId; action: "suspend" | "resume" | "update_limits" | "withdraw"; maxPerTxn?: string; dailyCap?: string; maxAsa?: string; receiver?: string; amount?: string }
+  | { type: "VAULT_ACTION"; chain: ChainId; action: "suspend" | "resume" | "update_limits" | "withdraw" | "opt_in_asa"; maxPerTxn?: string; dailyCap?: string; maxAsa?: string; receiver?: string; amount?: string; assetId?: number }
+  | { type: "VAULT_GET_OPTED_ASSETS"; chain: ChainId }
   // WalletConnect vault owner signing (popup signs, background submits)
   | { type: "VAULT_WC_SUBMIT_CREATE"; signedTxnB64: string; chain: ChainId; agentAddress: string; agentMaxPerTxn: string; agentDailyCap: string }
   | { type: "VAULT_WC_SUBMIT_SETUP";  signedGroupB64s: string[]; chain: ChainId; appId: number; appAddress: string }

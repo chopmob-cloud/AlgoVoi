@@ -625,3 +625,68 @@ export async function vaultAsaPay(
     });
   });
 }
+
+/**
+ * Opt the vault contract into an ASA so it can receive and hold that token.
+ * Owner-only — the owner must sign this transaction.
+ * After opt-in, vaultAsaPay() can transfer this ASA from the vault.
+ */
+export async function vaultOptInAsa(
+  chain:    ChainId,
+  appId:    number,
+  ownerSk:  Uint8Array,
+  ownerAddr: string,
+  assetId:  number
+): Promise<{ txId: string }> {
+  return runAtc(chain, (atc, sp) => {
+    atc.addMethodCall({
+      appID: appId, method: M.opt_in_asa,
+      methodArgs: [assetId],
+      sender:      ownerAddr,
+      suggestedParams: sp,
+      signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(ownerSk)),
+      // Foreign assets reference for inner opt-in transaction
+      appForeignAssets: [assetId],
+    });
+  });
+}
+
+/**
+ * Build an unsigned opt_in_asa transaction for WC owner signing.
+ * Returns the base64 unsigned transaction bytes for the approval popup.
+ */
+export async function buildVaultOptInAsaTxn(
+  chain:    ChainId,
+  appId:    number,
+  ownerAddr: string,
+  assetId:  number
+): Promise<{ unsignedTxnB64: string }> {
+  const algod = getAlgodClient(chain);
+  const sp    = await algod.getTransactionParams().do();
+  const atc   = new algosdk.AtomicTransactionComposer();
+  atc.addMethodCall({
+    appID: appId, method: M.opt_in_asa,
+    methodArgs: [assetId],
+    sender:      ownerAddr,
+    suggestedParams: sp,
+    signer: algosdk.makeEmptyTransactionSigner(),
+    appForeignAssets: [assetId],
+  });
+  const txns = atc.buildGroup();
+  const txnBytes = txns[0].txn.toByte();
+  return { unsignedTxnB64: btoa(String.fromCharCode(...txnBytes)) };
+}
+
+/**
+ * Get the list of ASA IDs the vault is currently opted into.
+ */
+export async function getVaultOptedInAssets(
+  chain: ChainId,
+  appId: number
+): Promise<number[]> {
+  const algod     = getAlgodClient(chain);
+  const vaultAddr = algosdk.getApplicationAddress(appId).toString();
+  const accInfo   = await algod.accountInformation(vaultAddr).do();
+  return (accInfo.assets as Array<{ assetId: number }> ?? [])
+    .map((a: { assetId: number }) => a.assetId);
+}
