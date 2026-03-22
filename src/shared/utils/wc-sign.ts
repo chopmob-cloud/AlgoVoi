@@ -31,7 +31,8 @@ import type { ChainId } from "@shared/types/chain";
 
 const RELAY_TIMEOUT_MS  = 20_000;
 const SESSION_SETTLE_MS =  1_500;  // wait for relay to deliver pending session_delete
-const SIGN_TIMEOUT_MS   = 120_000; // 2 min — relay queues request; user opens wallet to approve
+const PING_TIMEOUT_MS   = 10_000;  // 10 s — fast dead-session detection for time-sensitive payments
+const SIGN_TIMEOUT_MS   = 90_000;  // 90 s — relay queues request; user opens wallet to approve
 
 const RE_PAIR_MSG =
   "WalletConnect session is no longer active — your wallet disconnected.\n" +
@@ -108,7 +109,23 @@ export async function signTransactionWithWC(
     );
   }
 
-  // ── 5. Dispatch signing request ────────────────────────────────────────────
+  // ── 5. Ping — fast dead-session detection ─────────────────────────────────
+  // x402 / MPP payments are time-sensitive. A 10 s ping catches dead sessions
+  // immediately so the user can re-pair rather than waiting 90 s for timeout.
+  // (Swap path in wc-sign-group.ts omits ping to avoid false positives for
+  // temporarily-backgrounded wallets — swaps have a full re-pair UI.)
+  try {
+    await Promise.race([
+      client.ping({ topic: sessionTopic }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("ping_timeout")), PING_TIMEOUT_MS)
+      ),
+    ]);
+  } catch {
+    throw new Error(RE_PAIR_MSG);
+  }
+
+  // ── 6. Dispatch signing request ────────────────────────────────────────────
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
   // 2-minute timeout: the relay queues the request for delivery when the wallet

@@ -720,9 +720,10 @@ function MppPage({ requestId }: { requestId: string }) {
       </div>
 
       {wcWaiting && (
-        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-3 flex items-center gap-2">
+        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4 flex flex-col items-center gap-2 text-center">
           <Spinner size={4} />
-          <p className="text-sm text-blue-300">Waiting for your wallet to sign…</p>
+          <p className="text-sm text-blue-300 font-medium">Open your wallet app on your phone</p>
+          <p className="text-xs text-gray-400">Extension payments don't send push notifications — open Defly / Pera / Lute and look for the pending signing request.</p>
         </div>
       )}
 
@@ -1075,8 +1076,13 @@ function X402Page({ requestId }: { requestId: string }) {
       )}
 
       {error && (
-        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3 space-y-1">
           <p className="text-sm text-red-400">{error}</p>
+          {error.includes("no longer active") || error.includes("disconnected") || error.includes("ping") ? (
+            <p className="text-xs text-gray-400">
+              Open AlgoVoi → remove the WalletConnect account → tap <strong>+ Connect</strong> to re-pair. Your account won't be deleted.
+            </p>
+          ) : null}
         </div>
       )}
 
