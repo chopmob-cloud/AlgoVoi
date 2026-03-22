@@ -22,6 +22,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **AI agent wallet** — WalletConnect Web3Wallet mode lets AI agents connect to AlgoVoi and request transaction signing without ever touching private keys
 - **SpendingCapVault** — Deploy an AVM smart contract that enforces per-transaction and daily spending caps for autonomous agent payments; supports ALGO, VOI, USDC, aUSDC and any ASA via `pay_asa()` + `opt_in_asa()`; owner actions (suspend, resume, withdraw, update limits) via mnemonic or WalletConnect
 - **30-day local signing key** — Import your mnemonic with a 30-day TTL for reliable local signing; eliminates WalletConnect relay dependency for all operations; auto-expires and prompts re-import
+- **Anti-phishing** — Clipboard hijacking detection (warns if pasted address was swapped by malware), homograph domain detection (flags Unicode lookalike domains like Cyrillic 'а'), transaction simulation via algod `/v2/transactions/simulate`, dangerous transaction field warnings (rekeyTo, closeRemainderTo, clawback, etc.)
 - **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
 - **WC chromeStorage adapter** — WalletConnect sessions persist in `chrome.storage.local` via a custom `IKeyValueStorage` adapter; survives lock/unlock cycles, SW suspension, and browser restarts
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
