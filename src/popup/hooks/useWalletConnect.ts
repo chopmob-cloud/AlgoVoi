@@ -470,25 +470,16 @@ export function useWalletConnect(): UseWalletConnectReturn {
 
       // ARC-0025 / Pera/Defly format: array of txn groups.
       // Use `unknown` — Defly may return [[string]] (nested) instead of [string] (flat).
-      const result = await Promise.race([
-        client.request<unknown>({
-          topic: sessionTopic,
-          chainId: wcChain,
-          request: {
-            method: WC_METHOD_SIGN_TXN,
-            params: [[{ txn: txnB64, signers: [signerAddress] }]],
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(
-              "Wallet did not respond in 60s — open your wallet app and try again. " +
-              "If this keeps happening, remove and reconnect the account."
-            )),
-            60_000
-          )
-        ),
-      ]);
+      // Note: no timeout here — relay reconnect + phone notification + user approval
+      // can legitimately exceed 60–90s. Session staleness guard above catches dead topics.
+      const result = await client.request<unknown>({
+        topic: sessionTopic,
+        chainId: wcChain,
+        request: {
+          method: WC_METHOD_SIGN_TXN,
+          params: [[{ txn: txnB64, signers: [signerAddress] }]],
+        },
+      });
 
       // extractWCSignedTxn flattens [[str]] → [str] and decodes URL-safe base64.
       return extractWCSignedTxn(result);
@@ -518,22 +509,12 @@ export function useWalletConnect(): UseWalletConnectReturn {
         return { txn: btoa(String.fromCharCode(...bytes)), signers: [signerAddress] };
       });
 
-      const result = await Promise.race([
-        client.request<unknown>({
-          topic: sessionTopic,
-          chainId: wcChain,
-          request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(
-              "Wallet did not respond in 60s — open your wallet app and try again. " +
-              "If this keeps happening, remove and reconnect the account."
-            )),
-            60_000
-          )
-        ),
-      ]);
+      // Note: no timeout — relay reconnect + user approval can exceed 60–90s legitimately.
+      const result = await client.request<unknown>({
+        topic: sessionTopic,
+        chainId: wcChain,
+        request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+      });
 
       // WC group response: [signedB64_0, signedB64_1, ...] — one element per txn.
       const raw = Array.isArray(result) ? result : [result];
@@ -577,25 +558,13 @@ export function useWalletConnect(): UseWalletConnectReturn {
         signers: indexesToSign.includes(i) ? [signerAddress] : [],
       }));
 
-      // 60-second timeout — if the relay delivers but the phone never responds,
-      // surface a reconnect hint rather than hanging for minutes.
-      const SIGN_TIMEOUT_MS = 60_000;
-      const result = await Promise.race([
-        client.request<unknown>({
-          topic:   sessionTopic,
-          chainId: wcChain,
-          request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(
-              "Wallet did not respond in 60s — open your wallet app and try again. " +
-              "If this keeps happening, remove and reconnect the account."
-            )),
-            SIGN_TIMEOUT_MS
-          )
-        ),
-      ]);
+      // Note: no timeout — relay reconnect + user approval can exceed 60–90s legitimately.
+      // Session staleness guard above catches truly dead topics immediately.
+      const result = await client.request<unknown>({
+        topic:   sessionTopic,
+        chainId: wcChain,
+        request: { method: WC_METHOD_SIGN_TXN, params: [txnParams] },
+      });
 
       // WC returns one element per txn; unsigned slots come back as null/"".
       const raw = Array.isArray(result) ? result : [result];
