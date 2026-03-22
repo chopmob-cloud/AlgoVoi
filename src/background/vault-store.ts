@@ -585,6 +585,7 @@ export async function vaultPay(
       suggestedParams: sp,
       signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
       boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+      appAccounts: [receiver],
     });
   });
 }
@@ -640,6 +641,8 @@ export async function vaultAsaPay(
       suggestedParams: sp,
       signer: algosdk.makeBasicAccountTransactionSigner(accountFromSk(agentSk)),
       boxes: [{ appIndex: appId, name: agentBoxKey(agentAddr) }],
+      appAccounts: [receiver],
+      appForeignAssets: [assetId],
     });
   });
 }
