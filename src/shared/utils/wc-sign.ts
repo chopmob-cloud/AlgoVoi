@@ -5,16 +5,9 @@
  * existing WalletConnect session (Defly, Pera, Lute) without needing the
  * full useWalletConnect hook.
  *
- * Dead-session detection strategy (mirrors wc-sign-group.ts):
- *   1. restoreWCStorage() — repopulate localStorage from chrome.storage.local
- *      snapshot so SignClient finds the session after a lock/unlock wipe.
- *   2. Wait 1.5 s (SESSION_SETTLE_MS) for the relay to deliver any pending
- *      session_delete events the wallet sent while the popup was closed.
- *   3. client.session.get(topic) — throws if session was deleted/not found.
- *   4. Expiry timestamp check.
- *   5. Dispatch signing request with 2-minute timeout. The relay queues the
- *      request; opening Defly/Pera reconnects it and delivers the request.
- *      No pre-sign ping — see wc-sign-group.ts for the rationale.
+ * Storage: uses chrome.storage.local via the chromeStorage adapter instead
+ * of localStorage. Session data survives lock/unlock cycles, SW suspension,
+ * and browser restarts without any snapshot/restore mechanism.
  */
 
 import SignClient from "@walletconnect/sign-client";
@@ -26,12 +19,12 @@ import {
   WC_METHOD_SIGN_TXN,
 } from "@shared/constants";
 import { extractWCSignedTxn } from "@shared/utils/crypto";
-import { restoreWCStorage } from "@shared/utils/wc-storage";
+import { chromeStorage } from "@shared/utils/wc-chrome-storage";
 import type { ChainId } from "@shared/types/chain";
 
 const RELAY_TIMEOUT_MS  = 20_000;
-const SESSION_SETTLE_MS =  1_500;  // wait for relay to deliver pending session_delete
-const SIGN_TIMEOUT_MS   = 90_000;  // 90 s — relay queues request; user opens wallet to approve
+const SESSION_SETTLE_MS =  1_500;
+const SIGN_TIMEOUT_MS   = 90_000;
 
 const RE_PAIR_MSG =
   "WalletConnect session is no longer active — your wallet disconnected.\n" +
@@ -39,15 +32,6 @@ const RE_PAIR_MSG =
 
 /**
  * Sign an unsigned transaction (base64 msgpack) via an existing WalletConnect session.
- * Returns the signed transaction as a Uint8Array (raw msgpack bytes).
- *
- * Handles both flat [signedB64] and nested [[signedB64]] response formats
- * so it works with Pera, Defly, and other ARC-0025-compliant wallets.
- *
- * @param sessionTopic    WC session topic stored on the account (wcSessionTopic)
- * @param chain           "algorand" | "voi" — determines the CAIP-2 chain ID
- * @param unsignedTxnB64  base64(algosdk unsigned msgpack)
- * @param signerAddress   Algorand/Voi address that should sign
  */
 export async function signTransactionWithWC(
   sessionTopic: string,
@@ -62,16 +46,7 @@ export async function signTransactionWithWC(
     );
   }
 
-  // ── 1. Restore session data ────────────────────────────────────────────────
-  // Lock/unlock cycles wipe wc@2:* from localStorage. Restore the snapshot so
-  // SignClient.init() finds the existing session.
-  // Returns false if no snapshot exists or snapshot is older than 30 days.
-  // Don't throw — the session might still be live in localStorage from a
-  // recent pairing (lock hasn't wiped it yet). session.get() below catches
-  // truly missing sessions.
-  await restoreWCStorage();
-
-  // ── 2. Connect to relay ────────────────────────────────────────────────────
+  // ── 1. Connect to relay (chrome.storage.local adapter — no restore needed) ──
   const timeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(
       () => reject(new Error(`Could not connect to WalletConnect relay after ${RELAY_TIMEOUT_MS / 1000}s`)),
@@ -83,6 +58,7 @@ export async function signTransactionWithWC(
     SignClient.init({
       projectId: WC_PROJECT_ID,
       relayUrl: WC_RELAY_URL,
+      storage: chromeStorage,
       metadata: {
         name: "AlgoVoi",
         description: "Web3 wallet for Algorand + Voi with x402 payments",
@@ -93,10 +69,10 @@ export async function signTransactionWithWC(
     timeoutPromise,
   ]);
 
-  // ── 3. Settle — let relay deliver pending session_delete events ────────────
+  // ── 2. Settle — let relay deliver pending session_delete events ────────────
   await new Promise<void>((r) => setTimeout(r, SESSION_SETTLE_MS));
 
-  // ── 4. Verify session is still live ───────────────────────────────────────
+  // ── 3. Verify session is still live ───────────────────────────────────────
   let sessionExpiry = 0;
   try {
     const s = client.session.get(sessionTopic) as { expiry?: number };
@@ -112,11 +88,9 @@ export async function signTransactionWithWC(
     );
   }
 
-  // ── 5. Dispatch signing request ────────────────────────────────────────────
+  // ── 4. Dispatch signing request ────────────────────────────────────────────
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
-  // 2-minute timeout: the relay queues the request for delivery when the wallet
-  // app reconnects. If nothing responds after 2 min the session is truly dead.
   const signTimeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error(RE_PAIR_MSG)), SIGN_TIMEOUT_MS)
   );

@@ -21,6 +21,7 @@
 import { Web3Wallet } from "@walletconnect/web3wallet";
 import type { IWeb3Wallet } from "@walletconnect/web3wallet";
 import { Core } from "@walletconnect/core";
+import { chromeStorage } from "@shared/utils/wc-chrome-storage";
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
 import { APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
@@ -488,7 +489,7 @@ export async function initWeb3Wallet(projectId: string): Promise<IWeb3Wallet> {
 
   _projectId = projectId;
 
-  const core = new Core({ projectId });
+  const core = new Core({ projectId, storage: chromeStorage });
   const w3w = await Web3Wallet.init({ core, metadata: W3W_METADATA });
 
   registerEventHandlers(w3w);
