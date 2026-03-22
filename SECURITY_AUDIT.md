@@ -1,13 +1,13 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.3.1
+**Version:** 0.4.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
-## Final Status: All Issues Resolved
+## Status
 
 ```
-0 Critical   0 High   0 Medium   0 Low open
+0 Critical   1 High   2 Medium   0 Low open
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -21,6 +21,13 @@
 **Hardening XII (v0.3.0 — March 2026):** Haystack Router DEX swap integration + WalletConnect signing hardening + ASA metadata cache. Full security audit + independent Comet CDP validation (all 7 claims CONFIRMED). All 3 new findings closed in same pass.
 
 **Hardening XIII (v0.3.1 — March 2026):** WalletConnect swap reliability + MV3 vault lock hardening. Dead-session detection (settle delay + session expiry check + 2-min relay timeout), vault keep-alive during WC signing, MV3 SW suspension lock correctly surfaced to UI. All 4 new findings closed in same pass.
+
+**Hardening XIV (v0.4.0 — March 2026):** chromeStorage WC adapter, 30-day mnemonic import, vault ASA support, contract recompile. Full security re-audit + independent Comet CDP validation. Findings:
+- **H5 (HIGH):** `.env` contains live Haystack API key — verify never committed to git history. **Status: OPEN** — requires manual verification.
+- **XIV-1 (MEDIUM):** Secret keys (`getActiveSecretKey()`, `getAgentSecretKey()`) not zeroed after signing — `.fill(0)` in `finally` blocks recommended. **Status: OPEN.**
+- **XIV-2 (MEDIUM):** Haystack API key embedded in build bundle — treat as public, rate-limit server-side. **Status: OPEN.**
+- **XIV-3 (LOW):** WC session topic logged verbatim in `web3wallet-handler.ts` console.info — use `sanitizeTopic()`. **Status: CLOSED.**
+- Comet CDP validated: AES-GCM-256 + PBKDF2 600k meets OWASP 2025 guidance. 30-day mnemonic TTL is stricter than MetaMask/Phantom (no TTL). chromeStorage adapter is sandboxed per-extension.
 
 ---
 
@@ -66,6 +73,10 @@
 | XIII-2 | Low | ✅ CLOSED | WC swap: vault auto-locks during signing wait — `KEEP_ALIVE` message + 30 s popup interval prevents MV3 5-min lock |
 | XIII-3 | Medium | ✅ CLOSED | MV3 SW suspension silently locks vault — `sendBg()` detects "Wallet is locked" and fires `algovou:wallet-locked` DOM event; App.tsx shows unlock screen |
 | XIII-4 | Low | ✅ CLOSED | WC swap: `useWalletConnect` hook diverged from `wc-sign.ts` (cached client, settle delay, session guard) — replaced with standalone `wc-sign-group.ts` mirroring proven pattern |
+| H5 | High | ⚠️ OPEN | `.env` contains live Haystack API key — verify never committed to git history; rotate if exposed |
+| XIV-1 | Medium | ⚠️ OPEN | Secret keys not zeroed after signing — add `.fill(0)` in `finally` blocks for `getActiveSecretKey()`/`getAgentSecretKey()` return values |
+| XIV-2 | Medium | ⚠️ OPEN | Haystack API key compiled into extension bundle via `import.meta.env` — treat as public, rate-limit server-side |
+| XIV-3 | Low | ✅ CLOSED | WC session topic logged verbatim in `web3wallet-handler.ts` `console.info` — should use `sanitizeTopic()` |
 
 ---
 

@@ -6,7 +6,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.3.1-brightgreen)
+![Version](https://img.shields.io/badge/version-0.4.0-brightgreen)
 
 ---
 
@@ -20,8 +20,10 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **MPP payments** — Machine Payments Protocol (`WWW-Authenticate: Payment`) support using AVM on-chain transactions
 - **AP2 credentials** — Google Agent Payments Protocol; sign verifiable payment mandates for AI agent commerce
 - **AI agent wallet** — WalletConnect Web3Wallet mode lets AI agents connect to AlgoVoi and request transaction signing without ever touching private keys
-- **SpendingCapVault** — Deploy an AVM smart contract that enforces per-transaction and daily spending caps for autonomous agent payments; owner actions (suspend, resume, withdraw, update limits) via mnemonic or WalletConnect
+- **SpendingCapVault** — Deploy an AVM smart contract that enforces per-transaction and daily spending caps for autonomous agent payments; supports ALGO, VOI, USDC, aUSDC and any ASA via `pay_asa()` + `opt_in_asa()`; owner actions (suspend, resume, withdraw, update limits) via mnemonic or WalletConnect
+- **30-day local signing key** — Import your mnemonic with a 30-day TTL for reliable local signing; eliminates WalletConnect relay dependency for all operations; auto-expires and prompts re-import
 - **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
+- **WC chromeStorage adapter** — WalletConnect sessions persist in `chrome.storage.local` via a custom `IKeyValueStorage` adapter; survives lock/unlock cycles, SW suspension, and browser restarts
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
 - **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
 
@@ -158,7 +160,19 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XII complete, Comet CDP independently validated v0.3.0).
+**Status: 0 Critical · 1 High · 2 Medium open** (Hardening I–XIV complete, Comet CDP independently validated v0.4.0).
+
+### 30-day local signing key
+
+For reliable signing without WalletConnect relay dependency:
+
+1. Click **+ Add** → **Import Mnemonic** in the extension
+2. Enter your 25-word seed (same one from Defly/Pera)
+3. Key is stored AES-GCM-256 encrypted with a 30-day TTL
+4. All operations (x402, MPP, swaps, sends) sign locally — no phone needed
+5. After 30 days the key auto-wipes; re-import to refresh
+
+This is stricter than MetaMask/Phantom (which store keys with no TTL). Comet CDP validated the security model.
 
 ---
 
