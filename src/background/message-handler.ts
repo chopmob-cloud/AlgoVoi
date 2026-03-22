@@ -1095,6 +1095,33 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { mandates };
     }
 
+    // ── Haystack Router — DEX swap aggregator (Algorand only) ────────────────
+
+    case "SWAP_QUOTE": {
+      const { getSwapQuote } = await import("./swap-handler");
+      return getSwapQuote({
+        fromAssetId: msg.fromAssetId,
+        fromDecimals: msg.fromDecimals,
+        toAssetId:   msg.toAssetId,
+        toDecimals:  msg.toDecimals,
+        amount:      msg.amount,
+        address:     msg.address,
+      });
+    }
+
+    case "SWAP_EXECUTE": {
+      const { executeSwap } = await import("./swap-handler");
+      return executeSwap({
+        fromAssetId: msg.fromAssetId,
+        fromDecimals: msg.fromDecimals,
+        toAssetId:   msg.toAssetId,
+        toDecimals:  msg.toDecimals,
+        amount:      msg.amount,
+        slippage:    msg.slippage,
+        address:     msg.address,
+      });
+    }
+
     // ── WalletConnect Web3Wallet (AlgoVoi as wallet for AI agents) ───────────
 
     case "W3W_GENERATE_URI": {

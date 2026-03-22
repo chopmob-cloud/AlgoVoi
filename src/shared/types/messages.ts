@@ -100,6 +100,9 @@ export type BgRequest =
   // Remap an existing vault (new agent key, without redeploying the contract)
   | { type: "VAULT_REMAP"; chain: ChainId; appId: number; agentMaxPerTxn: string; agentDailyCap: string }
   | { type: "VAULT_WC_REMAP_SUBMIT"; signedGroupB64s: string[]; chain: ChainId; appId: number; appAddress: string }
+  // Haystack Router — DEX swap aggregator (Algorand only)
+  | { type: "SWAP_QUOTE"; fromAssetId: number; fromDecimals: number; toAssetId: number; toDecimals: number; amount: string; address: string }
+  | { type: "SWAP_EXECUTE"; fromAssetId: number; fromDecimals: number; toAssetId: number; toDecimals: number; amount: string; slippage: number; address: string }
   // WalletConnect Web3Wallet — AlgoVoi as wallet for AI agents
   | { type: "W3W_GENERATE_URI" }
   | { type: "W3W_GET_SESSIONS" }
@@ -158,6 +161,8 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "W3W_AGENT_SIGN_GET_PENDING" ? { request: PendingAgentSignRequest | null } :
   T extends "W3W_AGENT_SIGN_APPROVE" ? { signedTxns: (string | null)[] } :
   T extends "W3W_AGENT_SIGN_REJECT" ? { success: boolean } :
+  T extends "SWAP_QUOTE" ? { quoteAmount: string; priceImpact: number | null; usdIn: number | null; usdOut: number | null; routeCount: number } :
+  T extends "SWAP_EXECUTE" ? { txIds: string[]; confirmedRound: string; outputAmount: string } :
   { success: boolean; error?: string };
 
 // Notification pushed from background to content/tabs

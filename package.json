@@ -1,6 +1,6 @@
 {
   "name": "algovou",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Web3 wallet for Algorand + Voi with native x402 HTTP payment support",
   "author": "MaidToShelly",
   "repository": {
@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@txnlab/haystack-router": "^2.0.5",
     "@types/qrcode": "^1.5.6",
     "@walletconnect/sign-client": "2.17.0",
     "@walletconnect/web3wallet": "^1.16.1",
