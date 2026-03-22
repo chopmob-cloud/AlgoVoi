@@ -16,6 +16,7 @@ import { CHAINS } from "@shared/constants";
 import type { ChainId } from "@shared/types/chain";
 import type { Account } from "@shared/types/wallet";
 import { useWalletConnect } from "../hooks/useWalletConnect";
+import { readAssetCache } from "@shared/utils/asset-cache";
 
 const D = 6; // decimals (both ALGO and VOI use 6)
 const MICRO = 1_000_000n;
@@ -749,29 +750,29 @@ function TokenManagementCard({
     if (!activeAccount) return;
     setLoadingAssets(true);
     try {
-      // Fetch wallet's assets via CHAIN_GET_ACCOUNT_STATE
-      const stateResult = await sendBg<{ state: { assets: Array<{ assetId: number; name: string; unitName: string }> } | null }>({
-        type: "CHAIN_GET_ACCOUNT_STATE",
-        address: activeAccount.address,
-        chain,
+      // Fetch wallet's assets directly from algod (same approach as AccountView)
+      const cfg   = CHAINS[chain];
+      const algod = new algosdk.Algodv2(cfg.algod.token, cfg.algod.url, cfg.algod.port);
+      const info  = await algod.accountInformation(activeAccount.address).do();
+      const holdings: Array<{ assetId: bigint | number; amount: bigint | number }> =
+        (info as { assets?: Array<{ assetId: bigint | number; amount: bigint | number }> }).assets ?? [];
+
+      // Enrich names from the asset metadata cache (populated by AccountView)
+      const cache = await readAssetCache(chain);
+      const enriched = holdings.map((h) => {
+        const id   = Number(h.assetId);
+        const meta = cache[String(id)];
+        const label = meta?.unitName || meta?.name
+          || (id === cfg.defaultPaymentAsset?.asaId ? cfg.defaultPaymentAsset.ticker : `ASA #${id}`);
+        return { assetId: id, unitName: label, name: meta?.name ?? "" };
       });
-      // Enrich asset names — algod returns empty name/unitName; use known labels
-      const cfg = CHAINS[chain];
-      const knownAsaId = cfg.defaultPaymentAsset?.asaId;
-      const knownTicker = cfg.defaultPaymentAsset?.ticker;
-      const rawAssets = stateResult.state?.assets ?? [];
-      const enriched = rawAssets.map((a) => ({
-        ...a,
-        unitName: a.unitName || (a.assetId === knownAsaId ? knownTicker ?? `ASA #${a.assetId}` : `ASA #${a.assetId}`),
-        name: a.name || (a.assetId === knownAsaId ? knownTicker ?? "" : ""),
-      }));
       setWalletAssets(enriched);
 
       // Fetch vault's opted-in assets
       const optResult = await sendBg<{ assetIds: number[] }>({ type: "VAULT_GET_OPTED_ASSETS", chain });
       setVaultOptedIds(new Set(optResult.assetIds));
-    } catch {
-      // Silently fail — assets will show as empty
+    } catch (err) {
+      console.warn("[vault] failed to load assets:", err);
     }
     setLoadingAssets(false);
   }, [activeAccount, chain]);
