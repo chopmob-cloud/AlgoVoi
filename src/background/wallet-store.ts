@@ -230,6 +230,24 @@ export const walletStore = {
     _vaultData  = JSON.parse(plaintext) as VaultData;
     _sessionKey = { key, saltHex: vault.salt };
 
+    // Auto-cleanup expired time-limited accounts
+    const now = Date.now();
+    const expired = _vaultData.accounts.filter((a) => a.expiresAt && now > a.expiresAt);
+    if (expired.length > 0) {
+      const expiredIds = new Set(expired.map((a) => a.id));
+      _vaultData.accounts = _vaultData.accounts.filter((a) => !expiredIds.has(a.id));
+      await persistVaultData();
+      // Also remove from WalletMeta
+      const cleanMeta = await loadMeta();
+      cleanMeta.accounts = cleanMeta.accounts.filter((a) => !expiredIds.has(a.id));
+      // If active account was expired, switch to first remaining or null
+      if (cleanMeta.activeAccountId && expiredIds.has(cleanMeta.activeAccountId)) {
+        cleanMeta.activeAccountId = cleanMeta.accounts[0]?.id ?? null;
+      }
+      await saveMeta(cleanMeta);
+      console.log(`[wallet] removed ${expired.length} expired time-limited account(s)`);
+    }
+
     // H2: One-time migration — move connectedSites from plaintext meta into the vault.
     // If the vault already has connectedSites (new wallet or already migrated), skip.
     if (!_vaultData.connectedSites) {
@@ -287,6 +305,46 @@ export const walletStore = {
     const account: Account = { id, name, address, type: "mnemonic" };
     const meta = await loadMeta();
     meta.accounts.push(account);
+    await saveMeta(meta);
+    return account;
+  },
+
+  /**
+   * Import a mnemonic with a time-limited TTL. After `ttlDays` days,
+   * getActiveSecretKey() refuses to return the key and the account is
+   * auto-removed on the next unlock. Stored encrypted in the vault.
+   */
+  async importTimeLimitedAccount(
+    name: string,
+    mnemonic: string,
+    ttlDays: number = 30
+  ): Promise<Account> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    const trimmed = mnemonic.trim();
+    const kp      = algosdk.mnemonicToSecretKey(trimmed); // throws on invalid
+    const id      = randomId();
+    const address = kp.addr.toString();
+
+    // Check for duplicate address
+    const meta = await loadMeta();
+    const dup  = meta.accounts.find((a) => a.address === address);
+    if (dup) {
+      // Update existing vault account's expiry + mnemonic (refresh)
+      const vaultAcct = _vaultData.accounts.find((a) => a.address === address);
+      if (vaultAcct) {
+        vaultAcct.mnemonic  = trimmed;
+        vaultAcct.expiresAt = Date.now() + ttlDays * 86_400_000;
+        await persistVaultData();
+        return dup;
+      }
+    }
+
+    const expiresAt = Date.now() + ttlDays * 86_400_000;
+    _vaultData.accounts.push({ id, address, mnemonic: trimmed, expiresAt });
+    await persistVaultData();
+    const account: Account = { id, name, address, type: "mnemonic" };
+    meta.accounts.push(account);
+    meta.activeAccountId = id;
     await saveMeta(meta);
     return account;
   },
@@ -387,6 +445,13 @@ export const walletStore = {
     const meta = await loadMeta();
     const vaultAccount = _vaultData.accounts.find((a) => a.id === meta.activeAccountId);
     if (!vaultAccount) throw new Error("No active account in vault");
+    // TTL check — refuse to sign with an expired time-limited key
+    if (vaultAccount.expiresAt && Date.now() > vaultAccount.expiresAt) {
+      throw new Error(
+        "This account's 30-day local signing key has expired.\n" +
+        "Re-import your mnemonic via + Add Account to refresh for another 30 days."
+      );
+    }
     return algosdk.mnemonicToSecretKey(vaultAccount.mnemonic).sk;
   },
 
@@ -395,7 +460,20 @@ export const walletStore = {
     if (!_vaultData) throw new Error("Wallet is locked");
     const vaultAccount = _vaultData.accounts.find((a) => a.address === address);
     if (!vaultAccount) throw new Error(`Account ${address} not in vault`);
+    if (vaultAccount.expiresAt && Date.now() > vaultAccount.expiresAt) {
+      throw new Error(
+        "This account's 30-day local signing key has expired.\n" +
+        "Re-import your mnemonic via + Add Account to refresh for another 30 days."
+      );
+    }
     return algosdk.mnemonicToSecretKey(vaultAccount.mnemonic).sk;
+  },
+
+  /** Get the expiry timestamp for a vault account (null = permanent) */
+  getAccountExpiry(id: string): number | null {
+    if (!_vaultData) return null;
+    const acct = _vaultData.accounts.find((a) => a.id === id);
+    return acct?.expiresAt ?? null;
   },
 
   /** Export mnemonic for backup (wallet must be unlocked) */

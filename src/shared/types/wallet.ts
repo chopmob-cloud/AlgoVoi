@@ -26,6 +26,13 @@ export interface VaultData {
     id: string;
     address: string;
     mnemonic: string; // 25-word Algorand mnemonic (identical format for both chains)
+    /**
+     * Unix timestamp (ms) when this account's local signing key expires.
+     * After expiry, getActiveSecretKey() refuses to return the key and
+     * the account is auto-removed on the next unlock.
+     * Undefined = permanent (no expiry).
+     */
+    expiresAt?: number;
   }>;
   /**
    * H2: origin → approved addresses mapping, moved from WalletMeta into the
