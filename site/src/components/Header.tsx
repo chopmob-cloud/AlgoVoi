@@ -14,6 +14,7 @@ export default function Header() {
         <a href="#x402" className="hover:text-text transition-colors">x402</a>
         <a href="#mpp" className="hover:text-text transition-colors">MPP</a>
         <a href="#agents" className="hover:text-text transition-colors">AI Agents</a>
+        <a href="#get-started" className="hover:text-text transition-colors">Setup</a>
         <a href="#multitenant" className="text-voi font-semibold hover:text-text transition-colors">Platform</a>
       </nav>
       <a
