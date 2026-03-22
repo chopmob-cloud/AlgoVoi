@@ -209,8 +209,15 @@ export async function deployVault(
     amount:          200_000n,
     suggestedParams: fundSp,
   });
-  const signedFund = fundTxn.signTxn(ownerSk);
-  const { txid: fundTxId } = await algod.sendRawTransaction(signedFund).do();
+  // Also fund the agent address with 100_000 (MBR) + 100_000 (fee buffer) so
+  // the agent can pay outer transaction fees when calling pay()/pay_asa().
+  const agentFundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: ownerAddr, receiver: agentAddr, amount: 200_000n, suggestedParams: fundSp,
+  });
+  algosdk.assignGroupID([fundTxn, agentFundTxn]);
+  const signedFund      = fundTxn.signTxn(ownerSk);
+  const signedAgentFund = agentFundTxn.signTxn(ownerSk);
+  const { txid: fundTxId } = await algod.sendRawTransaction([signedFund, signedAgentFund]).do();
   await algosdk.waitForConfirmation(algod, fundTxId, 4);
 
   // 3. Register the first agent
@@ -401,6 +408,12 @@ export async function buildVaultSetupGroup(
     sender: ownerAddr, receiver: appAddress, amount: 200_000n, suggestedParams: sp,
   });
 
+  // Fund agent address: MBR (100_000) + fee buffer (100_000) so the agent can
+  // pay outer transaction fees when calling pay()/pay_asa().
+  const agentFundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: ownerAddr, receiver: agentAddr, amount: 200_000n, suggestedParams: sp,
+  });
+
   // ABI add_agent call
   const atc = new algosdk.AtomicTransactionComposer();
   atc.addMethodCall({
@@ -411,8 +424,8 @@ export async function buildVaultSetupGroup(
   });
   const addAgentTxn = atc.buildGroup()[0].txn;
 
-  // Assign group ID so both txns are atomic
-  const txns = [fundTxn, addAgentTxn];
+  // Assign group ID so all txns are atomic
+  const txns = [fundTxn, agentFundTxn, addAgentTxn];
   algosdk.assignGroupID(txns);
   return txns;
 }
@@ -462,6 +475,11 @@ export async function buildRemapAgentGroup(
     sender: ownerAddr, receiver: appAddress, amount: 33_000n, suggestedParams: sp,
   });
 
+  // Fund agent address: MBR + fee buffer so agent can pay outer txn fees
+  const agentFundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: ownerAddr, receiver: agentAddr, amount: 200_000n, suggestedParams: sp,
+  });
+
   const atc = new algosdk.AtomicTransactionComposer();
   atc.addMethodCall({
     appID: appId, method: M.add_agent,
@@ -471,7 +489,7 @@ export async function buildRemapAgentGroup(
   });
   const addAgentTxn = atc.buildGroup()[0].txn;
 
-  const txns = [fundTxn, addAgentTxn];
+  const txns = [fundTxn, agentFundTxn, addAgentTxn];
   algosdk.assignGroupID(txns);
   return txns;
 }
