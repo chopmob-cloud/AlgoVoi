@@ -6,6 +6,7 @@ on:
     paths:
       - privacy-policy.html
       - site/**
+      - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
 permissions:
@@ -28,11 +29,19 @@ jobs:
 
       - name: Build site
         working-directory: site
+        # VITE_BASE=/ — the site is served from the root of the custom domain
+        # (av.ilc-n.xyz). Without this, Vite defaults to /AlgoVoi/ and all
+        # asset paths 404 on the custom domain.
         run: npm ci && npm run build
+        env:
+          VITE_BASE: /
 
       - name: Copy root static files into site dist
         run: |
           cp privacy-policy.html site/dist/privacy-policy.html
+          # CNAME tells GitHub Pages which custom domain owns this deployment.
+          # Without it the custom domain is cleared on each deploy.
+          echo "av.ilc-n.xyz" > site/dist/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
