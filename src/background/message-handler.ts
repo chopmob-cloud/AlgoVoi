@@ -49,6 +49,9 @@ import {
   submitSignedGroup,
   vaultPay,
   vaultAsaPay,
+  vaultOptInAsa,
+  buildVaultOptInAsaTxn,
+  getVaultOptedInAssets,
 } from "./vault-store";
 import {
   generatePairingUri,
@@ -1618,19 +1621,30 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (actionAccount.type === "walletconnect") {
         // WC path: build unsigned txn → popup signs → VAULT_WC_ACTION_SUBMIT
         if (!actionAccount.wcSessionTopic) throw new Error("No WalletConnect session for this account");
-        const wcActionParams: {
-          maxPerTxn?: bigint; dailyCap?: bigint; maxAsa?: bigint;
-          receiver?: string; amount?: bigint;
-        } = {};
-        if (msg.maxPerTxn) wcActionParams.maxPerTxn = BigInt(msg.maxPerTxn);
-        if (msg.dailyCap)  wcActionParams.dailyCap  = BigInt(msg.dailyCap);
-        if (msg.maxAsa)    wcActionParams.maxAsa    = BigInt(msg.maxAsa);
-        if (msg.receiver)  wcActionParams.receiver  = msg.receiver;
-        if (msg.amount)    wcActionParams.amount    = BigInt(msg.amount);
-        const wcActionTxn  = await buildOwnerActionTxn(
-          msg.chain, actionVaultApp.appId, actionAccount.address, agentAddrForAction, msg.action, wcActionParams
-        );
-        const actionUnsignedB64 = btoa(String.fromCharCode(...wcActionTxn.toByte()));
+
+        let actionUnsignedB64: string;
+        if (msg.action === "opt_in_asa") {
+          // opt_in_asa uses a dedicated builder (not buildOwnerActionTxn)
+          if (!msg.assetId) throw new Error("Missing asset ID for vault opt-in");
+          const { unsignedTxnB64 } = await buildVaultOptInAsaTxn(
+            msg.chain, actionVaultApp.appId, actionAccount.address, msg.assetId
+          );
+          actionUnsignedB64 = unsignedTxnB64;
+        } else {
+          const wcActionParams: {
+            maxPerTxn?: bigint; dailyCap?: bigint; maxAsa?: bigint;
+            receiver?: string; amount?: bigint;
+          } = {};
+          if (msg.maxPerTxn) wcActionParams.maxPerTxn = BigInt(msg.maxPerTxn);
+          if (msg.dailyCap)  wcActionParams.dailyCap  = BigInt(msg.dailyCap);
+          if (msg.maxAsa)    wcActionParams.maxAsa    = BigInt(msg.maxAsa);
+          if (msg.receiver)  wcActionParams.receiver  = msg.receiver;
+          if (msg.amount)    wcActionParams.amount    = BigInt(msg.amount);
+          const wcActionTxn  = await buildOwnerActionTxn(
+            msg.chain, actionVaultApp.appId, actionAccount.address, agentAddrForAction, msg.action, wcActionParams
+          );
+          actionUnsignedB64 = btoa(String.fromCharCode(...wcActionTxn.toByte()));
+        }
         // H1: store expected bytes for binding check in VAULT_WC_ACTION_SUBMIT
         _pendingVaultWcBinding.set(actionAccount.wcSessionTopic, {
           expectedUnsignedB64s: [actionUnsignedB64],
@@ -1673,7 +1687,22 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         );
         return { txId: r.txId };
       }
+      if (msg.action === "opt_in_asa") {
+        if (!msg.assetId) throw new Error("Missing asset ID for vault opt-in");
+        const r = await vaultOptInAsa(
+          msg.chain, actionVaultApp.appId, actionOwnerSk, actionAccount.address,
+          msg.assetId
+        );
+        return { txId: r.txId };
+      }
       throw new Error(`Unknown vault action: ${msg.action}`);
+    }
+
+    case "VAULT_GET_OPTED_ASSETS": {
+      const optVault = walletStore.getVaultApp(msg.chain);
+      if (!optVault) return { assetIds: [] };
+      const assetIds = await getVaultOptedInAssets(msg.chain, optVault.appId);
+      return { assetIds };
     }
 
     case "VAULT_REMAP": {
