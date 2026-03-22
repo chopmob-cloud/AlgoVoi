@@ -464,13 +464,21 @@ export function useWalletConnect(): UseWalletConnectReturn {
       const client = await getClient();
 
       // session.get() throws if the topic is not in the local store
-      try { client.session.get(sessionTopic); } catch {
+      try {
+        const sess = client.session.get(sessionTopic);
+        console.log("[wc] signTransaction — session found:", sessionTopic.slice(0, 8), "peer:", (sess as { peer?: { metadata?: { name?: string } } }).peer?.metadata?.name);
+      } catch (e) {
+        console.error("[wc] signTransaction — session NOT found:", sessionTopic.slice(0, 8), e);
+        // List all known sessions for debugging
+        const allSessions = client.session.getAll();
+        console.log("[wc] known sessions:", allSessions.map((s: { topic: string }) => s.topic.slice(0, 8)));
         throw new Error(RE_PAIR_MSG);
       }
 
       const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
       const txnB64 = btoa(String.fromCharCode(...txn.toByte()));
 
+      console.log("[wc] dispatching signTransaction — topic:", sessionTopic.slice(0, 8));
       const result = await Promise.race([
         client.request<unknown>({
           topic: sessionTopic,
