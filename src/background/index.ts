@@ -7,6 +7,19 @@ import { registerMessageHandler } from "./message-handler";
 import { restoreWeb3WalletSessions } from "./web3wallet-handler";
 import { WC_PROJECT_ID } from "@shared/constants";
 
+// Suppress benign WC "No matching key" unhandled rejections in the SW context.
+// The WC relay delivers responses to all subscribed clients; clients that didn't
+// send the request throw "No matching key" which is harmless but pollutes
+// chrome://extensions errors.
+self.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+  const msg: string =
+    (event.reason as { message?: string } | null)?.message ??
+    String(event.reason ?? "");
+  if (msg.includes("No matching key")) {
+    event.preventDefault();
+  }
+});
+
 // Register the central message router
 registerMessageHandler();
 

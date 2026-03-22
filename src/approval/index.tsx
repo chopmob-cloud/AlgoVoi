@@ -34,6 +34,17 @@ import type { ChainId } from "@shared/types/chain";
 })();
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+// ── Suppress benign WC "No matching key" rejections ──────────────────────
+// (Same handler as popup/index.tsx — approval popup has its own JS context)
+window.addEventListener("unhandledrejection", (event) => {
+  const msg: string =
+    (event.reason as { message?: string } | null)?.message ??
+    String(event.reason ?? "");
+  if (msg.includes("No matching key")) {
+    event.preventDefault();
+  }
+});
+
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 function sendBg<T = unknown>(msg: object): Promise<T> {
