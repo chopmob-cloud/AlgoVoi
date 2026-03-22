@@ -109,7 +109,9 @@ export type BgRequest =
   | { type: "W3W_DISCONNECT"; topic: string }
   | { type: "W3W_AGENT_SIGN_GET_PENDING"; requestId: string }
   | { type: "W3W_AGENT_SIGN_APPROVE"; requestId: string }
-  | { type: "W3W_AGENT_SIGN_REJECT"; requestId: string };
+  | { type: "W3W_AGENT_SIGN_REJECT"; requestId: string }
+  // Keep-alive: resets auto-lock timer without side-effects
+  | { type: "KEEP_ALIVE" };
 
 export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_STATE" ? { lockState: LockState; meta: WalletMeta | null } :
@@ -163,6 +165,7 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "W3W_AGENT_SIGN_REJECT" ? { success: boolean } :
   T extends "SWAP_QUOTE" ? { quoteAmount: string; priceImpact: number | null; usdIn: number | null; usdOut: number | null; routeCount: number } :
   T extends "SWAP_EXECUTE" ? { txIds: string[]; confirmedRound: string; outputAmount: string } :
+  T extends "KEEP_ALIVE" ? { alive: boolean } :
   { success: boolean; error?: string };
 
 // Notification pushed from background to content/tabs
