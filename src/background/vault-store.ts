@@ -593,9 +593,9 @@ export async function vaultAsaPay(
   const vaultAddr = algosdk.getApplicationAddress(appId).toString();
   const accInfo   = await algod.accountInformation(vaultAddr).do();
 
-  // Find the ASA holding
-  const holding = (accInfo.assets as Array<{ assetId: number; amount: number }>)
-    ?.find((a: { assetId: number }) => a.assetId === assetId);
+  // Find the ASA holding (algosdk v3 returns assetId as bigint)
+  const holding = (accInfo.assets as Array<{ assetId: bigint | number; amount: bigint | number }>)
+    ?.find((a) => Number(a.assetId) === assetId);
   const asaBalance = holding ? BigInt(holding.amount) : 0n;
   if (asaBalance < amount) {
     throw new Error(
@@ -687,6 +687,6 @@ export async function getVaultOptedInAssets(
   const algod     = getAlgodClient(chain);
   const vaultAddr = algosdk.getApplicationAddress(appId).toString();
   const accInfo   = await algod.accountInformation(vaultAddr).do();
-  return (accInfo.assets as Array<{ assetId: number }> ?? [])
-    .map((a: { assetId: number }) => a.assetId);
+  return (accInfo.assets as Array<{ assetId: bigint | number }> ?? [])
+    .map((a) => Number(a.assetId));
 }
