@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { RouterClient } from "@txnlab/haystack-router";
-import type { SwapQuote, SignerFunction } from "@txnlab/haystack-router";
+// SwapQuote type used only by WcSwapWindow — not imported here
 import { sendBg } from "../App";
-import { signGroupIndexedWithWC } from "@shared/utils/wc-sign-group";
 import type { Account } from "@shared/types/wallet";
 import type { AccountAsset } from "@shared/types/chain";
 
@@ -83,8 +82,6 @@ function SwapForm({
   const [amount,    setAmount]    = useState("");
   const [slippage,  setSlippage]  = useState("0.5");
   const [quote,     setQuote]     = useState<QuoteDisplay | null>(null);
-  // WC path only: keep the raw SwapQuote so newSwap() can reuse it
-  const [wcQuote,   setWcQuote]   = useState<SwapQuote | null>(null);
   const [loading,   setLoading]   = useState(false);
   const [executing, setExecuting] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
@@ -92,7 +89,6 @@ function SwapForm({
 
   function resetQuote() {
     setQuote(null);
-    setWcQuote(null);
     setTxIds(null);
     setError(null);
   }
@@ -131,13 +127,13 @@ function SwapForm({
     setLoading(true);
     setError(null);
     setQuote(null);
-    setWcQuote(null);
     setTxIds(null);
 
     try {
       if (isWC) {
-        // WC path: run RouterClient directly in the popup
-        const client      = makePopupClient();
+        // WC path: fetch a display quote so the user sees the expected output.
+        // The WcSwapWindow will re-fetch its own fresh quote at execution time.
+        const client       = makePopupClient();
         const amountAtomic = parseDecimal(trimAmt, fromAsset.decimals);
         const q = await client.newQuote({
           fromASAID: fromAsset.assetId,
@@ -145,7 +141,6 @@ function SwapForm({
           amount:    amountAtomic,
           address:   activeAccount.address,
         });
-        setWcQuote(q);
         setQuote({
           quoteAmount: formatAtomic(q.quote, toAsset.decimals),
           priceImpact: q.userPriceImpact ?? null,
@@ -186,74 +181,46 @@ function SwapForm({
     setError(null);
     setTxIds(null);
 
-    // Keep the vault unlocked while waiting for the user to approve in their
-    // wallet app. Without this, the 5-minute auto-lock fires and shows the
-    // lock screen mid-swap. Interval cleared in the finally block.
+    // Keep the vault unlocked during mnemonic swaps (background signs + submits,
+    // which can take 10–30 s). The WC path launches a detached window that has
+    // its own keep-alive; no interval needed here for that path.
     const keepAlive = isWC
-      ? setInterval(() => void sendBg({ type: "KEEP_ALIVE" }), 30_000)
-      : undefined;
+      ? undefined
+      : setInterval(() => void sendBg({ type: "KEEP_ALIVE" }), 30_000);
 
     try {
       if (isWC) {
-        // ── WC path: sign in popup via WalletConnect ─────────────────────
-        console.log("[swap-wc] execute start — wcQuote:", !!wcQuote, "sessionTopic:", activeAccount.wcSessionTopic?.slice(0, 16));
-        if (!wcQuote) throw new Error("Quote expired — get a new quote first");
+        // ── WC path: open detached popup window ───────────────────────────
+        //
+        // The normal extension popup closes when the user clicks outside it,
+        // killing the SignClient WebSocket mid-flight and orphaning the signing
+        // request in Defly/Pera. A detached chrome.windows.create() popup
+        // stays open regardless — WcSwapWindow.tsx handles the full flow
+        // (fresh quote → wc-sign-group sign → execute → success/error UI).
         const sessionTopic = activeAccount.wcSessionTopic;
         if (!sessionTopic) throw new Error("WalletConnect session not found");
 
-        // Re-fetch a fresh quote right before building the swap group.
-        //
-        // The WC signing flow takes 1–5 minutes (user must open wallet app
-        // manually). The quote obtained during "Get Quote" can be stale by
-        // then: the minimum output amounts baked into the AVM app call are
-        // calculated from the quote price, so if the pool moves more than
-        // slippage % between quote time and submission the contract asserts.
-        // Re-quoting here shrinks the staleness window to only the signing
-        // wait (unavoidable), rather than quoting wait + signing wait.
-        console.log("[swap-wc] re-fetching fresh quote before newSwap...");
-        const freshClient = makePopupClient();
-        const freshQ = await freshClient.newQuote({
-          fromASAID: fromAsset.assetId,
-          toASAID:   toAsset.assetId,
-          amount:    parseDecimal(trimAmt, fromAsset.decimals),
-          address:   activeAccount.address,
+        const params = new URLSearchParams({
+          wcswap:       "1",
+          sessionTopic,
+          fromId:       String(fromAsset.assetId),
+          toId:         String(toAsset.assetId),
+          fromDecimals: String(fromAsset.decimals),
+          toDecimals:   String(toAsset.decimals),
+          fromLabel:    fromAsset.label,
+          toLabel:      toAsset.label,
+          amount:       trimAmt,
+          slippage:     slippage,
+          address:      activeAccount.address,
         });
-        // Update the displayed quote so the user can see the refreshed output
-        // amount while waiting for WC approval.
-        setQuote({
-          quoteAmount: formatAtomic(freshQ.quote, toAsset.decimals),
-          priceImpact: freshQ.userPriceImpact ?? null,
-          usdIn:       freshQ.usdIn  ?? null,
-          usdOut:      freshQ.usdOut ?? null,
-          routeCount:  freshQ.route?.length ?? 0,
-        });
-        console.log("[swap-wc] fresh quote received — quote:", freshQ.quote?.toString());
 
-        const signer: SignerFunction = async (txnGroup, indexesToSign) => {
-          console.log("[swap-wc] signer called — txns:", txnGroup.length, "toSign:", indexesToSign);
-          return signGroupIndexedWithWC(
-            sessionTopic,
-            "algorand",
-            txnGroup,
-            indexesToSign,
-            activeAccount.address
-          );
-        };
+        const url = chrome.runtime.getURL("src/popup/index.html") + "?" + params.toString();
+        chrome.windows.create({ url, type: "popup", width: 400, height: 600 });
 
-        console.log("[swap-wc] calling newSwap with fresh quote...");
-        const client = makePopupClient();
-        const swap   = await client.newSwap({
-          quote:    freshQ,
-          address:  activeAccount.address,
-          signer,
-          slippage: slippageNum,
-        });
-        console.log("[swap-wc] calling execute...");
-        const result = await swap.execute();
-        setTxIds(result.txIds);
+        // Reset local UI — the detached window owns the swap from here on
+        setExecuting(false);
         setQuote(null);
-        setWcQuote(null);
-        setAmount("");
+        return;
       } else {
         // ── Mnemonic path: background signs + submits ────────────────────
         const result = await sendBg<{ txIds: string[]; confirmedRound: string; outputAmount: string }>({
