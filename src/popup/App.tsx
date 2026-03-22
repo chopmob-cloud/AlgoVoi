@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import WalletSetup from "./components/WalletSetup";
 import AccountView from "./components/AccountView";
 import WalletConnectModal from "./components/WalletConnectModal";
+import WcSwapWindow from "./components/WcSwapWindow";
 import { CHAINS } from "@shared/constants";
 import type { LockState } from "@shared/types/wallet";
 import type { ChainId } from "@shared/types/chain";
@@ -9,6 +10,10 @@ import type { ChainId } from "@shared/types/chain";
 // Detect whether this window was opened for WalletConnect pairing
 const _wcParams = new URLSearchParams(window.location.search);
 const WC_PAIR_MODE = _wcParams.get("wcpair") === "1";
+// Detect whether this window was opened for a WC swap (detached popup window).
+// SwapPanel launches this to keep the SignClient WebSocket alive — the normal
+// extension popup closes when the user clicks outside it, killing the WS.
+const WC_SWAP_MODE = _wcParams.get("wcswap") === "1";
 // H2: Validate the chain param at runtime — a TypeScript cast alone won't catch
 // garbage values injected via URL manipulation. Fall back to "algorand" if the
 // value is not a key in the supported CHAINS map.
@@ -98,6 +103,13 @@ export default function App() {
 
   if (view === "unlock") {
     return <UnlockScreen onUnlocked={() => setView("wallet")} />;
+  }
+
+  // WC swap window: detached popup that keeps the SignClient WS alive.
+  // Rendered unconditionally — no unlock required since signing uses the
+  // WC session key (held on the phone), not the vault key.
+  if (WC_SWAP_MODE) {
+    return <WcSwapWindow />;
   }
 
   // WC pairing window: show modal directly, close on done/cancel
