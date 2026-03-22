@@ -8,6 +8,7 @@ import X402Screen from './components/X402Screen'
 import MppScreen from './components/MppScreen'
 import AgentScreen from './components/AgentScreen'
 import VaultScreen from './components/VaultScreen'
+import GetStartedScreen from './components/GetStartedScreen'
 import VaultRecoveryScreen from './components/VaultRecoveryScreen'
 import MultiTenantSection from './components/MultiTenantSection'
 import CTASection from './components/CTASection'
@@ -27,6 +28,7 @@ export default function App() {
         <MppScreen />
         <AgentScreen />
         <VaultScreen />
+        <GetStartedScreen />
         <VaultRecoveryScreen />
         <MultiTenantSection />
         <CTASection />
