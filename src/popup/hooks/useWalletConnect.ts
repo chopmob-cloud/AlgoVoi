@@ -31,7 +31,7 @@ import {
 } from "@shared/constants";
 import { appendDebugLog, sanitizeTopic } from "@shared/debug-log";
 import { extractWCSignedTxn } from "@shared/utils/crypto";
-import { restoreWCStorage } from "@shared/utils/wc-storage";
+import { chromeStorage } from "@shared/utils/wc-chrome-storage";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -119,16 +119,9 @@ export function useWalletConnect(): UseWalletConnectReturn {
     }
 
 
-    // Restore persisted WC session data so SignClient finds existing sessions
-    // even after a lock/unlock cycle wiped localStorage. Returns false if the
-    // snapshot is missing or older than 30 days (expired) — in that case we
-    // proceed without session data, and session.get() will throw downstream,
-    // prompting the user to re-pair.
-    await restoreWCStorage();
+    // chrome.storage.local adapter — session data survives lock/unlock cycles
+    // and SW suspension without any snapshot/restore mechanism.
 
-    // The WC relay WebSocket can hang silently in extension contexts (Chrome
-    // drops the connection without firing onerror). Race against a timeout so
-    // the user gets a meaningful error instead of an infinite spinner.
     const RELAY_TIMEOUT_MS = 15_000;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -148,6 +141,7 @@ export function useWalletConnect(): UseWalletConnectReturn {
         SignClient.init({
           projectId: WC_PROJECT_ID,
           relayUrl: WC_RELAY_URL,
+          storage: chromeStorage,
           metadata: {
             name: "AlgoVoi",
             description: "Web3 wallet for Algorand + Voi with x402 payments",
