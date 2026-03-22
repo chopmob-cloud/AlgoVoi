@@ -309,24 +309,8 @@ export async function buildAndSignMppPayment(
 
   const { txn, chain, asaId } = await buildMppTransaction(req);
 
-  // ── Vault auto-payment path ──────────────────────────────────────────────
-  const vaultApp  = walletStore.getVaultApp(chain);
-  const agentAddr = walletStore.getAgentAddress();
-  if (vaultApp && agentAddr && asaId === 0) {
-    const agentSk  = await walletStore.getAgentSecretKey();
-    const avmReq   = req.avmRequest;
-    const amount   = BigInt(String(avmReq.amount));
-    const note     = `mpp:${avmReq.recipient}`.slice(0, 1000);
-    const { txId } = await vaultPay(chain, vaultApp.appId, agentSk, agentAddr, avmReq.recipient, amount, note);
-    await waitForConfirmation(chain, txId, 8);
-    await waitForIndexed(chain, txId);
-    const credential: MppCredential = {
-      challenge: req.challenge,
-      source: `did:pkh:avm:${avmReq.network}:${vaultApp.appAddress}`,
-      payload: { txId, transaction: "" },
-    };
-    return { authorizationHeader: serializeMppCredential(credential), txId };
-  }
+  // Vault auto-pay disabled — MPP servers expect standard Payment/AssetTransfer
+  // transactions, not application calls with inner transactions.
 
   // ── Standard owner key path ──────────────────────────────────────────────
 
