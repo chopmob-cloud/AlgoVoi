@@ -48,6 +48,7 @@ import {
   addAgentMnemonic,
   submitSignedGroup,
   vaultPay,
+  vaultAsaPay,
 } from "./vault-store";
 import {
   generatePairingUri,
@@ -692,30 +693,60 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       if (activeAccount?.type === "walletconnect") {
         // ── Vault-first: sign locally with agent key if vault is deployed ──
-        // This avoids the unreliable WC relay round-trip for native coin payments.
-        // Falls through to WC signing if: no vault, ASA payment, or vault error.
+        // This avoids the unreliable WC relay round-trip for ALL payments
+        // (native coin via vaultPay, ASAs via vaultAsaPay).
+        // Falls through to WC signing if: no vault, or vault error.
         const x402PayChain = resolveChain(req.paymentRequirements.network);
         const x402AsaId = req.paymentRequirements.asset === "0" || !req.paymentRequirements.asset
           ? 0 : parseInt(req.paymentRequirements.asset, 10);
         const x402Vault = x402PayChain ? walletStore.getVaultApp(x402PayChain) : null;
         const x402Agent = walletStore.getAgentAddress();
 
-        if (x402Vault && x402Agent && x402AsaId === 0) {
+        if (x402Vault && x402Agent) {
           try {
-            // buildAndSignPayment has its own vault check — calls vaultPay()
-            // with the agent key. No WC type guard inside that function.
-            const { paymentHeader: vaultPH, txId: vaultTxId } = await buildAndSignPayment(req);
-            clearPendingRequest(msg.requestId);
-            chrome.tabs.sendMessage(req.tabId, {
-              type: "X402_RESULT",
-              requestId: req.inpageRequestId ?? req.id,
-              approved: true,
-              paymentHeader: vaultPH,
-              txId: vaultTxId,
-            });
-            return { paymentHeader: vaultPH, txId: vaultTxId };
+            if (x402AsaId === 0) {
+              // Native coin — buildAndSignPayment has vault auto-pay path
+              const { paymentHeader: vaultPH, txId: vaultTxId } = await buildAndSignPayment(req);
+              clearPendingRequest(msg.requestId);
+              chrome.tabs.sendMessage(req.tabId, {
+                type: "X402_RESULT",
+                requestId: req.inpageRequestId ?? req.id,
+                approved: true,
+                paymentHeader: vaultPH,
+                txId: vaultTxId,
+              });
+              return { paymentHeader: vaultPH, txId: vaultTxId };
+            } else {
+              // ASA (USDC, aUSDC, etc.) — use vaultAsaPay directly
+              const agentSk = await walletStore.getAgentSecretKey();
+              const amount  = BigInt(req.paymentRequirements.maxAmountRequired ?? req.paymentRequirements.amount ?? "0");
+              const note    = `x402:${req.url}`.slice(0, 1000);
+              const { txId: asaTxId } = await vaultAsaPay(
+                x402PayChain!, x402Vault.appId, agentSk, x402Agent,
+                req.paymentRequirements.payTo, x402AsaId, amount, note
+              );
+              await waitForConfirmation(x402PayChain!, asaTxId, 8);
+              await waitForIndexed(x402PayChain!, asaTxId);
+
+              const payload = {
+                x402Version: X402_VERSION,
+                scheme: req.paymentRequirements.scheme,
+                network: req.paymentRequirements.network,
+                payload: { txId: asaTxId, payer: x402Vault.appAddress },
+              };
+              const paymentHeader = btoa(JSON.stringify(payload));
+              clearPendingRequest(msg.requestId);
+              chrome.tabs.sendMessage(req.tabId, {
+                type: "X402_RESULT",
+                requestId: req.inpageRequestId ?? req.id,
+                approved: true,
+                paymentHeader,
+                txId: asaTxId,
+              });
+              return { paymentHeader, txId: asaTxId };
+            }
           } catch (vaultErr) {
-            // Vault failed (cap exceeded, insufficient balance, suspended, etc.)
+            // Vault failed (cap exceeded, insufficient balance, not opted in, etc.)
             // Fall through to WC signing as fallback.
             console.warn("[x402] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
           }
@@ -909,25 +940,41 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (mppAccount.type === "walletconnect") {
         // ── Vault-first: sign locally with agent key if vault is deployed ──
         // Inline vault logic because buildAndSignMppPayment() has a WC guard
-        // (locked file — can't modify). Falls through to WC on failure.
-        const mppAvmReq   = mppReq.avmRequest;
-        const mppPayChain = resolveMppChain(mppAvmReq.network);
-        const mppIsNative =
-          mppAvmReq.currency.toUpperCase() === "ALGO" ||
-          mppAvmReq.currency.toUpperCase() === "VOI" ||
-          mppAvmReq.currency === "0";
+        // (locked file — can't modify). Handles both native coin and ASA payments.
+        // Falls through to WC on failure.
+        const mppAvmReq    = mppReq.avmRequest;
+        const mppPayChain  = resolveMppChain(mppAvmReq.network);
         const mppVault     = mppPayChain ? walletStore.getVaultApp(mppPayChain) : null;
         const mppAgentAddr = walletStore.getAgentAddress();
 
-        if (mppVault && mppAgentAddr && mppIsNative && mppPayChain) {
+        if (mppVault && mppAgentAddr && mppPayChain) {
           try {
             const agentSk   = await walletStore.getAgentSecretKey();
             const mppAmount = BigInt(String(mppAvmReq.amount));
             const mppNote   = `mpp:${mppAvmReq.recipient}`.slice(0, 1000);
-            const { txId }  = await vaultPay(
-              mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
-              mppAvmReq.recipient, mppAmount, mppNote
-            );
+
+            // Determine if native coin or ASA
+            const mppIsNative =
+              mppAvmReq.currency.toUpperCase() === "ALGO" ||
+              mppAvmReq.currency.toUpperCase() === "VOI" ||
+              mppAvmReq.currency === "0";
+
+            let txId: string;
+            if (mppIsNative) {
+              ({ txId } = await vaultPay(
+                mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
+                mppAvmReq.recipient, mppAmount, mppNote
+              ));
+            } else {
+              // ASA — parse asset ID from currency field
+              const mppAsaId = parseInt(mppAvmReq.currency, 10);
+              if (isNaN(mppAsaId) || mppAsaId <= 0) throw new Error("Invalid ASA ID in MPP request");
+              ({ txId } = await vaultAsaPay(
+                mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
+                mppAvmReq.recipient, mppAsaId, mppAmount, mppNote
+              ));
+            }
+
             await waitForConfirmation(mppPayChain, txId, 8);
             await waitForIndexed(mppPayChain, txId);
 
@@ -952,7 +999,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
             }
             return { authorizationHeader, txId };
           } catch (vaultErr) {
-            // Vault failed (cap exceeded, balance low, suspended, etc.)
+            // Vault failed (cap exceeded, balance low, not opted in, etc.)
             // Fall through to WC signing as fallback.
             console.warn("[mpp] vault auto-pay failed for WC account, falling back to WC:", vaultErr);
           }
