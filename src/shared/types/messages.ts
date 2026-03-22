@@ -90,6 +90,10 @@ export type BgRequest =
   | { type: "AP2_REJECT"; requestId: string }
   | { type: "AP2_LIST_INTENT_MANDATES" }
   // SpendingCapVault — on-chain agent spending limits
+  // Time-limited mnemonic import (30-day local signing key)
+  | { type: "WALLET_IMPORT_TIMED"; name: string; mnemonic: string; ttlDays: number }
+  | { type: "WALLET_GET_EXPIRY"; accountId: string }
+  // SpendingCapVault — on-chain agent spending limits
   | { type: "VAULT_GET_STATE"; chain: ChainId }
   | { type: "VAULT_DEPLOY"; chain: ChainId; globalMaxPerTxn: string; globalDailyCap: string; globalMaxAsa: string; allowlistEnabled: boolean; agentMaxPerTxn: string; agentDailyCap: string }
   | { type: "VAULT_ACTION"; chain: ChainId; action: "suspend" | "resume" | "update_limits" | "withdraw" | "opt_in_asa"; maxPerTxn?: string; dailyCap?: string; maxAsa?: string; receiver?: string; amount?: string; assetId?: number }

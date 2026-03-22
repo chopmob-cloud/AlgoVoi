@@ -9,13 +9,14 @@ import { abbreviateAddress, formatAmount } from "@shared/utils/format";
 import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import VaultPanel from "./VaultPanel";
+import ImportMnemonicModal from "./ImportMnemonicModal";
 import SwapPanel from "./SwapPanel";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
 type Tab = "assets" | "swap" | "history" | "apps" | "agents" | "vault";
-type Modal = "send" | "receive" | null;
+type Modal = "send" | "receive" | "import_mnemonic" | "add_menu" | null;
 
 /**
  * Parse a decimal string to atomic BigInt without float rounding errors.
@@ -182,6 +183,7 @@ export default function AccountView() {
   const [modal, setModal] = useState<Modal>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
   const activeChain = (meta?.activeChain ?? "algorand") as ChainId;
   const activeAccount = meta?.accounts.find((a) => a.id === meta.activeAccountId);
@@ -246,6 +248,14 @@ export default function AccountView() {
     chrome.storage.onChanged.addListener(onStorageChange);
     return () => chrome.storage.onChanged.removeListener(onStorageChange);
   }, [loadState]);
+
+  // Fetch expiry for time-limited accounts
+  useEffect(() => {
+    if (!meta?.activeAccountId) { setExpiresAt(null); return; }
+    sendBg<{ expiresAt: number | null }>({ type: "WALLET_GET_EXPIRY", accountId: meta.activeAccountId })
+      .then((r) => setExpiresAt(r.expiresAt))
+      .catch(() => setExpiresAt(null));
+  }, [meta?.activeAccountId]);
 
   // Switch chain by writing directly to storage — same approach as switchAccount.
   // This persists the preference across popup reopens AND ensures loadState() reads
@@ -334,14 +344,20 @@ export default function AccountView() {
           <div>
             <h2 className="font-semibold mb-1">No accounts yet</h2>
             <p className="text-xs text-gray-400">
-              Connect your Pera, Defly, or Lute wallet via QR code to get started.
+              Connect a mobile wallet via QR, or import your mnemonic for local signing.
             </p>
           </div>
           <button
             onClick={() => openWCPairTab(activeChain)}
-            className="w-full py-3 rounded-xl bg-algo text-black text-sm font-semibold hover:bg-algo/90 transition-colors"
+            className="w-full py-2.5 rounded-xl bg-algo text-black text-sm font-semibold hover:bg-algo/90 transition-colors"
           >
-            + Connect Mobile Wallet
+            📱 Connect Mobile Wallet
+          </button>
+          <button
+            onClick={() => setModal("import_mnemonic")}
+            className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
+          >
+            🔑 Import Mnemonic (30-day key)
           </button>
         </div>
 
@@ -362,14 +378,32 @@ export default function AccountView() {
           </div>
           <span className="text-sm font-semibold">AlgoVoi</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           <button
-            onClick={() => openWCPairTab(activeChain)}
+            onClick={() => setModal(modal === "add_menu" ? null : "add_menu")}
             className="text-xs text-algo hover:text-algo/80 transition-colors"
-            title="Connect mobile wallet via QR"
+            title="Add account"
           >
-            + Connect
+            + Add
           </button>
+          {modal === "add_menu" && (
+            <div className="absolute right-0 top-7 bg-[#161B22] border border-white/10 rounded-lg shadow-xl z-50 w-48 overflow-hidden">
+              <button
+                onClick={() => { setModal(null); openWCPairTab(activeChain); }}
+                className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5 border-b border-white/5"
+              >
+                📱 WalletConnect
+                <span className="block text-[10px] text-gray-500 mt-0.5">Pair with Defly, Pera, Lute</span>
+              </button>
+              <button
+                onClick={() => setModal("import_mnemonic")}
+                className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5"
+              >
+                🔑 Import Mnemonic
+                <span className="block text-[10px] text-gray-500 mt-0.5">30-day local signing key</span>
+              </button>
+            </div>
+          )}
           <button onClick={handleLock} className="text-xs text-gray-400 hover:text-white transition-colors">
             Lock
           </button>
@@ -414,6 +448,15 @@ export default function AccountView() {
                   )}
                 </span>
               )}
+              {expiresAt && (() => {
+                const daysLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 86_400_000));
+                const warn = daysLeft <= 3;
+                return (
+                  <span className={`text-[10px] rounded px-1 py-0 leading-4 ${warn ? "bg-orange-500/20 text-orange-300 border border-orange-500/30" : "bg-green-500/20 text-green-300 border border-green-500/30"}`}>
+                    {daysLeft}d
+                  </span>
+                );
+              })()}
               <button
                 onClick={handleRemoveAccount}
                 className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors leading-none"
@@ -529,6 +572,12 @@ export default function AccountView() {
           chain={activeChain}
           ticker={cfg.ticker}
           onClose={() => setModal(null)}
+        />
+      )}
+      {modal === "import_mnemonic" && (
+        <ImportMnemonicModal
+          onImported={() => { setModal(null); loadState(); }}
+          onCancel={() => setModal(null)}
         />
       )}
     </div>
