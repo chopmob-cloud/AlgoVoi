@@ -76,11 +76,13 @@ export async function signGroupIndexedWithWC(
     )
   );
 
-  // Restore persisted WC session data so SignClient finds the existing session
-  // even after a lock/unlock cycle wiped localStorage (the lock handler in
-  // App.tsx clears all wc@2:* keys; without this restore the keychain and
-  // session entries would be gone and the stored wcSessionTopic useless).
-  await restoreWCStorage();
+  // Restore persisted WC session data. Returns false if snapshot is missing or
+  // expired (>30 days since pairing) — session.get() below will then throw and
+  // the WcSwapWindow stale phase will prompt re-pair.
+  const restored = await restoreWCStorage();
+  if (!restored) {
+    throw new Error(RE_PAIR_MSG);
+  }
 
   console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([
