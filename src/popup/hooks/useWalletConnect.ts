@@ -31,6 +31,7 @@ import {
 } from "@shared/constants";
 import { appendDebugLog, sanitizeTopic } from "@shared/debug-log";
 import { extractWCSignedTxn } from "@shared/utils/crypto";
+import { restoreWCStorage } from "@shared/utils/wc-storage";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -112,6 +113,12 @@ export function useWalletConnect(): UseWalletConnectReturn {
       );
     }
 
+
+    // Restore persisted WC session data so SignClient finds existing sessions
+    // even after a lock/unlock cycle wiped localStorage. The lock handler in
+    // App.tsx clears all wc@2:* keys; restoring here ensures the keychain and
+    // session data are present before init() reads them.
+    await restoreWCStorage();
 
     // The WC relay WebSocket can hang silently in extension contexts (Chrome
     // drops the connection without firing onerror). Race against a timeout so

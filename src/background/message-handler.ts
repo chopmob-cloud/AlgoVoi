@@ -6,7 +6,7 @@
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
 import { getAlgodClient, getAccountState, getSuggestedParams, submitTransaction, waitForConfirmation, waitForIndexed } from "./chain-clients";
-import { CHAINS, X402_VERSION } from "@shared/constants";
+import { CHAINS, X402_VERSION, STORAGE_KEY_WC_SESSIONS } from "@shared/constants";
 import {
   handleX402,
   buildAndSignPayment,
@@ -215,9 +215,19 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       return { account };
     }
 
-    case "WALLET_REMOVE_ACCOUNT":
+    case "WALLET_REMOVE_ACCOUNT": {
       await walletStore.removeAccount(msg.id);
+      // If no WC accounts remain, clear the WC session snapshot so stale relay
+      // keys don't resurrect a dead session on the next pairing attempt.
+      // Note: chrome.storage.local is available in the SW; localStorage is not,
+      // so we use the raw storage key here rather than importing wc-storage.ts.
+      const remainingMeta = await walletStore.getMeta();
+      const hasWC = remainingMeta.accounts.some((a) => a.type === "walletconnect");
+      if (!hasWC) {
+        await chrome.storage.local.remove(STORAGE_KEY_WC_SESSIONS);
+      }
       return { success: true };
+    }
 
     case "WALLET_RENAME_ACCOUNT":
       await walletStore.renameAccount(msg.id, msg.name);

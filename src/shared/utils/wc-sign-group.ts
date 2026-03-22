@@ -28,6 +28,7 @@ import {
   WC_METHOD_SIGN_TXN,
 } from "@shared/constants";
 import { extractWCSignedTxn } from "@shared/utils/crypto";
+import { restoreWCStorage } from "@shared/utils/wc-storage";
 import type { ChainId } from "@shared/types/chain";
 import algosdk from "algosdk";
 
@@ -68,6 +69,12 @@ export async function signGroupIndexedWithWC(
       RELAY_TIMEOUT_MS
     )
   );
+
+  // Restore persisted WC session data so SignClient finds the existing session
+  // even after a lock/unlock cycle wiped localStorage (the lock handler in
+  // App.tsx clears all wc@2:* keys; without this restore the keychain and
+  // session entries would be gone and the stored wcSessionTopic useless).
+  await restoreWCStorage();
 
   console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([

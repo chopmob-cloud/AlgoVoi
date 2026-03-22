@@ -81,6 +81,13 @@ export const STORAGE_KEY_VAULT = "algovou_vault";
 export const STORAGE_KEY_META  = "algovou_meta";
 /** Immutable ASA metadata cache — keyed by chain then assetId. Never expires. */
 export const STORAGE_KEY_ASSET_CACHE = "algovou_asset_cache";
+/**
+ * Snapshot of WalletConnect SDK localStorage keys (keychain + session) persisted
+ * in chrome.storage.local so WC sessions survive lock/unlock cycles.
+ * Written by snapshotWCStorage() after pairing; read by restoreWCStorage() before
+ * every SignClient.init(). See src/shared/utils/wc-storage.ts.
+ */
+export const STORAGE_KEY_WC_SESSIONS = "algovou_wc_sessions";
 
 /** Auto-lock timeout in minutes */
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
