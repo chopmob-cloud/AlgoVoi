@@ -707,76 +707,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const activeAccount = approveMeta.accounts.find((a) => a.id === approveMeta.activeAccountId);
 
       if (activeAccount?.type === "walletconnect") {
-        // ── Vault-first: sign locally with agent key if vault is deployed ──
-        // This avoids the unreliable WC relay round-trip for ALL payments
-        // (native coin via vaultPay, ASAs via vaultAsaPay).
-        // Falls through to WC signing if: no vault, or vault error.
-        const x402PayChain = resolveChain(req.paymentRequirements.network);
-        const x402AsaId = req.paymentRequirements.asset === "0" || !req.paymentRequirements.asset
-          ? 0 : parseInt(req.paymentRequirements.asset, 10);
-        const x402Vault = x402PayChain ? walletStore.getVaultApp(x402PayChain) : null;
-        const x402Agent = walletStore.getAgentAddress();
-
-        if (x402Vault && x402Agent) {
-          try {
-            if (x402AsaId === 0) {
-              // Native coin — buildAndSignPayment has vault auto-pay path
-              const { paymentHeader: vaultPH, txId: vaultTxId } = await buildAndSignPayment(req);
-              clearPendingRequest(msg.requestId);
-              chrome.tabs.sendMessage(req.tabId, {
-                type: "X402_RESULT",
-                requestId: req.inpageRequestId ?? req.id,
-                approved: true,
-                paymentHeader: vaultPH,
-                txId: vaultTxId,
-              });
-              return { paymentHeader: vaultPH, txId: vaultTxId };
-            } else {
-              // ASA (USDC, aUSDC, etc.) — use vaultAsaPay directly
-              const agentSk = await walletStore.getAgentSecretKey();
-              const amount  = BigInt(req.paymentRequirements.maxAmountRequired ?? req.paymentRequirements.amount ?? "0");
-              const note    = `x402:${req.url}`.slice(0, 1000);
-              const { txId: asaTxId } = await vaultAsaPay(
-                x402PayChain!, x402Vault.appId, agentSk, x402Agent,
-                req.paymentRequirements.payTo, x402AsaId, amount, note
-              );
-              await waitForConfirmation(x402PayChain!, asaTxId, 8);
-              await waitForIndexed(x402PayChain!, asaTxId);
-
-              const payload = {
-                x402Version: X402_VERSION,
-                scheme: req.paymentRequirements.scheme,
-                network: req.paymentRequirements.network,
-                payload: { txId: asaTxId, payer: x402Vault.appAddress },
-              };
-              const paymentHeader = btoa(JSON.stringify(payload));
-              clearPendingRequest(msg.requestId);
-              chrome.tabs.sendMessage(req.tabId, {
-                type: "X402_RESULT",
-                requestId: req.inpageRequestId ?? req.id,
-                approved: true,
-                paymentHeader,
-                txId: asaTxId,
-              });
-              return { paymentHeader, txId: asaTxId };
-            }
-          } catch (vaultErr) {
-            // Vault IS deployed but payment failed — surface the error directly.
-            // Don't fall through to WC (which is unreliable and will just show
-            // "session disconnected" after a timeout). The user needs to fix the
-            // vault issue (fund it, opt-in to the ASA, increase cap, etc.).
-            const vaultMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
-            throw new Error(
-              `Vault payment failed: ${vaultMsg}\n\n` +
-              `Check your vault in AlgoVoi → Vault tab:\n` +
-              `• Is the vault funded with enough ${x402AsaId === 0 ? "ALGO" : "of this token"}?\n` +
-              `• Is the token opted in? (Manage tokens → Add to vault)\n` +
-              `• Is the spending cap high enough?`
-            );
-          }
-        }
-
-        // ── WC fallback path (only reached when NO vault is deployed) ──
+        // WC accounts: build unsigned txn for approval popup to sign via WC.
+        // x402/MPP require standard ASA transfers (not app call inner txns),
+        // so vault agent key signing cannot be used here.
         // Guard: WC sessions are chain-specific — reject before touching the WC SDK
         // if the payment's chain differs from the chain the session was approved for.
         const paymentChain = x402PayChain;
@@ -962,80 +895,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
       if (!mppAccount) throw new Error("Active account not found for MPP payment");
       if (mppAccount.type === "walletconnect") {
-        // ── Vault-first: sign locally with agent key if vault is deployed ──
-        // Inline vault logic because buildAndSignMppPayment() has a WC guard
-        // (locked file — can't modify). Handles both native coin and ASA payments.
-        // Falls through to WC on failure.
-        const mppAvmReq    = mppReq.avmRequest;
-        const mppPayChain  = resolveMppChain(mppAvmReq.network);
-        const mppVault     = mppPayChain ? walletStore.getVaultApp(mppPayChain) : null;
-        const mppAgentAddr = walletStore.getAgentAddress();
-
-        if (mppVault && mppAgentAddr && mppPayChain) {
-          try {
-            const agentSk   = await walletStore.getAgentSecretKey();
-            const mppAmount = BigInt(String(mppAvmReq.amount));
-            const mppNote   = `mpp:${mppAvmReq.recipient}`.slice(0, 1000);
-
-            // Determine if native coin or ASA
-            const mppIsNative =
-              mppAvmReq.currency.toUpperCase() === "ALGO" ||
-              mppAvmReq.currency.toUpperCase() === "VOI" ||
-              mppAvmReq.currency === "0";
-
-            let txId: string;
-            if (mppIsNative) {
-              ({ txId } = await vaultPay(
-                mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
-                mppAvmReq.recipient, mppAmount, mppNote
-              ));
-            } else {
-              // ASA — parse asset ID from currency field
-              const mppAsaId = parseInt(mppAvmReq.currency, 10);
-              if (isNaN(mppAsaId) || mppAsaId <= 0) throw new Error("Invalid ASA ID in MPP request");
-              ({ txId } = await vaultAsaPay(
-                mppPayChain, mppVault.appId, agentSk, mppAgentAddr,
-                mppAvmReq.recipient, mppAsaId, mppAmount, mppNote
-              ));
-            }
-
-            await waitForConfirmation(mppPayChain, txId, 8);
-            await waitForIndexed(mppPayChain, txId);
-
-            const credential: MppCredential = {
-              challenge: mppReq.challenge,
-              source: `did:pkh:avm:${mppAvmReq.network}:${mppVault.appAddress}`,
-              payload: { txId, transaction: "" },
-            };
-            const authorizationHeader = serializeMppCredential(credential);
-
-            const mppVaultPopupId = getApprovalWindowId(msg.requestId);
-            clearPendingMppRequest(msg.requestId);
-            chrome.tabs.sendMessage(mppReq.tabId, {
-              type: "MPP_RESULT",
-              requestId: mppReq.inpageRequestId ?? mppReq.id,
-              approved: true,
-              authorizationHeader,
-              txId,
-            }).catch(() => {});
-            if (mppVaultPopupId !== undefined) {
-              chrome.windows.remove(mppVaultPopupId).catch(() => {});
-            }
-            return { authorizationHeader, txId };
-          } catch (vaultErr) {
-            // Vault IS deployed but payment failed — surface the error directly.
-            const vaultMsg = vaultErr instanceof Error ? vaultErr.message : String(vaultErr);
-            throw new Error(
-              `Vault payment failed: ${vaultMsg}\n\n` +
-              `Check your vault in AlgoVoi → Vault tab:\n` +
-              `• Is the vault funded?\n` +
-              `• Is the token opted in? (Manage tokens → Add to vault)\n` +
-              `• Is the spending cap high enough?`
-            );
-          }
-        }
-
-        // ── WC fallback path (only reached when NO vault is deployed) ──
+        // WC accounts: build unsigned txn for approval popup to sign via WC.
+        // MPP requires standard ASA transfers, not app call inner txns.
         const wcData = await buildMppPaymentTxnForWC(mppReq);
         // Persist the updated request (with expectedUnsignedTxnB64 set by buildMppPaymentTxnForWC)
         // to session storage so MPP_WC_SIGNED can recover it if the SW is suspended during
