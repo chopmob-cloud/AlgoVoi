@@ -122,6 +122,22 @@ export function setupProviderBridge(): void {
 async function routeToBackground(msg: InpageMessage): Promise<unknown> {
   const origin = window.location.origin;
 
+  // Anti-phishing: detect homograph/IDN domains that use Unicode chars to
+  // mimic legitimate sites (e.g., Cyrillic 'а' in аlgorand.com).
+  // Warning is included in the message to the background so the approval
+  // popup can display it.
+  let homographWarning: string | undefined;
+  try {
+    const hostname = new URL(origin).hostname;
+    // eslint-disable-next-line no-control-regex
+    if (/[^\x00-\x7F]/.test(hostname)) {
+      const punycode = new URL(`https://${hostname}`).hostname;
+      homographWarning =
+        `This site uses non-standard characters in its domain (${punycode}). ` +
+        `It may be impersonating a legitimate site.`;
+    }
+  } catch { /* invalid origin — caught by HTTPS guard below */ }
+
   // L1: Defence-in-depth HTTPS guard. The manifest content_scripts already
   // restricts injection to https://* so this path is ordinarily unreachable,
   // but an explicit check ensures no signing request ever originates from an
@@ -139,7 +155,7 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
         genesisHash?: string;
         accounts?: string[];
       };
-      return sendToBg({ type: "ARC27_ENABLE", origin, genesisHash, accounts });
+      return sendToBg({ type: "ARC27_ENABLE", origin, genesisHash, accounts, homographWarning });
     }
 
     case "ARC27_DISCONNECT":

@@ -10,6 +10,7 @@ import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import VaultPanel from "./VaultPanel";
 import ImportMnemonicModal from "./ImportMnemonicModal";
+import { checkClipboardHijack } from "@shared/utils/anti-phishing";
 import SwapPanel from "./SwapPanel";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
@@ -615,6 +616,9 @@ function SendModal({
   // Asset selector — null = native coin
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
 
+  // Anti-phishing: clipboard hijacking detection
+  const [clipboardWarning, setClipboardWarning] = useState<string | null>(null);
+
   // enVoi name resolution (Voi only)
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
@@ -854,13 +858,25 @@ function SendModal({
               value={to}
               onChange={(e) => {
                 setTo(e.target.value);
-                // Clear resolved address whenever the input changes
                 setResolvedAddress(null);
                 setResolveError(null);
+                setClipboardWarning(null);
+              }}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData("text");
+                // Async check — warn if clipboard was hijacked between copy and paste
+                checkClipboardHijack(pasted).then((warning) => {
+                  if (warning) setClipboardWarning(warning);
+                });
               }}
               autoComplete="off"
               spellCheck={false}
             />
+            {clipboardWarning && (
+              <div className="mt-1 bg-red-900/30 border border-red-700/50 rounded-lg px-2 py-1.5">
+                <p className="text-[10px] text-red-400">{clipboardWarning}</p>
+              </div>
+            )}
 
             {/* enVoi resolve row — only shown when a .voi name is detected */}
             {isVoiName(to) && !resolvedAddress && (
