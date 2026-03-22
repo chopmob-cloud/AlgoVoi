@@ -10,7 +10,11 @@
  *      localStorage.
  *   2. Call client.session.get(topic) — throws if the session was removed.
  *   3. Check the session expiry timestamp.
- *   4. Wrap client.request() in a 2-minute timeout: for swaps the user must
+ *   4. Ping the session with an 8 s timeout. This catches sessions that are
+ *      locally valid but dead on the wallet side (phone rebooted, Defly
+ *      reinstalled, etc.) — surfaces the re-pair error in ~8 s instead of
+ *      waiting for the 2-minute signing timeout.
+ *   5. Wrap client.request() in a 2-minute timeout: for swaps the user must
  *      have the wallet app open anyway; if nothing responds, the session is
  *      dead and we surface a clear re-pair message.
  */
@@ -29,6 +33,7 @@ import algosdk from "algosdk";
 
 const RELAY_TIMEOUT_MS  = 20_000;
 const SESSION_SETTLE_MS = 1_500;   // time for relay to deliver pending session_delete events
+const PING_TIMEOUT_MS   =  8_000;  // fast dead-session detection via wc_ping before signing
 const SIGN_TIMEOUT_MS   = 120_000; // 2 min — swap requires wallet app open; dead sessions surface here
 
 const RE_PAIR_MSG =
@@ -107,7 +112,25 @@ export async function signGroupIndexedWithWC(
     );
   }
 
-  // ── 4. Build and dispatch signing request ─────────────────────────────────
+  // ── 4. Ping — fast dead-session detection ─────────────────────────────────
+  // client.session.get() only checks localStorage. If Defly's side is dead
+  // (phone rebooted, app reinstalled, session_delete never arrived) the local
+  // record looks fine but signing will hang for 2 minutes. A wc_ping round-trip
+  // catches this in ~8 s and surfaces the re-pair message immediately.
+  console.log("[wc-sign-group] pinging session...");
+  try {
+    await Promise.race([
+      client.ping({ topic: sessionTopic }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("ping_timeout")), PING_TIMEOUT_MS)
+      ),
+    ]);
+    console.log("[wc-sign-group] ping OK — session live");
+  } catch {
+    throw new Error(RE_PAIR_MSG);
+  }
+
+  // ── 5. Build and dispatch signing request ─────────────────────────────────
   const wcChain = WC_CHAIN_ID[chain] ?? WC_CHAIN_ID["algorand"];
 
   // ARC-0025: send the full group; signers:[] = wallet skips (pre-signed txn).
