@@ -349,11 +349,14 @@ export default function VaultPanel({
       {/* Withdraw */}
       <WithdrawCard chain={chain} ticker={cfg.ticker} ownerAddr={activeAccount.address} onWithdraw={doAction} busy={busy} />
 
+      {/* Token management — opt vault into ASAs */}
+      <TokenManagementCard chain={chain} activeAccount={activeAccount} onAction={doAction} busy={busy} />
+
       {/* Fund vault */}
       <div className="bg-surface-2 rounded-xl p-3">
         <p className="text-xs text-gray-400 mb-1 font-medium">Fund vault</p>
         <p className="text-[10px] text-gray-500 mb-2">
-          Send {cfg.ticker} directly to the vault address to top it up.
+          Send {cfg.ticker} or opted-in tokens to the vault address.
         </p>
         <button
           onClick={() => {
@@ -717,6 +720,107 @@ function WithdrawCard({
           >
             {busy ? "Withdrawing…" : `Withdraw ${amount} ${ticker}`}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Token Management Card ────────────────────────────────────────────────────
+
+function TokenManagementCard({
+  chain,
+  activeAccount,
+  onAction,
+  busy,
+}: {
+  chain: ChainId;
+  activeAccount: Account | undefined;
+  onAction: (action: string, extra: Record<string, string | boolean | number>) => Promise<void>;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [walletAssets, setWalletAssets] = useState<Array<{ assetId: number; name: string; unitName: string }>>([]);
+  const [vaultOptedIds, setVaultOptedIds] = useState<Set<number>>(new Set());
+  const [optingIn, setOptingIn] = useState<number | null>(null);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  const loadAssets = useCallback(async () => {
+    if (!activeAccount) return;
+    setLoadingAssets(true);
+    try {
+      // Fetch wallet's assets
+      const stateResult = await sendBg<{ balance: string; assets: Array<{ assetId: number; name: string; unitName: string }> }>({
+        type: "GET_ACCOUNT_STATE",
+        address: activeAccount.address,
+        chain,
+      });
+      setWalletAssets(stateResult.assets ?? []);
+
+      // Fetch vault's opted-in assets
+      const optResult = await sendBg<{ assetIds: number[] }>({ type: "VAULT_GET_OPTED_ASSETS", chain });
+      setVaultOptedIds(new Set(optResult.assetIds));
+    } catch {
+      // Silently fail — assets will show as empty
+    }
+    setLoadingAssets(false);
+  }, [activeAccount, chain]);
+
+  useEffect(() => {
+    if (open) loadAssets();
+  }, [open, loadAssets]);
+
+  async function handleOptIn(assetId: number) {
+    setOptingIn(assetId);
+    try {
+      await onAction("VAULT_ACTION", { action: "opt_in_asa", assetId, chain });
+      setVaultOptedIds((prev) => new Set([...prev, assetId]));
+    } catch {
+      // Error shown by parent
+    }
+    setOptingIn(null);
+  }
+
+  return (
+    <div className="bg-surface-2 rounded-xl p-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full text-xs text-gray-400 font-medium"
+      >
+        <span>Manage tokens</span>
+        <span className="text-[10px]">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-[10px] text-gray-500">
+            Opt the vault into tokens so it can receive and auto-pay with them.
+          </p>
+          {loadingAssets && <p className="text-[10px] text-gray-500 italic">Loading tokens…</p>}
+          {!loadingAssets && walletAssets.length === 0 && (
+            <p className="text-[10px] text-gray-500 italic">No tokens in wallet</p>
+          )}
+          {walletAssets.map((asset) => {
+            const isOptedIn = vaultOptedIds.has(asset.assetId);
+            return (
+              <div key={asset.assetId} className="flex items-center justify-between py-1 border-b border-white/5 last:border-0">
+                <div>
+                  <span className="text-xs text-white">{asset.unitName || asset.name}</span>
+                  <span className="text-[10px] text-gray-500 ml-1.5">#{asset.assetId}</span>
+                </div>
+                {isOptedIn ? (
+                  <span className="text-[10px] text-green-400">✓ Opted in</span>
+                ) : (
+                  <button
+                    onClick={() => handleOptIn(asset.assetId)}
+                    disabled={busy || optingIn !== null}
+                    className="text-[10px] px-2 py-0.5 rounded bg-algo/20 text-algo hover:bg-algo/30 disabled:opacity-40"
+                  >
+                    {optingIn === asset.assetId ? "Opting in…" : "Add to vault"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
