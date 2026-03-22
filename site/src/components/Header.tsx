@@ -10,7 +10,7 @@ export default function Header() {
       <nav className="hidden md:flex items-center gap-6 text-sm text-gray">
         <a href="#wallet" className="hover:text-text transition-colors">Wallet</a>
         <a href="#send" className="hover:text-text transition-colors">Send</a>
-        <a href="#walletconnect" className="hover:text-text transition-colors">WalletConnect</a>
+        <a href="#swap" className="hover:text-text transition-colors">Swap</a>
         <a href="#x402" className="hover:text-text transition-colors">x402</a>
         <a href="#mpp" className="hover:text-text transition-colors">MPP</a>
         <a href="#agents" className="hover:text-text transition-colors">AI Agents</a>
