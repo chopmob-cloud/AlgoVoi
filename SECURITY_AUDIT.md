@@ -7,7 +7,7 @@
 ## Status
 
 ```
-0 Critical   0 High   0 Medium   0 Low open   (1 accepted risk: XIV-2)
+0 Critical   0 High   0 Medium   0 Low open   (4 accepted risks: XIV-2, XVI-7, XVI-8, XVI-9, XVI-10)
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -35,6 +35,19 @@
 - Transaction simulation: `simulateTransaction()` wraps algod `/v2/transactions/simulate` for pre-sign preview of balance changes and failure detection.
 - Secret key wiping: `.fill(0)` after signing in all 7 handler paths (message-handler, x402, mpp, ap2, swap, web3wallet).
 - Comet CDP independently validated anti-phishing architecture.
+
+**Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
+- **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
+- **XVI-2 (MEDIUM):** `sk.fill(0)` not in `try/finally` — exception during signing skips key wipe. **Status: CLOSED.** All 4 affected handlers wrapped in `try/finally`: `x402-handler.ts`, `mpp-handler.ts`, `ap2-handler.ts`, `swap-handler.ts`.
+- **XVI-3 (MEDIUM):** Debug log entries persisted indefinitely in `chrome.storage.local`. **Status: CLOSED.** 7-day `MAX_AGE_MS` auto-expiry filter added to `debug-log.ts` flush cycle.
+- **XVI-4 (MEDIUM):** CSP `img-src` used wildcard `https://*.walletconnect.com` allowing any subdomain. **Status: CLOSED.** Pinned to explicit subdomains: `verify`, `registry`, `explorer-api`.
+- **XVI-5 (LOW):** 30+ `console.log/warn` calls in production — overridable by malicious page scripts. **Status: CLOSED.** Terser configured in `vite.config.ts` to strip `console.log/warn/info/debug` in production builds; `console.error` preserved.
+- **XVI-6 (LOW):** `WC_PROJECT_ID` silently defaults to empty string. **Status: CLOSED.** `console.error` validation added to `src/background/index.ts` service worker startup.
+- **XVI-7 (LOW):** `tabs` permission grants `tab.url`/`tab.title` for all tabs. **Status: ACCEPTED.** Required for `chrome.tabs.query` (chain-change broadcast) and `chrome.tabs.get` (origin validation in x402/MPP handlers). Cannot be replaced with `activeTab`.
+- **XVI-8 (INFO):** Lock state detectable via error messages ("Wallet is locked" vs "not connected"). Comet CDP confirmed MetaMask has identical behaviour — standard practice, not exploitable.
+- **XVI-9 (INFO):** Extension detectable via `window.algorand` + `web_accessible_resources`. Comet CDP confirmed this is inherent to ARC-0027 spec and MV3 architecture — not a vulnerability unless exposed resources contain XSS.
+- **XVI-10 (INFO):** `postMessage` traffic between inpage and content scripts observable by page scripts. Comet CDP confirmed this is an unavoidable MV3 limitation. No secrets transit the channel — keys remain in background service worker only.
+- Comet CDP independently validated: PBKDF2 static salt is per-wallet unique (standard OWASP practice, not a weakness); Authorization header leak is a real credential theft vector; `safeCap()` already has `Number.isFinite` guard.
 
 ---
 
@@ -84,6 +97,16 @@
 | XIV-1 | Medium | ✅ CLOSED | Secret keys zeroed with `.fill(0)` after signing in all 7 handlers: message-handler (send, ASA send), x402-handler, mpp-handler, ap2-handler, swap-handler, web3wallet-handler |
 | XIV-2 | Medium | ℹ️ ACCEPTED | Haystack API key compiled into bundle — accepted risk for client-side API keys; rate-limited server-side by Haystack |
 | XIV-3 | Low | ✅ CLOSED | WC session topic truncated to 8 chars in `console.info` calls (`topic.slice(0, 8)…`) |
+| XVI-1 | High | ✅ CLOSED | Authorization header stripped on x402/MPP fetch retry — prevents credential theft by malicious 402 endpoints |
+| XVI-2 | Medium | ✅ CLOSED | `sk.fill(0)` wrapped in `try/finally` in x402, mpp, ap2, swap handlers |
+| XVI-3 | Medium | ✅ CLOSED | Debug log 7-day auto-expiry (`MAX_AGE_MS`) added to flush cycle |
+| XVI-4 | Medium | ✅ CLOSED | CSP `img-src` wildcards replaced with explicit WalletConnect subdomains |
+| XVI-5 | Low | ✅ CLOSED | `console.log/warn/info/debug` stripped from production builds via terser |
+| XVI-6 | Low | ✅ CLOSED | `WC_PROJECT_ID` validated non-empty at service worker startup |
+| XVI-7 | Low | ℹ️ ACCEPTED | `tabs` permission required for chain-change broadcast and x402/MPP origin validation |
+| XVI-8 | Info | ℹ️ ACCEPTED | Lock state oracle via error messages — same as MetaMask, standard practice |
+| XVI-9 | Info | ℹ️ ACCEPTED | Extension fingerprinting — inherent to ARC-0027 spec |
+| XVI-10 | Info | ℹ️ ACCEPTED | postMessage eavesdropping — MV3 architectural limitation, no secrets in transit |
 
 ---
 
@@ -236,39 +259,48 @@ All 7 security claims independently validated by **Comet CDP** (all CONFIRMED). 
 
 ---
 
-## Files Audited (v0.3.0)
+## Files Audited (v0.4.0)
 
 ```
-manifest.json
-package.json
-src/background/index.ts
+manifest.json                           ← modified v0.4.0 (version bump, CSP img-src tightened)
+package.json                            ← modified v0.4.0 (terser dep added)
+vite.config.ts                          ← modified v0.4.0 (terser console stripping)
+src/background/index.ts                 ← modified v0.4.0 (WC_PROJECT_ID validation)
 src/background/message-handler.ts
 src/background/wallet-store.ts
 src/background/vault-store.ts
-src/background/swap-handler.ts          ← new v0.3.0
-src/background/x402-handler.ts
-src/background/mpp-handler.ts
-src/background/ap2-handler.ts
+src/background/swap-handler.ts          ← modified v0.4.0 (sk wipe try/finally)
+src/background/x402-handler.ts          ← modified v0.4.0 (sk wipe try/finally)
+src/background/mpp-handler.ts           ← modified v0.4.0 (sk wipe try/finally)
+src/background/ap2-handler.ts           ← modified v0.4.0 (sk wipe try/finally)
 src/background/mcp-client.ts
 src/background/chain-clients.ts
 src/background/approval-handler.ts
+src/background/web3wallet-handler.ts
 src/content/index.ts
 src/content/provider-bridge.ts
-src/inpage/index.ts
+src/inpage/index.ts                     ← modified v0.4.0 (Authorization header stripped on retry)
 src/popup/App.tsx
 src/popup/components/AccountView.tsx
-src/popup/components/SwapPanel.tsx      ← new v0.3.0
+src/popup/components/SwapPanel.tsx
 src/popup/components/VaultPanel.tsx
+src/popup/components/WalletConnectModal.tsx
 src/popup/hooks/useWalletConnect.ts
 src/approval/index.tsx
 src/shared/constants.ts
+src/shared/debug-log.ts                 ← modified v0.4.0 (7-day auto-expiry)
 src/shared/utils/crypto.ts
-src/shared/utils/asset-cache.ts         ← new v0.3.0
+src/shared/utils/asset-cache.ts
+src/shared/utils/wc-storage.ts
+src/shared/utils/wc-chrome-storage.ts
+src/shared/utils/wc-sign-group.ts
 src/shared/types/wallet.ts
 src/shared/types/messages.ts
 src/shared/types/approval.ts
 src/shared/types/ap2.ts
 src/shared/types/mpp.ts
+src/shared/types/x402.ts
+src/devtools/components/X402Inspector.tsx
 ```
 
 ---
