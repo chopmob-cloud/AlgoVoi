@@ -95,7 +95,11 @@ export const DEFAULT_AUTO_LOCK_MINUTES = 5;
 // ── WalletConnect v2 ──────────────────────────────────────────────────────────
 
 /** Register a free project ID at https://cloud.walletconnect.com */
-export const WC_PROJECT_ID = (import.meta.env.VITE_WC_PROJECT_ID as string | undefined) ?? "";
+// WalletConnect Cloud project ID — public identifier, not a secret.
+// Hardcoded because vite-plugin-web-extension's child builds for HTML
+// entry points (popup, approval) don't inherit import.meta.env from the
+// parent Vite process, causing WC pairing to fail with an empty project ID.
+export const WC_PROJECT_ID = "6f4494fc63462bd664ca06f4c5b16463";
 
 /** WalletConnect relay WebSocket URL */
 export const WC_RELAY_URL = "wss://relay.walletconnect.com";
