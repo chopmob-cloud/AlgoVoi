@@ -18,7 +18,6 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { vaultPay } from "./vault-store";
 import {
   getSuggestedParams,
   hasOptedIn,
