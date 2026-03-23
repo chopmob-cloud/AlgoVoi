@@ -248,7 +248,7 @@ function SwapForm({
       const isSlippageError =
         raw.includes("assert failed") ||
         raw.includes("logic eval error") ||
-        raw.includes("assert") && raw.includes("pc=");
+        (raw.includes("assert") && raw.includes("pc="));
       if (isSlippageError) {
         setError(
           "Swap rejected — pool price moved past your slippage tolerance while waiting for approval.\n" +

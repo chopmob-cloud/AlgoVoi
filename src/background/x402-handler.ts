@@ -21,7 +21,6 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { vaultPay } from "./vault-store";
 import { getSuggestedParams, hasOptedIn, submitTransaction, waitForConfirmation, waitForIndexed, getAccountState } from "./chain-clients";
 import { X402_VERSION, APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";

@@ -270,6 +270,7 @@ function sendToBg<T = unknown>(message: object): Promise<T> {
         reject(new Error(chrome.runtime.lastError.message));
         return;
       }
+      if (!response) { reject(new Error("No response from background")); return; }
       if (response.ok) resolve(response.data);
       else reject(new Error(response.error ?? "Background error"));
     });

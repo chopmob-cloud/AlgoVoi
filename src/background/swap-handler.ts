@@ -111,34 +111,34 @@ export async function executeSwap(params: {
   }
 
   const sk = await walletStore.getActiveSecretKey();
-  const client = createClient();
-  const amountAtomic = parseDecimal(params.amount, params.fromDecimals);
-
-  const quote = await client.newQuote({
-    fromASAID: params.fromAssetId,
-    toASAID: params.toAssetId,
-    amount: amountAtomic,
-    address: params.address,
-  });
-
-  const signer: SignerFunction = async (txnGroup, indexesToSign) => {
-    return txnGroup.map((txn, i) => {
-      if (indexesToSign.includes(i)) {
-        const { blob } = algosdk.signTransaction(txn, sk);
-        return blob;
-      }
-      return null;
-    });
-  };
-
-  const swap = await client.newSwap({
-    quote,
-    address: params.address,
-    signer,
-    slippage: params.slippage,
-  });
-
   try {
+    const client = createClient();
+    const amountAtomic = parseDecimal(params.amount, params.fromDecimals);
+
+    const quote = await client.newQuote({
+      fromASAID: params.fromAssetId,
+      toASAID: params.toAssetId,
+      amount: amountAtomic,
+      address: params.address,
+    });
+
+    const signer: SignerFunction = async (txnGroup, indexesToSign) => {
+      return txnGroup.map((txn, i) => {
+        if (indexesToSign.includes(i)) {
+          const { blob } = algosdk.signTransaction(txn, sk);
+          return blob;
+        }
+        return null;
+      });
+    };
+
+    const swap = await client.newSwap({
+      quote,
+      address: params.address,
+      signer,
+      slippage: params.slippage,
+    });
+
     const result = await swap.execute();
     return {
       txIds: result.txIds,
