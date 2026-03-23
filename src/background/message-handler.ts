@@ -721,7 +721,9 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         // so vault agent key signing cannot be used here.
         // Guard: WC sessions are chain-specific — reject before touching the WC SDK
         // if the payment's chain differs from the chain the session was approved for.
-        const paymentChain = x402PayChain;
+        const paymentChain = req.paymentRequirements?.network
+          ? resolveChain(req.paymentRequirements.network)
+          : null;
         const accountChain = (activeAccount.wcChain ?? paymentChain ?? "algorand") as ChainId;
         // Only block when wcChain is explicitly recorded and mismatches the payment chain.
         // Accounts created before this field was added (wcChain undefined) skip the guard
