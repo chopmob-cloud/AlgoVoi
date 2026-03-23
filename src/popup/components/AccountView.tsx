@@ -390,14 +390,14 @@ export default function AccountView() {
           {modal === "add_menu" && (
             <div className="absolute right-0 top-7 bg-[#161B22] border border-white/10 rounded-lg shadow-xl z-50 w-48 overflow-hidden">
               <button
-                onClick={() => { setModal(null); openWCPairTab(activeChain); }}
+                onClick={(e) => { e.stopPropagation(); setModal(null); openWCPairTab(activeChain); }}
                 className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5 border-b border-white/5"
               >
                 📱 WalletConnect
                 <span className="block text-[10px] text-gray-500 mt-0.5">Pair with Defly, Pera, Lute</span>
               </button>
               <button
-                onClick={() => setModal("import_mnemonic")}
+                onClick={(e) => { e.stopPropagation(); setModal("import_mnemonic"); }}
                 className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5"
               >
                 🔑 Import Mnemonic

@@ -340,12 +340,13 @@ export function useWalletConnect(): UseWalletConnectReturn {
       appendDebugLog("wc:approval_promise_created", { uriPresent: !!uri });
 
       const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-      const approvalTimeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(
+      let approvalTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+      const approvalTimeoutPromise = new Promise<never>((_, reject) => {
+        approvalTimeoutHandle = setTimeout(() => reject(new Error(
           "Session proposal expired (5 min timeout).\n\n" +
           "Tap \"Try again\" to generate a fresh QR code."
-        )), APPROVAL_TIMEOUT_MS)
-      );
+        )), APPROVAL_TIMEOUT_MS);
+      });
 
       // Snapshot session count before waiting so we only react to NEW sessions
       const sessionCountBefore = client.session.getAll().length;
@@ -373,8 +374,9 @@ export function useWalletConnect(): UseWalletConnectReturn {
         approvalTimeoutPromise,
       ]);
 
-      // Clean up the poller
+      // Clean up the poller and timeout
       if (pollHandle !== null) clearInterval(pollHandle);
+      if (approvalTimeoutHandle !== null) clearTimeout(approvalTimeoutHandle);
       appendDebugLog("wc:race_winner", {
         winner: approvalWon ? "approval" : "poller",
         topic: sanitizeTopic(approved?.topic),

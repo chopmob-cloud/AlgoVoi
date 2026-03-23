@@ -24,7 +24,7 @@ import {
   clearPendingMppRequest,
   resolveMppChain,
 } from "./mpp-handler";
-import type { MppCredential } from "@shared/types/mpp";
+// MppCredential type removed — unused after vault-first revert
 import {
   handleAp2Payment,
   buildPaymentMandate,
@@ -47,8 +47,6 @@ import {
   buildRemapAgentGroup,
   addAgentMnemonic,
   submitSignedGroup,
-  vaultPay,
-  vaultAsaPay,
   vaultOptInAsa,
   buildVaultOptInAsaTxn,
   getVaultOptedInAssets,
