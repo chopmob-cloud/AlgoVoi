@@ -13,6 +13,8 @@
 
 export const DEBUG_LOG_KEY = "algovou_debug_log";
 const MAX_ENTRIES = 100;
+/** Auto-expire entries older than 7 days to limit forensic exposure */
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface DebugLogEntry {
   t: number;              // unix ms timestamp
@@ -54,7 +56,10 @@ function _flush(): void {
         : [];
       // Drain all entries accumulated while we were waiting for the get
       const toWrite = _pending.splice(0);
-      const updated = [...existing, ...toWrite].slice(-MAX_ENTRIES);
+      const now = Date.now();
+      // Auto-expire entries older than MAX_AGE_MS to limit forensic exposure
+      const fresh = [...existing, ...toWrite].filter((e) => now - e.t < MAX_AGE_MS);
+      const updated = fresh.slice(-MAX_ENTRIES);
       chrome.storage.local.set({ [DEBUG_LOG_KEY]: updated }, () => {
         _flushing = false;
         // If more entries arrived while we were writing, flush again
