@@ -316,9 +316,14 @@ export async function buildAndSignMppPayment(
 
   // Sign, submit, wait for confirmation
   const sk = await walletStore.getActiveSecretKey();
-  const signedBytes = txn.signTxn(sk);
-  sk.fill(0); // XIV-1: wipe secret key after signing
-  const txId = txn.txID();
+  let signedBytes: Uint8Array;
+  let txId: string;
+  try {
+    signedBytes = txn.signTxn(sk);
+    txId = txn.txID();
+  } finally {
+    sk.fill(0); // XIV-1: wipe secret key after signing (always, even on error)
+  }
 
   try {
     await submitTransaction(chain, signedBytes);

@@ -138,12 +138,14 @@ export async function executeSwap(params: {
     slippage: params.slippage,
   });
 
-  const result = await swap.execute();
-  sk.fill(0); // XIV-1: wipe secret key after swap completes
-
-  return {
-    txIds: result.txIds,
-    confirmedRound: result.confirmedRound.toString(),
-    outputAmount: formatAtomic(quote.quote, params.toDecimals),
-  };
+  try {
+    const result = await swap.execute();
+    return {
+      txIds: result.txIds,
+      confirmedRound: result.confirmedRound.toString(),
+      outputAmount: formatAtomic(quote.quote, params.toDecimals),
+    };
+  } finally {
+    sk.fill(0); // XIV-1: wipe secret key after swap (always, even on error)
+  }
 }

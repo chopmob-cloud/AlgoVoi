@@ -43,6 +43,17 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: process.env.NODE_ENV === "development",
+    // Strip console.log/warn in production to prevent info leakage via
+    // page-overridable console methods. console.error is preserved.
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV !== "development",
+        pure_funcs: process.env.NODE_ENV !== "development"
+          ? ["console.log", "console.info", "console.debug", "console.warn"]
+          : [],
+      },
+    },
     rollupOptions: {
       output: {
         // Keep chunks readable for debugging

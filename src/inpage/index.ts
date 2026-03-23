@@ -282,9 +282,11 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
     }
 
     // Retry with Authorization: Payment <credential>.
-    // Strip session headers that must not be forwarded to the payment endpoint.
+    // Strip ALL session/auth headers that must not be forwarded to the payment
+    // endpoint. A malicious 402 server could otherwise capture Bearer tokens,
+    // API keys, or session cookies from the original request.
     const retryHeaders = new Headers(init?.headers);
-    for (const h of ["Cookie", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
+    for (const h of ["Cookie", "Authorization", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
       retryHeaders.delete(h);
     }
     retryHeaders.set("Authorization", authorizationHeader);
@@ -331,17 +333,12 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   // Retry the original request with PAYMENT-SIGNATURE header.
-  // Strip session/auth headers that must not be auto-forwarded to a payment endpoint.
-  // Cookie is always stripped; other common session headers are also removed to
-  // prevent a malicious 402 server from harvesting the user's credentials.
+  // Strip ALL session/auth headers that must not be auto-forwarded to a payment
+  // endpoint. A malicious 402 server could otherwise harvest Bearer tokens,
+  // API keys, or session cookies from the original request.
   const retryHeaders = new Headers(init?.headers);
-  for (const h of ["Cookie", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
+  for (const h of ["Cookie", "Authorization", "X-Auth-Token", "X-CSRF-Token", "X-Session-Token", "X-API-Key"]) {
     retryHeaders.delete(h);
-  }
-  if (retryHeaders.has("Authorization")) {
-    // Authorization header is forwarded to the retry; dApp developers should verify
-    // this endpoint is the intended recipient before enabling x402 payments.
-    console.warn("[AlgoVoi] x402 retry: Authorization header forwarded — verify endpoint.");
   }
   // Echo the exact PAYMENT-REQUIRED value from the original 402 response so the
   // server can correlate this retry with the payment challenge it issued.
