@@ -235,8 +235,12 @@ export async function buildPaymentMandate(params: {
   // algosdk.signBytes signs the raw bytes with the ed25519 key.
   // We do NOT use signBytes' built-in "MX" prefix (ARC-1) because
   // this is not an ARC-0027 operation — it's an AP2 credential.
-  const signature = algosdk.signBytes(contentsBytes, sk);
-  sk.fill(0); // XIV-1: wipe secret key after signing
+  let signature: Uint8Array;
+  try {
+    signature = algosdk.signBytes(contentsBytes, sk);
+  } finally {
+    sk.fill(0); // XIV-1: wipe secret key after signing (always, even on error)
+  }
 
   const userAuthorization =
     encodeBase64url(contentsJson) + "." + encodeBase64url(signature);

@@ -20,6 +20,11 @@ self.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
   }
 });
 
+// Validate WC project ID at startup — empty string will cause silent WC failures
+if (!WC_PROJECT_ID) {
+  console.error("[AlgoVoi] VITE_WC_PROJECT_ID is not set — WalletConnect will not function.");
+}
+
 // Register the central message router
 registerMessageHandler();
 
