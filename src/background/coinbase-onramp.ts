@@ -68,7 +68,10 @@ export async function openOnramp(params: OnrampParams): Promise<number> {
   let onrampUrl: string;
 
   if (data.url) {
-    // Backend returned a full URL — use it directly
+    // Origin-validate before opening — prevents compromised backend redirecting to phishing
+    if (!data.url.startsWith("https://pay.coinbase.com/")) {
+      throw new Error("Unexpected onramp URL origin");
+    }
     onrampUrl = data.url;
   } else if (data.sessionToken) {
     // Build URL with session token
