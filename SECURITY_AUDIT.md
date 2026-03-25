@@ -8,6 +8,7 @@
 
 ```
 0 Critical   0 High   0 Medium   0 Low open   (4 accepted risks: XIV-2, XVI-7, XVI-8, XVI-9, XVI-10)
+XVII-1 (High) CLOSED — SIGN_TRANSACTIONS blind signing
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -40,6 +41,7 @@
 - AI Agent Chat: Anthropic API key lives exclusively on UluMCP server (`/etc/ulumcp/secrets.env`) — never bundled in extension. Server-side tool whitelist (`TOOL_CATEGORIES`) enforces per-category tool access; blocked attempts logged. Direct action path (regex parser) bypasses AI entirely for structured commands — reduces token cost and narrows attack surface. Conversational fallback calls `agent_chat` MCP tool via existing x402-gated session. `agent_chat` queries exempt from x402 charge until a tool executes.
 - Coinbase Onramp: wallet address sent via POST body to AlgoVoi backend — never in URL query parameters, satisfying Coinbase "secure initialization" requirement. Feature flag `COINBASE_ONRAMP_ENABLED` allows Buy button to be disabled for CWS submissions without code changes. Backend endpoint restricted to `chrome-extension://` CORS origin. New host permissions (`pay.coinbase.com`, `api.developer.coinbase.com`) scoped to exact domains in `manifest.json`.
 - Direct actions: `parseDirectAction()` uses anchored regex patterns (no `re` flag, no dynamic construction) — command injection not possible. All MCP calls routed through existing `callTool()` with established spending-cap and session guards.
+- **XVII-1 (High) — `SIGN_TRANSACTIONS` blind signing:** New handler signed arbitrary MCP-returned transactions with no validation. Fix: (1) transaction count capped at 16; (2) genesis hash verified against active chain before key access; (3) dangerous fields (`rekeyTo`, `closeRemainderTo`, `assetCloseTo`, `clawback`) cause immediate rejection; (4) `wipeKey(sk)` in `try/finally`; (5) AgentChat.tsx shows action/receiver/amount summary with "⚠ Review before signing" before the Sign button. **Status: CLOSED.**
 
 **Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
 - **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
