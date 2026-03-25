@@ -173,8 +173,33 @@ async function handleMessage(
   }
 }
 
+/** Known message types — reject anything not in this set to prevent injection. */
+const KNOWN_TYPES = new Set([
+  "WALLET_STATE","WALLET_GET_META","WALLET_INIT","WALLET_UNLOCK","KEEP_ALIVE",
+  "WALLET_LOCK","WALLET_CREATE_ACCOUNT","WALLET_IMPORT_ACCOUNT","WALLET_IMPORT_TIMED",
+  "WALLET_GET_EXPIRY","WALLET_REMOVE_ACCOUNT","WALLET_RENAME_ACCOUNT",
+  "WALLET_SET_ACTIVE_ACCOUNT","WALLET_SET_CHAIN","CHAIN_GET_ACCOUNT_STATE",
+  "CHAIN_SEND_PAYMENT","CHAIN_SEND_ASSET","CHAIN_SUBMIT_SIGNED",
+  "WC_ADD_ACCOUNT","ARC27_ENABLE","ARC27_SIGN_TXNS","ARC27_SIGN_BYTES",
+  "SIGN_BYTES","ARC27_DISCONNECT",
+  "X402_PAYMENT_NEEDED","X402_GET_PENDING","X402_APPROVE","X402_WC_SIGNED","X402_REJECT","X402_GET_HISTORY",
+  "MPP_PAYMENT_NEEDED","MPP_GET_PENDING","MPP_APPROVE","MPP_REJECT","MPP_WC_SIGNED",
+  "AP2_PAYMENT_REQUEST","AP2_GET_PENDING","AP2_APPROVE","AP2_REJECT","AP2_LIST_INTENT_MANDATES",
+  "SWAP_QUOTE","SWAP_EXECUTE",
+  "W3W_GENERATE_URI","W3W_GET_SESSIONS","W3W_DISCONNECT",
+  "W3W_AGENT_SIGN_GET_PENDING","W3W_AGENT_SIGN_APPROVE","W3W_AGENT_SIGN_REJECT",
+  "VOI_RESOLVE_NAME","AGENT_CHAT","SIGN_TRANSACTIONS","SUBMIT_TRANSACTIONS",
+  "APPROVAL_GET_PENDING","APPROVAL_APPROVE","APPROVAL_REJECT",
+  "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
+  "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
+]);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.MessageSender): Promise<any> {
+  if (!msg?.type || typeof msg.type !== "string" || !KNOWN_TYPES.has(msg.type)) {
+    throw new Error(`Unknown message type: ${String(msg?.type ?? "undefined")}`);
+  }
+
   switch (msg.type) {
     // ── Wallet lifecycle ──────────────────────────────────────────────────────
     case "WALLET_STATE": {
@@ -664,6 +689,24 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const prefixed = new Uint8Array([0x4d, 0x58, ...dataBytes]);
       const sig = algosdk.signBytes(prefixed, sk);
       return { sig: btoa(String.fromCharCode(...sig)) };
+    }
+
+    // ── Internal sign (popup only — no approval flow) ──────────────────────
+    // Used by the Buy button to prove wallet ownership for Coinbase Onramp.
+    // Only the extension's own popup/pages can send this (sender.id === chrome.runtime.id).
+    case "SIGN_BYTES": {
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("SIGN_BYTES is only available to internal extension pages");
+      }
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      walletStore.resetAutoLock();
+
+      const internalSk = await walletStore.getActiveSecretKey();
+      const internalData = new Uint8Array(msg.data);
+      // algosdk.signBytes prepends "MX" (ARC-1) before signing.
+      // The backend must verify with the same "MX" prefix.
+      const internalSig = algosdk.signBytes(internalData, internalSk);
+      return { ok: true, signature: btoa(String.fromCharCode(...internalSig)) };
     }
 
     case "ARC27_DISCONNECT": {
@@ -1232,8 +1275,58 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (walletStore.getLockState() !== "unlocked") {
         throw new Error("Wallet is locked — unlock before resolving .voi names");
       }
-      const { address, displayName } = await mcpResolveEnvoi(msg.name);
-      return { address, displayName };
+      try {
+        const { address, displayName } = await mcpResolveEnvoi(msg.name);
+        return { address, displayName };
+      } catch (err) {
+        console.error("[enVoi] resolve failed:", err instanceof Error ? err.message : err);
+        throw err;
+      }
+    }
+
+    // ── AI Agent chat ─────────────────────────────────────────────────────────
+
+    case "AGENT_CHAT": {
+      const chatMeta = await walletStore.getMeta();
+      if (chatMeta.activeChain !== "voi") throw new Error("AI chat is only available on the Voi chain");
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      const { handleAgentChat } = await import("./agent-chat");
+      return await handleAgentChat(msg.messages, msg.activeAddress, msg.category, msg.balance);
+    }
+
+    // ── AI Agent: sign and submit transactions ────────────────────────────────
+
+    case "SIGN_TRANSACTIONS": {
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      const meta = await walletStore.getMeta();
+      const account = meta.accounts.find((a) => a.id === meta.activeAccountId);
+      if (!account) throw new Error("No active account");
+      const sk = await walletStore.getSecretKeyForAddress(account.address);
+      if (!sk) throw new Error("Cannot access signing key");
+
+      const signedTxns: string[] = [];
+      for (const b64Txn of msg.txns as string[]) {
+        const txnBytes = Uint8Array.from(atob(b64Txn), (c) => c.charCodeAt(0));
+        const txn = algosdk.decodeUnsignedTransaction(txnBytes);
+        const signed = txn.signTxn(sk);
+        signedTxns.push(Buffer.from(signed).toString("base64"));
+      }
+      return { signedTxns };
+    }
+
+    case "SUBMIT_TRANSACTIONS": {
+      const { getAlgodClient } = await import("./chain-clients");
+      const network = (msg.network as string) || "voi";
+      const algod = getAlgodClient(network === "voi-mainnet" ? "voi" : network);
+      const rawTxns = (msg.signedTxns as string[]).map((b64: string) =>
+        Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+      );
+      // Combine into a single group if multiple
+      const combined = new Uint8Array(rawTxns.reduce((sum, t) => sum + t.length, 0));
+      let offset = 0;
+      for (const t of rawTxns) { combined.set(t, offset); offset += t.length; }
+      const resp = await algod.sendRawTransaction(combined).do();
+      return { txId: resp.txId || resp.txid || (typeof resp === "string" ? resp : JSON.stringify(resp)) };
     }
 
     // ── Unified approval flow ─────────────────────────────────────────────────

@@ -16,6 +16,7 @@ nul
 .env
 .env.local
 .env.*.local
+coinbase.txt
 .DS_Store
 Thumbs.db
 *.crx

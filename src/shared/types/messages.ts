@@ -115,6 +115,8 @@ export type BgRequest =
   | { type: "W3W_AGENT_SIGN_GET_PENDING"; requestId: string }
   | { type: "W3W_AGENT_SIGN_APPROVE"; requestId: string }
   | { type: "W3W_AGENT_SIGN_REJECT"; requestId: string }
+  // AI Agent chat (Voi only)
+  | { type: "AGENT_CHAT"; messages: Array<{ role: "user" | "assistant"; content: string }>; activeAddress: string; category?: string }
   // Keep-alive: resets auto-lock timer without side-effects
   | { type: "KEEP_ALIVE" };
 
