@@ -19,6 +19,7 @@ XIX-1 (High)    CLOSED — sidepanel keepalive port accepts content script conne
 XIX-2 (Medium)  CLOSED — side panel keeps wallet unlocked indefinitely
 XIX-3 (Medium)  CLOSED — SW suspension lock bypassed while side panel open (resolved by XIX-2)
 XIX-4 (Low)     CLOSED — no audit trail for side-panel-extended sessions (accepted, documented)
+XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned address
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -57,6 +58,9 @@ XIX-4 (Low)     CLOSED — no audit trail for side-panel-extended sessions (acce
 - **XIX-2 (Medium) — side panel keeps wallet unlocked indefinitely:** While the keepalive port was open the auto-lock alarm never fired, so a user who left the side panel open for hours would remain unlocked. Fix: on port connect, arm a `sidepanel-lock-watchdog` Chrome alarm for `DEFAULT_AUTO_LOCK_MINUTES` (5 min); the alarm handler calls `walletStore.lock()`. On port disconnect the alarm is cleared so normal auto-lock resumes. **Status: CLOSED.**
 - **XIX-3 (Medium) — SW suspension lock bypassed while side panel open:** The implicit lock-on-suspend behaviour (onSuspend wipes keys) was bypassed while the keepalive port was held. Resolved by XIX-2 — the watchdog ensures a maximum unlock window of 5 minutes regardless of port state. **Status: CLOSED.**
 - **XIX-4 (Low) — no audit trail for side-panel-extended sessions:** Unlocked time attributable to the side panel is not separately logged; forensically indistinct from popup-initiated unlock. Accepted risk — no sensitive data is logged; adding session-duration telemetry would itself be a privacy/security concern. **Status: ACCEPTED (documented).**
+
+**Hardening XX (v0.5.0 — March 2026):** Comprehensive audit of all v0.5.0 files — no new Critical/High; one Medium found in `direct-actions.ts`.
+- **XX-1 (Medium) — `executeResolve()` unvalidated MCP-returned address:** `executeResolve()` called `envoi_resolve_address` and displayed `entry.address` directly without calling `algosdk.isValidAddress()`. A compromised MCP server could display a spoofed or garbage string as the resolution result, misleading users. Note: `executeSend()` had the analogous guard from XVIII-1 — this was a missed sibling path. Fix: added `algosdk.isValidAddress(entry.address)` guard before returning the display reply. **Status: CLOSED.**
 
 **Hardening XVII (v0.5.0 — March 2026):** AI Agent Chat + Coinbase Onramp integration. Full security review of all new attack surfaces. No new Critical/High/Medium/Low findings raised — all new code follows established patterns.
 - AI Agent Chat: Anthropic API key lives exclusively on UluMCP server (`/etc/ulumcp/secrets.env`) — never bundled in extension. Server-side tool whitelist (`TOOL_CATEGORIES`) enforces per-category tool access; blocked attempts logged. Direct action path (regex parser) bypasses AI entirely for structured commands — reduces token cost and narrows attack surface. Conversational fallback calls `agent_chat` MCP tool via existing x402-gated session. `agent_chat` queries exempt from x402 charge until a tool executes.
