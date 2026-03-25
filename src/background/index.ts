@@ -5,7 +5,7 @@
 
 import { registerMessageHandler } from "./message-handler";
 import { restoreWeb3WalletSessions } from "./web3wallet-handler";
-import { WC_PROJECT_ID } from "@shared/constants";
+import { WC_PROJECT_ID, DEFAULT_AUTO_LOCK_MINUTES } from "@shared/constants";
 
 // Suppress benign WC "No matching key" unhandled rejections in the SW context.
 // The WC relay delivers responses to all subscribed clients; clients that didn't
@@ -43,12 +43,22 @@ chrome.sidePanel
 // side panel is visible.
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "sidepanel-keepalive") return;
+  // XIX-1: reject connections from content scripts (injected into web pages).
+  // Only the extension's own side-panel page (no sender.tab) may hold this port.
+  if (port.sender?.tab) return;
   // Reset auto-lock on side-panel open so the timer restarts from now.
+  // XIX-2: also arm a watchdog alarm — if the side panel is left open longer
+  // than DEFAULT_AUTO_LOCK_MINUTES the wallet is locked regardless, preventing
+  // indefinite session persistence through a permanently-open side panel.
+  const watchdogName = "sidepanel-lock-watchdog";
+  chrome.alarms.create(watchdogName, {
+    delayInMinutes: DEFAULT_AUTO_LOCK_MINUTES,
+  });
   import("./wallet-store").then(({ walletStore }) => {
     walletStore.resetAutoLock();
     port.onDisconnect.addListener(() => {
-      // Side panel closed — auto-lock timer continues to run normally.
-      // No explicit action needed; the SW may now be suspended by Chrome.
+      // Side panel closed — clear the watchdog; normal auto-lock timer resumes.
+      chrome.alarms.clear(watchdogName);
     });
   });
 });
@@ -73,8 +83,17 @@ chrome.runtime.onConnect.addListener((port) => {
 // because _web3wallet is null immediately after a SW wake-up (async init has
 // not completed yet), which would cause a false-clear on every tick.
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== "w3w-keepalive") return;
-  restoreWeb3WalletSessions(WC_PROJECT_ID).catch(() => {});
+  if (alarm.name === "w3w-keepalive") {
+    restoreWeb3WalletSessions(WC_PROJECT_ID).catch(() => {});
+    return;
+  }
+  // XIX-2: backup lock — fires if side panel stays open past the auto-lock window.
+  // Guards against the SW being kept alive indefinitely while the panel is open.
+  if (alarm.name === "sidepanel-lock-watchdog") {
+    import("./wallet-store").then(({ walletStore }) => {
+      walletStore.lock();
+    });
+  }
 });
 
 // Restore Web3Wallet sessions from previous SW lifecycle on startup.
