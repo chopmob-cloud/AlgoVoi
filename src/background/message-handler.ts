@@ -1290,8 +1290,11 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const chatMeta = await walletStore.getMeta();
       if (chatMeta.activeChain !== "voi") throw new Error("AI chat is only available on the Voi chain");
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+      // Source address from wallet state — do not trust msg.activeAddress
+      const chatAccount = chatMeta.accounts.find((a) => a.id === chatMeta.activeAccountId);
+      if (!chatAccount) throw new Error("No active account");
       const { handleAgentChat } = await import("./agent-chat");
-      return await handleAgentChat(msg.messages, msg.activeAddress, msg.category, msg.balance);
+      return await handleAgentChat(msg.messages, chatAccount.address, msg.category, msg.balance);
     }
 
     // ── AI Agent: sign and submit transactions ────────────────────────────────

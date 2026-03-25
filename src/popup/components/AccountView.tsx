@@ -570,6 +570,10 @@ export default function AccountView() {
                 const data = await resp.json();
                 if (!data.ok) throw new Error(data.error ?? "No session token");
                 if (data.url) {
+                  // Origin-validate before opening — prevents compromised backend redirecting to phishing
+                  if (!data.url.startsWith("https://pay.coinbase.com/")) {
+                    throw new Error("Unexpected onramp URL origin");
+                  }
                   chrome.tabs.create({ url: data.url, active: true });
                 } else if (data.sessionToken) {
                   const url = new URL(COINBASE_ONRAMP_URL);
