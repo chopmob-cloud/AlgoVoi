@@ -12,6 +12,9 @@ XVII-1 (High)   CLOSED — SIGN_TRANSACTIONS blind signing
 XVII-2 (Medium) CLOSED — Coinbase open redirect
 XVII-3 (Low)    CLOSED — AGENT_CHAT trusts msg.activeAddress
 XVII-4 (Medium) CLOSED — mcp-client.ts::payVoi() key not wiped
+XVIII-1 (High)   CLOSED — direct-actions::executeSend unvalidated MCP-resolved address
+XVIII-2 (Medium) CLOSED — direct-actions::executeSend parseFloat NaN / precision loss
+XVIII-3 (Low)    CLOSED — direct-actions::resolveTokens uncaught JSON.parse
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -39,6 +42,11 @@ XVII-4 (Medium) CLOSED — mcp-client.ts::payVoi() key not wiped
 - Transaction simulation: `simulateTransaction()` wraps algod `/v2/transactions/simulate` for pre-sign preview of balance changes and failure detection.
 - Secret key wiping: `.fill(0)` after signing in all 7 handler paths (message-handler, x402, mpp, ap2, swap, web3wallet).
 - Comet CDP independently validated anti-phishing architecture.
+
+**Hardening XVIII (v0.5.0 — March 2026):** Direct-actions security pass — findings in new `direct-actions.ts` parser.
+- **XVIII-1 (High) — `executeSend` unvalidated MCP-resolved address:** The `.voi` name resolution path in `executeSend` used the raw address string returned by `envoi_resolve_address` as the `payment_txn` receiver without calling `algosdk.isValidAddress()`. A compromised MCP server could return an attacker's address; the user would see `alice.voi` in the UI but sign a transaction to the attacker. Fix: `algosdk.isValidAddress(resolved)` guard on the resolved path; separate `algosdk.isValidAddress(receiver)` guard on the raw-address path before calling `payment_txn`. **Status: CLOSED.**
+- **XVIII-2 (Medium) — `executeSend` `parseFloat` NaN / IEEE 754 precision loss:** `SEND_RE` captures `[\d.]+` which matches `"."` — `parseFloat(".")` = `NaN`, `NaN.toString()` = `"NaN"`, passed as `amount` to `payment_txn`. Large integers (e.g. `"99999999999999999"`) lost precision in IEEE 754 multiply. Fix: replaced `Math.round(parseFloat(x) * 1_000_000)` with BigInt arithmetic using the same regex+split pattern as `parseDecimalToAtomic()` in `message-handler.ts`; invalid amount format now returns an early error reply. **Status: CLOSED.**
+- **XVIII-3 (Low) — `resolveTokens` uncaught `JSON.parse`:** `JSON.parse(text).tokens` had no try/catch; a malformed MCP response would throw an uncaught exception. Fix: wrapped in `try/catch`, returns an empty map on parse failure. **Status: CLOSED.**
 
 **Hardening XVII (v0.5.0 — March 2026):** AI Agent Chat + Coinbase Onramp integration. Full security review of all new attack surfaces. No new Critical/High/Medium/Low findings raised — all new code follows established patterns.
 - AI Agent Chat: Anthropic API key lives exclusively on UluMCP server (`/etc/ulumcp/secrets.env`) — never bundled in extension. Server-side tool whitelist (`TOOL_CATEGORIES`) enforces per-category tool access; blocked attempts logged. Direct action path (regex parser) bypasses AI entirely for structured commands — reduces token cost and narrows attack surface. Conversational fallback calls `agent_chat` MCP tool via existing x402-gated session. `agent_chat` queries exempt from x402 charge until a tool executes.
