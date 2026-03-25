@@ -57,4 +57,10 @@
     width: 400px;
     min-height: 600px;
   }
+  /* Side panel — full browser height, fixed 400px width enforced by Chrome */
+  body.body-sidepanel {
+    width: 100%;
+    height: 100vh;
+    overflow-x: hidden;
+  }
 }
