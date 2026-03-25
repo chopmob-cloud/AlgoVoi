@@ -6,12 +6,13 @@ import ChainToggle from "./ChainToggle";
 import AssetList from "./AssetList";
 import { sendBg } from "../App";
 import { abbreviateAddress, formatAmount } from "@shared/utils/format";
-import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY } from "@shared/constants";
+import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY, COINBASE_ONRAMP_ENABLED, COINBASE_SESSION_URL, COINBASE_ONRAMP_URL, COINBASE_NETWORK, COINBASE_ASSET } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import VaultPanel from "./VaultPanel";
 import ImportMnemonicModal from "./ImportMnemonicModal";
 import { checkClipboardHijack } from "@shared/utils/anti-phishing";
 import SwapPanel from "./SwapPanel";
+import AgentChat from "./AgentChat";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
@@ -167,6 +168,41 @@ async function fetchChainStateDirect(
     };
   });
 
+  // ── 5. On Voi, also fetch ARC-200 token balances from Mimir API ───────
+  if (chain === "voi") {
+    try {
+      const mimirResp = await fetch(
+        `https://voi-mainnet-mimirapi.nftnavigator.xyz/arc200/balances?accountId=${encodeURIComponent(address)}`
+      );
+      if (mimirResp.ok) {
+        const mimirData = await mimirResp.json() as {
+          balances: Array<{
+            contractId: number;
+            name: string;
+            symbol: string;
+            balance: string;
+            decimals: number;
+            verified?: number;
+          }>;
+        };
+        for (const b of mimirData.balances || []) {
+          // Skip zero balances and duplicates
+          if (b.balance === "0" || assets.some((a) => a.assetId === b.contractId)) continue;
+          assets.push({
+            assetId:  b.contractId,
+            name:     b.name || b.symbol || `ARC200 ${b.contractId}`,
+            unitName: b.symbol || "",
+            decimals: b.decimals || 0,
+            amount:   BigInt(b.balance),
+            frozen:   false,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[Voi] ARC-200 balance fetch failed:", (e as Error).message);
+    }
+  }
+
   return {
     address,
     chain,
@@ -268,6 +304,7 @@ export default function AccountView() {
     // Optimistic UI: update toggle + clear stale balance immediately
     setMeta({ ...meta, activeChain: chain });
     setChainState(null);
+    setTab("assets");
     // Persist to storage → triggers onStorageChange → loadState() → fetchChainStateDirect
     chrome.storage.local.get(STORAGE_KEY_META, (result) => {
       const m = result[STORAGE_KEY_META] as WalletMeta | undefined;
@@ -433,8 +470,8 @@ export default function AccountView() {
         </div>
       )}
 
-      {/* Account card */}
-      <div className={`mx-4 rounded-xl p-4 ${activeChain === "algorand" ? "bg-gradient-to-br from-algo/20 to-surface-1" : "bg-gradient-to-br from-voi/20 to-surface-1"}`}>
+      {/* Account card — hidden only when AI chat active on Voi Agents tab */}
+      {(tab === "agents" && activeChain === "voi") ? null : <div className={`mx-4 rounded-xl p-4 ${activeChain === "algorand" ? "bg-gradient-to-br from-algo/20 to-surface-1" : "bg-gradient-to-br from-voi/20 to-surface-1"}`}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-1.5">
@@ -497,8 +534,62 @@ export default function AccountView() {
           >
             Receive
           </button>
+          {activeChain === "algorand" && COINBASE_ONRAMP_ENABLED && <button
+            onClick={async () => {
+              const addr = activeAccount?.address ?? "";
+              const network = COINBASE_NETWORK[activeChain] ?? "algorand";
+              const asset = COINBASE_ASSET[activeChain] ?? "ALGO";
+              try {
+                // Wallet signature authentication for Coinbase session
+                const nonce = crypto.randomUUID();
+                const timestamp = Date.now().toString();
+                const message = `coinbase-onramp:${addr}:${nonce}:${timestamp}`;
+
+                // Sign via background (uses the wallet's Ed25519 key)
+                const sigResp = await chrome.runtime.sendMessage({
+                  type: "SIGN_BYTES",
+                  data: Array.from(new TextEncoder().encode(message)),
+                });
+                if (!sigResp?.ok) throw new Error(sigResp?.data?.error ?? sigResp?.error ?? "Signing failed");
+
+                const resp = await fetch(COINBASE_SESSION_URL, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    address: addr,
+                    signature: sigResp.data.signature,
+                    message,
+                    nonce,
+                    addresses: { [addr]: [network] },
+                    assets: [asset],
+                    default_network: network,
+                    default_asset: asset,
+                  }),
+                });
+                if (!resp.ok) throw new Error(`Session request failed (${resp.status})`);
+                const data = await resp.json();
+                if (!data.ok) throw new Error(data.error ?? "No session token");
+                if (data.url) {
+                  chrome.tabs.create({ url: data.url, active: true });
+                } else if (data.sessionToken) {
+                  const url = new URL(COINBASE_ONRAMP_URL);
+                  url.searchParams.set("sessionToken", data.sessionToken);
+                  url.searchParams.set("defaultNetwork", network);
+                  url.searchParams.set("defaultAsset", asset);
+                  chrome.tabs.create({ url: url.toString(), active: true });
+                } else {
+                  throw new Error("No session token returned");
+                }
+              } catch (err) {
+                console.error("Coinbase onramp error:", err);
+              }
+            }}
+            className="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 rounded-lg py-1.5 text-xs font-medium transition-colors"
+          >
+            Buy
+          </button>}
         </div>
-      </div>
+      </div>}
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
@@ -521,7 +612,7 @@ export default function AccountView() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col min-h-0">
         {tab === "assets" && (
           <AssetList
             chain={activeChain}
@@ -542,12 +633,17 @@ export default function AccountView() {
           </div>
         )}
         {tab === "apps" && (
-          <ConnectedAppsTab connectedSites={meta?.connectedSites ?? {}} onUpdate={loadState} />
+          <ConnectedAppsTab connectedSites={meta?.connectedSites ?? {}} onUpdate={loadState} activeChain={activeChain} />
         )}
         {tab === "agents" && (
-          <AgentsTab
-            isVaultAccount={activeAccount?.type !== "walletconnect"}
-          />
+          <div className="flex-1 flex flex-col min-h-0">
+            <AgentsTab
+              isVaultAccount={activeAccount?.type !== "walletconnect"}
+              activeChain={activeChain}
+              activeAddress={activeAccount?.address ?? ""}
+              balance={chainState ? formatAmount(chainState.balance, CHAINS[activeChain].decimals) : undefined}
+            />
+          </div>
         )}
         {tab === "vault" && (
           <VaultPanel chain={activeChain} activeAccount={activeAccount} />
@@ -1100,52 +1196,122 @@ function ModalOverlay({
 
 // ── Connected Apps Tab ────────────────────────────────────────────────────────
 
+const FEATURED_APPS: { chain: ChainId; name: string; description: string; url: string; icon: string }[] = [
+  {
+    chain: "voi",
+    name: "DorkFi",
+    description: "Lending & borrowing on Voi",
+    url: "https://app.dork.fi/",
+    icon: "🏦",
+  },
+  {
+    chain: "voi",
+    name: "Nomadex",
+    description: "DEX & AMM on Voi",
+    url: "https://voi.nomadex.app/",
+    icon: "🔄",
+  },
+  {
+    chain: "voi",
+    name: "Humble",
+    description: "Swap & liquidity on Voi",
+    url: "https://voi.humble.sh/",
+    icon: "💧",
+  },
+  {
+    chain: "algorand",
+    name: "Haystack",
+    description: "DeFi hub on Algorand",
+    url: "https://hay.app/",
+    icon: "🌾",
+  },
+  {
+    chain: "algorand",
+    name: "Tinyman",
+    description: "DEX & AMM on Algorand",
+    url: "https://app.tinyman.org/",
+    icon: "🔄",
+  },
+];
+
 function ConnectedAppsTab({
   connectedSites,
   onUpdate,
+  activeChain,
 }: {
   connectedSites: Record<string, string[]>;
   onUpdate: () => void;
+  activeChain: ChainId;
 }) {
   const entries = Object.entries(connectedSites);
+  const featured = FEATURED_APPS.filter((a) => a.chain === activeChain);
 
   async function disconnect(origin: string) {
     await sendBg({ type: "ARC27_DISCONNECT", origin });
     onUpdate();
   }
 
-  if (entries.length === 0) {
-    return (
-      <div className="text-xs text-gray-500 text-center py-6">No connected dApps</div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      {entries.map(([origin, addresses]) => (
-        <div
-          key={origin}
-          className="bg-surface-2 rounded-lg px-3 py-2.5 flex items-center justify-between"
-        >
-          <div>
-            <p className="text-sm font-medium truncate max-w-[200px]">{origin}</p>
-            <p className="text-xs text-gray-500">{addresses.length} address(es)</p>
+    <div className="flex flex-col gap-3">
+      {featured.length > 0 && (
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Featured</p>
+          <div className="flex flex-col gap-2">
+            {featured.map((app) => (
+              <a
+                key={app.url}
+                href={app.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-surface-2 rounded-lg px-3 py-2.5 flex items-center gap-3 hover:bg-surface-3 transition-colors"
+              >
+                <span className="text-xl">{app.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{app.name}</p>
+                  <p className="text-xs text-gray-500">{app.description}</p>
+                </div>
+                <span className="text-xs text-gray-500">↗</span>
+              </a>
+            ))}
           </div>
-          <button
-            onClick={() => disconnect(origin)}
-            className="text-xs text-red-400 hover:text-red-300 transition-colors"
-          >
-            Disconnect
-          </button>
         </div>
-      ))}
+      )}
+
+      {entries.length > 0 && (
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Connected</p>
+          <div className="flex flex-col gap-2">
+            {entries.map(([origin, addresses]) => (
+              <div
+                key={origin}
+                className="bg-surface-2 rounded-lg px-3 py-2.5 flex items-center justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium truncate max-w-[200px]">{origin}</p>
+                  <p className="text-xs text-gray-500">{addresses.length} address(es)</p>
+                </div>
+                <button
+                  onClick={() => disconnect(origin)}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {featured.length === 0 && entries.length === 0 && (
+        <div className="text-xs text-gray-500 text-center py-6">No connected dApps</div>
+      )}
     </div>
   );
 }
 
 // ── Agents Tab (WalletConnect Web3Wallet for AI agents) ───────────────────────
 
-function AgentsTab({ isVaultAccount }: { isVaultAccount: boolean }) {
+function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { isVaultAccount: boolean; activeChain: ChainId; activeAddress: string; balance?: string }) {
   const [sessions, setSessions] = useState<Record<string, Record<string, unknown>>>({});
   const [loading, setLoading]   = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -1153,6 +1319,7 @@ function AgentsTab({ isVaultAccount }: { isVaultAccount: boolean }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [chatActive, setChatActive] = useState(false);
 
   async function loadSessions() {
     setLoading(true);
@@ -1229,7 +1396,15 @@ function AgentsTab({ isVaultAccount }: { isVaultAccount: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={`flex flex-col ${chatActive ? "h-full min-h-[400px]" : "gap-3"}`}>
+      {/* AI Chat — Voi only */}
+      {activeChain === "voi" && (
+        <AgentChat activeAddress={activeAddress} balance={balance} onActiveChange={setChatActive} />
+      )}
+
+      {/* Hide everything below when chat is active */}
+      {chatActive ? null : <>
+
       {/* Connected agents */}
       {sessionEntries.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -1343,6 +1518,8 @@ function AgentsTab({ isVaultAccount }: { isVaultAccount: boolean }) {
           AI agents connect as WalletConnect dApps. AlgoVoi signs transactions using your vault keys — you approve each request in a popup. Agents never access your private keys.
         </p>
       </div>
+
+      </>}
     </div>
   );
 }

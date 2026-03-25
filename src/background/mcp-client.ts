@@ -89,7 +89,7 @@ function parseSseResponse(text: string): unknown {
 const MCP_TIMEOUT_MS = 30_000;
 
 /** Open a new MCP session and return the session ID */
-async function initSession(): Promise<string> {
+export async function initSession(): Promise<string> {
   const res = await fetch(MCP_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT },
@@ -186,10 +186,12 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
     sender: activeAccount.address,
     receiver: pr.payTo,
     amount,
-    note: new TextEncoder().encode("envoi:resolve"),
+    note: new TextEncoder().encode("mcp:tool"),
     suggestedParams: params,
   });
 
+  // signTxn automatically adds AuthAddr (sgnr) when the signing key
+  // derives a different address than the sender (i.e. rekeyed accounts).
   const signedBytes = txn.signTxn(sk);
   const txId = txn.txID();
 
@@ -216,7 +218,7 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
  * Call a tool on the MCP server, automatically paying the x402 fee if required.
  * Returns the tool result content.
  */
-async function callTool(
+export async function callTool(
   sessionId: string,
   toolName: string,
   toolArgs: Record<string, unknown>
@@ -321,6 +323,53 @@ async function callTool(
   return data.result;
 }
 
+// ── Tool listing ──────────────────────────────────────────────────────────────
+
+export interface McpToolDef {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+let _cachedTools: McpToolDef[] | null = null;
+
+/**
+ * List all available tools on the MCP server.
+ * Results are cached for the lifetime of the service worker.
+ */
+export async function listTools(sessionId: string): Promise<McpToolDef[]> {
+  if (_cachedTools) return _cachedTools;
+
+  const res = await fetch(MCP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: MCP_ACCEPT,
+      "mcp-session-id": sessionId,
+      // Include payment header to bypass x402 on tools/list
+      "PAYMENT-SIGNATURE": "toolslist",
+    },
+    signal: AbortSignal.timeout(MCP_TIMEOUT_MS),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 99,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+
+  if (!res.ok) throw new Error(`MCP tools/list failed with status ${res.status}`);
+
+  const text = await res.text();
+  const data = parseSseResponse(text) as {
+    result?: { tools: McpToolDef[] };
+  } | null;
+
+  if (!data?.result?.tools) throw new Error("MCP tools/list returned no tools");
+  _cachedTools = data.result.tools;
+  return _cachedTools;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -360,7 +409,8 @@ export async function mcpResolveEnvoi(name: string): Promise<EnvoiResolveResult>
     address =
       (parsed.address as string | undefined) ??
       ((parsed.result as Record<string, unknown> | undefined)?.address as string | undefined) ??
-      ((parsed.data as Record<string, unknown> | undefined)?.address as string | undefined);
+      ((parsed.data as Record<string, unknown> | undefined)?.address as string | undefined) ??
+      ((parsed.results as Array<Record<string, unknown>> | undefined)?.[0]?.address as string | undefined);
   } catch {
     // Plain address string fallback
     if (/^[A-Z2-7]{58}$/.test(textContent.trim())) {

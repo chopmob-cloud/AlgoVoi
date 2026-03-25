@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Status
@@ -35,6 +35,11 @@
 - Transaction simulation: `simulateTransaction()` wraps algod `/v2/transactions/simulate` for pre-sign preview of balance changes and failure detection.
 - Secret key wiping: `.fill(0)` after signing in all 7 handler paths (message-handler, x402, mpp, ap2, swap, web3wallet).
 - Comet CDP independently validated anti-phishing architecture.
+
+**Hardening XVII (v0.5.0 — March 2026):** AI Agent Chat + Coinbase Onramp integration. Full security review of all new attack surfaces. No new Critical/High/Medium/Low findings raised — all new code follows established patterns.
+- AI Agent Chat: Anthropic API key lives exclusively on UluMCP server (`/etc/ulumcp/secrets.env`) — never bundled in extension. Server-side tool whitelist (`TOOL_CATEGORIES`) enforces per-category tool access; blocked attempts logged. Direct action path (regex parser) bypasses AI entirely for structured commands — reduces token cost and narrows attack surface. Conversational fallback calls `agent_chat` MCP tool via existing x402-gated session. `agent_chat` queries exempt from x402 charge until a tool executes.
+- Coinbase Onramp: wallet address sent via POST body to AlgoVoi backend — never in URL query parameters, satisfying Coinbase "secure initialization" requirement. Feature flag `COINBASE_ONRAMP_ENABLED` allows Buy button to be disabled for CWS submissions without code changes. Backend endpoint restricted to `chrome-extension://` CORS origin. New host permissions (`pay.coinbase.com`, `api.developer.coinbase.com`) scoped to exact domains in `manifest.json`.
+- Direct actions: `parseDirectAction()` uses anchored regex patterns (no `re` flag, no dynamic construction) — command injection not possible. All MCP calls routed through existing `callTool()` with established spending-cap and session guards.
 
 **Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
 - **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
@@ -259,43 +264,47 @@ All 7 security claims independently validated by **Comet CDP** (all CONFIRMED). 
 
 ---
 
-## Files Audited (v0.4.0)
+## Files Audited (v0.5.0)
 
 ```
-manifest.json                           ← modified v0.4.0 (version bump, CSP img-src tightened)
-package.json                            ← modified v0.4.0 (terser dep added)
-vite.config.ts                          ← modified v0.4.0 (terser console stripping)
-src/background/index.ts                 ← modified v0.4.0 (WC_PROJECT_ID validation)
-src/background/message-handler.ts
-src/background/wallet-store.ts
+manifest.json                           ← modified v0.5.0 (version bump, Coinbase host permissions added)
+package.json                            ← modified v0.5.0 (version bump)
+vite.config.ts
+src/background/index.ts
+src/background/message-handler.ts       ← modified v0.5.0 (AGENT_CHAT + COINBASE_OPEN_ONRAMP handlers)
+src/background/wallet-store.ts          ← modified v0.5.0
 src/background/vault-store.ts
-src/background/swap-handler.ts          ← modified v0.4.0 (sk wipe try/finally)
-src/background/x402-handler.ts          ← modified v0.4.0 (sk wipe try/finally)
-src/background/mpp-handler.ts           ← modified v0.4.0 (sk wipe try/finally)
-src/background/ap2-handler.ts           ← modified v0.4.0 (sk wipe try/finally)
-src/background/mcp-client.ts
+src/background/agent-chat.ts            ← new v0.5.0 (direct action dispatcher + AI fallback)
+src/background/direct-actions.ts        ← new v0.5.0 (regex command parser + MCP executors)
+src/background/coinbase-onramp.ts       ← new v0.5.0 (Coinbase session token flow)
+src/background/swap-handler.ts
+src/background/x402-handler.ts
+src/background/mpp-handler.ts
+src/background/ap2-handler.ts
+src/background/mcp-client.ts            ← modified v0.5.0
 src/background/chain-clients.ts
 src/background/approval-handler.ts
 src/background/web3wallet-handler.ts
 src/content/index.ts
 src/content/provider-bridge.ts
-src/inpage/index.ts                     ← modified v0.4.0 (Authorization header stripped on retry)
+src/inpage/index.ts
 src/popup/App.tsx
-src/popup/components/AccountView.tsx
+src/popup/components/AccountView.tsx    ← modified v0.5.0 (Buy button, AI Chat tab wiring)
+src/popup/components/AgentChat.tsx      ← new v0.5.0 (AI chat UI with categories + hints)
 src/popup/components/SwapPanel.tsx
 src/popup/components/VaultPanel.tsx
 src/popup/components/WalletConnectModal.tsx
 src/popup/hooks/useWalletConnect.ts
 src/approval/index.tsx
-src/shared/constants.ts
-src/shared/debug-log.ts                 ← modified v0.4.0 (7-day auto-expiry)
+src/shared/constants.ts                 ← modified v0.5.0 (Coinbase constants + COINBASE_ONRAMP_ENABLED flag)
+src/shared/debug-log.ts
 src/shared/utils/crypto.ts
 src/shared/utils/asset-cache.ts
 src/shared/utils/wc-storage.ts
 src/shared/utils/wc-chrome-storage.ts
 src/shared/utils/wc-sign-group.ts
-src/shared/types/wallet.ts
-src/shared/types/messages.ts
+src/shared/types/wallet.ts              ← modified v0.5.0
+src/shared/types/messages.ts            ← modified v0.5.0 (AGENT_CHAT + COINBASE message types)
 src/shared/types/approval.ts
 src/shared/types/ap2.ts
 src/shared/types/mpp.ts

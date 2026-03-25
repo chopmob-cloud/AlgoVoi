@@ -539,6 +539,18 @@ export const walletStore = {
     return _vaultData?.vaultApps?.[chain] ?? null;
   },
 
+  /** Store Claude API key in encrypted vault. */
+  async setClaudeApiKey(apiKey: string): Promise<void> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    _vaultData.claudeApiKey = apiKey;
+    await persistVaultData();
+  },
+
+  /** Returns the Claude API key (wallet must be unlocked). */
+  getClaudeApiKey(): string | null {
+    return _vaultData?.claudeApiKey ?? null;
+  },
+
   async getConnectedAddresses(origin: string): Promise<string[]> {
     // Prefer vault (encrypted, up-to-date); fall back to legacy meta when locked
     if (_vaultData?.connectedSites) {

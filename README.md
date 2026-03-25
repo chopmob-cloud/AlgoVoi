@@ -6,7 +6,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.4.0-brightgreen)
+![Version](https://img.shields.io/badge/version-0.5.0-brightgreen)
 
 ---
 
@@ -27,6 +27,8 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **WC chromeStorage adapter** — WalletConnect sessions persist in `chrome.storage.local` via a custom `IKeyValueStorage` adapter; survives lock/unlock cycles, SW suspension, and browser restarts
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
 - **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
+- **AI Agent Chat** — Ask questions about tokens, NFTs, swaps, lending, and .voi names in natural language (Voi chain, Agents tab); structured commands (swap, send, balance, resolve, register, price) execute directly via MCP tools at zero AI cost; conversational queries fall back to Claude Sonnet 4 via the UluMCP server — API key stays server-side
+- **Coinbase Onramp** — Buy ALGO directly from the wallet via a secure session-token flow; wallet address is sent via POST body to the AlgoVoi backend which fetches a one-time Coinbase session token — addresses are never exposed in URL parameters (feature-flagged; pending Coinbase UK approval)
 
 ---
 
@@ -48,10 +50,10 @@ MPP is checked first; x402 second. Both submit real AVM on-chain transactions. A
 
 ```
 src/
-├── background/     Service worker: wallet store, chain clients, x402/MPP/AP2/Web3Wallet/swap handlers, message router
+├── background/     Service worker: wallet store, chain clients, x402/MPP/AP2/Web3Wallet/swap/agent-chat/onramp handlers, message router
 ├── content/        Content script: bridges inpage ↔ background messages
 ├── inpage/         Injected into pages: window.algorand provider + fetch x402/MPP intercept
-├── popup/          React wallet UI (360 × 600 px) — includes Agent Sessions + Swap tabs
+├── popup/          React wallet UI (360 × 600 px) — includes Agent Sessions, AI Chat + Swap tabs
 ├── approval/       Payment approval popup (x402, MPP, AP2, agent sign requests)
 ├── devtools/       Chrome DevTools panel (TxnInspector, X402Inspector, BazaarPanel)
 └── shared/         Types, constants, crypto utils, ASA metadata cache, debug logger
@@ -161,7 +163,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XIV complete, Comet CDP independently validated v0.4.0).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XVII complete, Comet CDP independently validated v0.4.0).
 
 ### 30-day local signing key
 
@@ -275,7 +277,46 @@ const result = await signClient.request({
 
 ---
 
-## Ecosystem
+## AI Agent Chat
+
+Available on the **Voi chain** in the **Agents** tab. Ask questions or issue commands in plain English — AlgoVoi decides the fastest path:
+
+| Input type | Path | AI cost |
+|---|---|---|
+| Structured command (`swap 10 VOI for USDC`, `send 5 VOI to alice.voi`, `price of VIA`) | Direct → MCP tool | Zero |
+| Conversational / ambiguous (`what are the best liquidity pools?`) | AI → Claude Sonnet 4 + tool whitelist | Per response |
+
+**Categories:** tokens · nfts · swaps · names · lending · general
+
+The Anthropic API key lives exclusively on the UluMCP server — it is never bundled in the extension. Tool calls are whitelisted per category; blocked attempts are logged server-side.
+
+```
+User types "swap 10 VOI for USDC"
+  → direct-actions: parseDirectAction() matches SWAP_RE
+  → calls humble_pools + humble_swap_txn via MCP (zero AI tokens)
+  → returns unsigned txn → user approves in existing signing flow
+
+User types "what tokens have the most liquidity?"
+  → no direct-action match → agent_chat (Claude Sonnet 4)
+  → server calls allowed tools → returns natural-language reply
+```
+
+---
+
+## Coinbase Onramp
+
+Buy ALGO directly from the wallet via the **Buy** button in the Assets tab (Algorand chain).
+
+**Security flow:**
+1. Extension POSTs the wallet address + asset to `mcp.ilovechicken.co.uk/api/coinbase-session`
+2. Backend verifies the request and fetches a one-time session token from Coinbase
+3. Extension opens `pay.coinbase.com?sessionToken=...` — wallet address is never in the URL
+
+This satisfies Coinbase's "require secure initialization" setting. The feature is controlled by the `COINBASE_ONRAMP_ENABLED` constant and is pending Coinbase UK country approval.
+
+---
+
+
 
 ### Compatible Services
 
