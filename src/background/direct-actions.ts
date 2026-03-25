@@ -4,6 +4,7 @@
  * Only falls back to AI for ambiguous/conversational queries.
  */
 
+import algosdk from "algosdk";
 import { initSession, callTool } from "./mcp-client";
 import type { PendingTxn, AgentChatResult } from "./agent-chat";
 
@@ -52,10 +53,22 @@ async function resolveTokens(): Promise<Map<string, { id: string; symbol: string
   const text = result.content?.find((c: { type: string }) => c.type === "text")?.text;
   if (!text) return new Map();
 
-  const tokens = JSON.parse(text).tokens || [];
+  let tokens: Array<{ id: unknown; symbol: unknown; name: unknown; decimals: unknown }> = [];
+  try {
+    tokens = (JSON.parse(text).tokens as typeof tokens) || [];
+  } catch {
+    return new Map();
+  }
   const map = new Map<string, { id: string; symbol: string; name: string; decimals: number }>();
   for (const t of tokens) {
-    map.set((t.symbol || "").toUpperCase(), { id: String(t.id), symbol: t.symbol, name: t.name, decimals: t.decimals });
+    const sym = String(t.symbol ?? "");
+    if (!sym) continue;
+    map.set(sym.toUpperCase(), {
+      id: String(t.id ?? ""),
+      symbol: sym,
+      name: String(t.name ?? ""),
+      decimals: Number(t.decimals ?? 0),
+    });
   }
   // wVOI alias
   map.set("VOI", { id: "0", symbol: "VOI", name: "Voi", decimals: 6 });
@@ -139,9 +152,20 @@ async function executeSend(
     const resolveResult = await callTool(sessionId, "envoi_resolve_address", { name: receiver });
     const resolveText = resolveResult.content?.find((c: { type: string }) => c.type === "text")?.text;
     if (resolveText) {
-      const data = JSON.parse(resolveText);
-      const resolved = data.results?.[0]?.address || data.address;
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(resolveText) as Record<string, unknown>;
+      } catch {
+        return { reply: `Could not resolve ${params.to}` };
+      }
+      const resolved = (data.results as Array<Record<string, unknown>> | undefined)?.[0]?.address as string | undefined
+        ?? data.address as string | undefined;
       if (resolved) {
+        // XVIII-1: Validate the resolved address from the MCP server before use.
+        // A compromised server could return an attacker-controlled address.
+        if (!algosdk.isValidAddress(resolved)) {
+          return { reply: `Name service returned an invalid address for ${params.to}` };
+        }
         receiver = resolved;
       } else {
         return { reply: `Could not resolve ${params.to}` };
@@ -149,7 +173,22 @@ async function executeSend(
     }
   }
 
-  const microAmount = Math.round(parseFloat(params.amount) * 1_000_000).toString();
+  // XVIII-1: Validate raw receiver address (non-.voi path) before sending to MCP.
+  if (!algosdk.isValidAddress(receiver)) {
+    return { reply: `Invalid recipient address: ${receiver}` };
+  }
+
+  // XVIII-2: Safe decimal → microunit conversion without float precision loss.
+  // parseFloat(".")  = NaN; large integers lose precision in IEEE 754.
+  // Use BigInt arithmetic matching parseDecimalToAtomic() in message-handler.ts.
+  const cleanAmount = params.amount.trim();
+  if (!/^\d+(\.\d+)?$/.test(cleanAmount)) {
+    return { reply: `Invalid amount: "${params.amount}"` };
+  }
+  const [intStr, fracStr = ""] = cleanAmount.split(".");
+  const fracPadded = fracStr.slice(0, 6).padEnd(6, "0");
+  const microAmountBig = BigInt(intStr) * 1_000_000n + BigInt(fracPadded);
+  const microAmount = microAmountBig.toString();
 
   if (params.asset === "VOI") {
     const result = await callTool(sessionId, "payment_txn", {
