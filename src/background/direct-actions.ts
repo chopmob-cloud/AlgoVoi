@@ -233,6 +233,10 @@ async function executeResolve(params: Record<string, string>): Promise<AgentChat
   const entry = data.results?.[0];
   if (!entry) return { reply: `${params.name} not found.` };
 
+  // XX-1: validate before displaying — MCP server is an external trust boundary.
+  if (!algosdk.isValidAddress(entry.address)) {
+    return { reply: `Name service returned an invalid address for ${params.name}` };
+  }
   return { reply: `${params.name} → ${entry.address}` };
 }
 
