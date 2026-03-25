@@ -152,3 +152,28 @@ export const APPROVAL_POPUP_HEIGHT = 620;
  * after the account is saved and the tab closes itself via window.close().
  */
 export const WC_PAIR_TAB_KEY = "wc_pair_tab_id" as const;
+
+// ── Coinbase Onramp ──────────────────────────────────────────────────
+/** Feature flag: set to false to hide the Buy button (e.g. for CWS submission). */
+export const COINBASE_ONRAMP_ENABLED = true;
+
+/** CDP Project ID — public identifier, not a secret. */
+export const COINBASE_APP_ID = "1cbc067b-26e7-4e12-b880-49897fd666fb";
+
+/** Base URL for the Coinbase Onramp widget. */
+export const COINBASE_ONRAMP_URL = "https://pay.coinbase.com/buy/select-asset";
+
+/** Session token endpoint on mcp.ilovechicken.co.uk backend. */
+export const COINBASE_SESSION_URL = "https://mcp.ilovechicken.co.uk/api/coinbase-session";
+
+/** Maps our chain IDs to Coinbase network names. */
+export const COINBASE_NETWORK: Record<string, string> = {
+  algorand: "algorand",
+  voi: "algorand",   // Voi not yet listed on Coinbase — fall back to Algorand
+};
+
+/** Maps our chain IDs to the default asset on Coinbase. */
+export const COINBASE_ASSET: Record<string, string> = {
+  algorand: "ALGO",
+  voi: "ALGO",       // Voi not yet listed — show ALGO as default
+};

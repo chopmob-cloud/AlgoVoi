@@ -54,6 +54,8 @@ export interface VaultData {
    * Stored in the encrypted vault so it is coupled to the agent key.
    */
   vaultApps?: Partial<Record<string, { appId: number; appAddress: string }>>;
+  /** Claude API key for built-in AI chat agent. Encrypted at rest. */
+  claudeApiKey?: string;
 }
 
 /** AES-GCM encrypted vault persisted in chrome.storage.local */
