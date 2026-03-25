@@ -182,18 +182,24 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
 
   const sk = await walletStore.getActiveSecretKey();
 
-  const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-    sender: activeAccount.address,
-    receiver: pr.payTo,
-    amount,
-    note: new TextEncoder().encode("mcp:tool"),
-    suggestedParams: params,
-  });
+  let signedBytes: Uint8Array;
+  let txId: string;
+  try {
+    const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: activeAccount.address,
+      receiver: pr.payTo,
+      amount,
+      note: new TextEncoder().encode("mcp:tool"),
+      suggestedParams: params,
+    });
 
-  // signTxn automatically adds AuthAddr (sgnr) when the signing key
-  // derives a different address than the sender (i.e. rekeyed accounts).
-  const signedBytes = txn.signTxn(sk);
-  const txId = txn.txID();
+    // signTxn automatically adds AuthAddr (sgnr) when the signing key
+    // derives a different address than the sender (i.e. rekeyed accounts).
+    signedBytes = txn.signTxn(sk);
+    txId = txn.txID();
+  } finally {
+    sk.fill(0); // XIV-1: wipe secret key after signing (always, even on error)
+  }
 
   // Submit and wait for on-chain confirmation before returning the
   // PAYMENT-SIGNATURE header. Without this the UluMCP server may receive
