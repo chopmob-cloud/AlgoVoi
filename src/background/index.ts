@@ -28,6 +28,31 @@ if (!WC_PROJECT_ID) {
 // Register the central message router
 registerMessageHandler();
 
+// Side panel — open on extension icon click instead of the popup.
+// The side panel is persistent (stays open as the user browses tabs),
+// keeping the SW alive via the long-lived port in sidepanel/index.tsx.
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch(() => {
+    // Older Chrome versions (<114) don't support sidePanel — fall back silently.
+  });
+
+// Keep-alive port from the side panel.
+// While this port is open, Chrome will not suspend the SW, so the wallet
+// session (auto-lock timer, in-memory keys) stays alive as long as the
+// side panel is visible.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "sidepanel-keepalive") return;
+  // Reset auto-lock on side-panel open so the timer restarts from now.
+  import("./wallet-store").then(({ walletStore }) => {
+    walletStore.resetAutoLock();
+    port.onDisconnect.addListener(() => {
+      // Side panel closed — auto-lock timer continues to run normally.
+      // No explicit action needed; the SW may now be suspended by Chrome.
+    });
+  });
+});
+
 // The MV3 service worker is suspended by Chrome when idle.
 // wallet-store.ts registers an onSuspend listener that clears all in-memory
 // key material when the SW is suspended, so suspension is equivalent to an

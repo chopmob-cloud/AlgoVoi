@@ -34,6 +34,7 @@ export default defineConfig({
         "src/inpage/index.ts",
         "src/devtools/panel.html",
         "src/approval/index.html",
+        "src/sidepanel/index.html",
       ],
       disableAutoLaunch: true,
       browser: "chrome",
