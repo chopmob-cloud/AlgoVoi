@@ -1301,15 +1301,56 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const meta = await walletStore.getMeta();
       const account = meta.accounts.find((a) => a.id === meta.activeAccountId);
       if (!account) throw new Error("No active account");
+
+      // Validate transaction array
+      const rawTxns = msg.txns as string[];
+      if (!Array.isArray(rawTxns) || rawTxns.length === 0 || rawTxns.length > 16) {
+        throw new Error(`Invalid transaction count: ${rawTxns?.length ?? 0}`);
+      }
+
+      // Decode and validate all transactions before touching the key
+      const expectedGenesisHash = CHAINS[meta.activeChain]?.genesisHash;
+      const decodedTxns = rawTxns.map((b64, i) => {
+        const txnBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const txn = algosdk.decodeUnsignedTransaction(txnBytes);
+
+        // Genesis hash check — prevents signing cross-chain transactions
+        if (expectedGenesisHash) {
+          const actualHash = btoa(String.fromCharCode(...Array.from(txn.genesisHash ?? new Uint8Array(0))));
+          if (actualHash !== expectedGenesisHash) {
+            throw new Error(`Transaction ${i}: genesis hash mismatch — expected ${meta.activeChain}`);
+          }
+        }
+
+        // Dangerous field check — reject rekey, drain, clawback
+        const rekeyTo = txn.rekeyTo?.toString?.() || undefined;
+        const closeRemainderTo = txn.closeRemainderTo?.toString?.() || undefined;
+        const assetCloseTo = txn.assetCloseTo?.toString?.() || undefined;
+        const clawbackFrom = txn.revocationTarget?.toString?.() || txn.assetRevocationTarget?.toString?.() || undefined;
+        const dangerous = [
+          rekeyTo && "rekeyTo",
+          closeRemainderTo && "closeRemainderTo",
+          assetCloseTo && "assetCloseTo",
+          clawbackFrom && "clawback",
+        ].filter(Boolean);
+        if (dangerous.length > 0) {
+          throw new Error(`Transaction ${i} contains dangerous fields: ${dangerous.join(", ")}`);
+        }
+
+        return txn;
+      });
+
       const sk = await walletStore.getSecretKeyForAddress(account.address);
       if (!sk) throw new Error("Cannot access signing key");
 
       const signedTxns: string[] = [];
-      for (const b64Txn of msg.txns as string[]) {
-        const txnBytes = Uint8Array.from(atob(b64Txn), (c) => c.charCodeAt(0));
-        const txn = algosdk.decodeUnsignedTransaction(txnBytes);
-        const signed = txn.signTxn(sk);
-        signedTxns.push(Buffer.from(signed).toString("base64"));
+      try {
+        for (const txn of decodedTxns) {
+          const signed = txn.signTxn(sk);
+          signedTxns.push(Buffer.from(signed).toString("base64"));
+        }
+      } finally {
+        wipeKey(sk); // XIV-1: wipe secret key after signing (always, even on error)
       }
       return { signedTxns };
     }

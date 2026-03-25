@@ -244,14 +244,22 @@ export default function AgentChat({
                 {msg.pendingTxns && msg.pendingTxns.length > 0 && (
                   <div className="mt-2 flex flex-col gap-1">
                     {msg.pendingTxns.map((txn, ti) => (
-                      <button
-                        key={ti}
-                        onClick={() => handleSign(txn, i)}
-                        disabled={signing}
-                        className="bg-voi hover:bg-voi/80 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
-                      >
-                        {signing ? "Signing..." : `Sign & Send (${txn.action})`}
-                      </button>
+                      <div key={ti} className="flex flex-col gap-1 bg-black/20 rounded-lg px-2 py-1.5">
+                        <div className="text-[9px] text-gray-400 space-y-0.5">
+                          <div><span className="text-gray-500">Action:</span> {txn.action}</div>
+                          {txn.receiver && <div><span className="text-gray-500">To:</span> {txn.receiver.slice(0, 8)}…{txn.receiver.slice(-4)}</div>}
+                          {txn.amount && <div><span className="text-gray-500">Amount:</span> {txn.amount}</div>}
+                          <div><span className="text-gray-500">Network:</span> {txn.network}</div>
+                          <div className="text-yellow-600/80">⚠ Review before signing</div>
+                        </div>
+                        <button
+                          onClick={() => handleSign(txn, i)}
+                          disabled={signing}
+                          className="bg-voi hover:bg-voi/80 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                        >
+                          {signing ? "Signing..." : `Sign & Send`}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
