@@ -6,7 +6,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.5.0-brightgreen)
+![Version](https://img.shields.io/badge/version-0.6.0-brightgreen)
 
 ---
 
@@ -27,8 +27,11 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **WC chromeStorage adapter** — WalletConnect sessions persist in `chrome.storage.local` via a custom `IKeyValueStorage` adapter; survives lock/unlock cycles, SW suspension, and browser restarts
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
 - **DevTools panel** — Inspect transactions, x402 flows, and Bazaar listings from Chrome DevTools
-- **AI Agent Chat** — Ask questions about tokens, NFTs, swaps, lending, and .voi names in natural language (Voi chain, Agents tab); structured commands (swap, send, balance, resolve, register, price) execute directly via MCP tools at zero AI cost; conversational queries fall back to Claude Sonnet 4 via the UluMCP server — API key stays server-side
+- **AI Agent Chat (both chains)** — Ask questions about tokens, NFTs, swaps, lending, and names in natural language (Agents tab); structured commands (swap, send, balance, resolve, register, price) execute directly via MCP tools at zero AI cost; conversational queries fall back to Claude Sonnet 4 via the UluMCP server — API key stays server-side
+  - **Voi**: HumbleSwap/Snowball DEX, enVoi (.voi) names, ARC-200 tokens, ARC-72 NFTs, DorkFi lending
+  - **Algorand**: Haystack Router DEX (Tinyman/Pact/Folks aggregator), NFD (.algo) names, Pera asset verification
 - **Coinbase Onramp** — Buy ALGO directly from the wallet via a secure session-token flow; wallet address is sent via POST body to the AlgoVoi backend which fetches a one-time Coinbase session token — addresses are never exposed in URL parameters (feature-flagged; pending Coinbase UK approval)
+- **Auto-update notifications** — Extension checks for new releases via the MCP server on startup + daily; amber badge + banner when a newer version is available; server-side `/version` endpoint auto-syncs from GitHub releases every 30 minutes
 
 ---
 
@@ -163,7 +166,7 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XVII complete, Comet CDP independently validated v0.4.0).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XXII complete, Comet CDP independently validated).
 
 ### 30-day local signing key
 
@@ -279,22 +282,32 @@ const result = await signClient.request({
 
 ## AI Agent Chat
 
-Available on the **Voi chain** in the **Agents** tab. Ask questions or issue commands in plain English — AlgoVoi decides the fastest path:
+Available on **both chains** in the **Agents** tab. Ask questions or issue commands in plain English — AlgoVoi decides the fastest path:
 
 | Input type | Path | AI cost |
 |---|---|---|
-| Structured command (`swap 10 VOI for USDC`, `send 5 VOI to alice.voi`, `price of VIA`) | Direct → MCP tool | Zero |
+| Structured command (`swap 10 VOI for USDC`, `send 1 ALGO to grampantics.algo`, `price of VIA`) | Direct → MCP tool | Zero |
 | Conversational / ambiguous (`what are the best liquidity pools?`) | AI → Claude Sonnet 4 + tool whitelist | Per response |
 
-**Categories:** tokens · nfts · swaps · names · lending · general
+**Voi categories:** tokens · nfts · swaps · names · lending · general
+**Algorand categories:** tokens · swaps · names · general
+
+62 MCP tools across 14 modules:
+- **Voi**: arc200 (6) · arc72 (3) · envoi (4) · humble (10) · snowball (4) · swap200 (2) · marketplace (3) · dorkfi (7)
+- **Algorand**: nfd (6) · haystack (3) · pera (3)
+- **Shared**: txns (7) · algod (1) · chat (1) · x402 (2)
 
 The Anthropic API key lives exclusively on the UluMCP server — it is never bundled in the extension. Tool calls are whitelisted per category; blocked attempts are logged server-side.
 
 ```
-User types "swap 10 VOI for USDC"
+User types "swap 10 VOI for USDC" (Voi chain)
   → direct-actions: parseDirectAction() matches SWAP_RE
   → calls humble_pools + humble_swap_txn via MCP (zero AI tokens)
   → returns unsigned txn → user approves in existing signing flow
+
+User types "send 1 ALGO to grampantics.algo" (Algorand chain)
+  → direct-actions: matches SEND_RE → nfd_get resolves .algo name
+  → calls payment_txn via MCP → returns unsigned txn → user approves
 
 User types "what tokens have the most liquidity?"
   → no direct-action match → agent_chat (Claude Sonnet 4)
