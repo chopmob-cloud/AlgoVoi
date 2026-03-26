@@ -18,7 +18,7 @@ import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
 type Tab = "assets" | "swap" | "history" | "apps" | "agents" | "vault";
-type Modal = "send" | "receive" | "import_mnemonic" | "add_menu" | null;
+type Modal = "send" | "receive" | "import_mnemonic" | "add_menu" | "confirm_remove" | null;
 
 /**
  * Parse a decimal string to atomic BigInt without float rounding errors.
@@ -369,11 +369,9 @@ export default function AccountView() {
 
   async function handleRemoveAccount() {
     if (!activeAccount) return;
-    const label = `Remove "${activeAccount.name}" (${activeAccount.address.slice(0, 8)}…)?`;
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(label)) return;
     try {
       await sendBg({ type: "WALLET_REMOVE_ACCOUNT", id: activeAccount.id });
+      setModal(null);
       loadState();
     } catch (err) {
       console.error("Failed to remove account:", err);
@@ -578,7 +576,7 @@ export default function AccountView() {
                 );
               })()}
               <button
-                onClick={handleRemoveAccount}
+                onClick={() => setModal("confirm_remove")}
                 className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors leading-none"
                 title="Remove this account"
               >
@@ -762,6 +760,36 @@ export default function AccountView() {
           onImported={() => { setModal(null); loadState(); }}
           onCancel={() => setModal(null)}
         />
+      )}
+      {modal === "confirm_remove" && activeAccount && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#161B22] border border-white/10 rounded-xl p-5 mx-4 max-w-xs w-full shadow-xl">
+            <h3 className="text-sm font-medium text-white mb-2">Remove account?</h3>
+            <p className="text-xs text-gray-400 mb-1">
+              {activeAccount.name}
+            </p>
+            <p className="text-xs text-gray-500 font-mono mb-4">
+              {activeAccount.address.slice(0, 12)}...{activeAccount.address.slice(-8)}
+            </p>
+            <p className="text-xs text-red-400/80 mb-4">
+              This will remove the account from the wallet. Make sure you have your recovery phrase backed up.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setModal(null)}
+                className="flex-1 px-3 py-2 text-xs rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveAccount}
+                className="flex-1 px-3 py-2 text-xs rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
