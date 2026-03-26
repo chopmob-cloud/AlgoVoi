@@ -435,6 +435,14 @@ export default function AccountView() {
         </div>
 
         {/* WalletConnect pairing opens in a dedicated tab via openWCPairTab() */}
+
+        {/* Modals — must be inside this early return or they won't render */}
+        {modal === "import_mnemonic" && (
+          <ImportMnemonicModal
+            onImported={() => { setModal(null); loadState(); }}
+            onCancel={() => setModal(null)}
+          />
+        )}
       </div>
     );
   }
