@@ -645,7 +645,7 @@ export default function AccountView() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     address: addr,
-                    signature: sigResp.data.sig,
+                    signature: sigResp.data.signature,
                     message,
                     nonce,
                     addresses: { [addr]: [network] },
@@ -674,6 +674,8 @@ export default function AccountView() {
                 }
               } catch (err) {
                 console.error("Coinbase onramp error:", err);
+                // Show error to user (console.error stripped in production)
+                alert(`Buy failed: ${err instanceof Error ? err.message : String(err)}`);
               }
             }}
             className="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 rounded-lg py-1.5 text-xs font-medium transition-colors"
