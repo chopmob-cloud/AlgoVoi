@@ -13,17 +13,102 @@ export default function AgentScreen() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-4 py-1.5 text-xs text-gray mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-voi animate-pulse" />
-            WalletConnect v2 · AP2 (Google Agent Payments)
+            AI Agent Chat · WalletConnect v2 · AP2 (Google Agent Payments)
           </div>
           <h2 className="text-4xl md:text-5xl font-black leading-tight mb-4">
             Built for<br />
             <span className="gradient-text-rev">AI agents</span>
           </h2>
           <p className="text-gray max-w-xl mx-auto leading-relaxed">
-            Two protocols. One wallet. AI agents can request transaction signing
-            via WalletConnect, or sign Google AP2 payment mandates — all with
-            user approval. Your keys never leave the device.
+            Chat with an AI assistant that can swap tokens, resolve names, check balances, and explore DeFi —
+            all from inside the wallet. Plus WalletConnect and AP2 for programmatic agent signing.
           </p>
+        </div>
+
+        {/* AI Agent Chat mockup */}
+        <div className="flex flex-col items-center gap-6 mb-16">
+          <PopupShell width="w-[380px]">
+            {/* Chat header */}
+            <div className="flex items-center gap-2.5 px-4 pt-4 pb-2 border-b border-border">
+              <div className="w-7 h-7 rounded-lg bg-voi/20 flex items-center justify-center text-xs">🤖</div>
+              <div className="text-xs font-bold">AI Agent Chat</div>
+              <div className="ml-auto text-[10px] text-voi font-semibold border border-voi/40 bg-voi/10 rounded px-1.5 py-0.5">
+                Voi
+              </div>
+            </div>
+
+            {/* Category chips */}
+            <div className="flex gap-1.5 px-4 pt-2.5 pb-1 overflow-x-auto">
+              {['tokens', 'swaps', 'names', 'lending', 'general'].map((c, i) => (
+                <span key={c} className={`text-[10px] px-2.5 py-1 rounded-full border whitespace-nowrap ${i === 1 ? 'bg-voi/20 border-voi/40 text-voi font-semibold' : 'bg-surf2 border-border text-gray'}`}>
+                  {c}
+                </span>
+              ))}
+            </div>
+
+            {/* Messages */}
+            <div className="px-4 py-3 space-y-3">
+              <div className="flex justify-end">
+                <div className="bg-voi/20 border border-voi/30 rounded-xl rounded-tr-sm px-3 py-2 text-xs max-w-[75%]">
+                  swap 10 VOI for VIA
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="bg-surf1 border border-border rounded-xl rounded-tl-sm px-3 py-2 text-xs max-w-[85%] text-gray">
+                  <div className="text-text font-semibold mb-1">Swap ready</div>
+                  <div className="bg-surf2 rounded-lg px-2.5 py-2 mb-2 space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span>Send</span>
+                      <span className="text-text font-semibold">10.00 VOI</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span>Receive</span>
+                      <span className="text-text font-semibold" style={{ color: '#8B5CF6' }}>~142.8 VIA</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span>Route</span>
+                      <span className="text-text font-semibold">HumbleSwap</span>
+                    </div>
+                  </div>
+                  <button className="w-full py-1.5 rounded-lg gradient-btn text-[10px] font-bold text-[#0D1117]">
+                    Sign &amp; Execute
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Hint chips */}
+            <div className="flex gap-1.5 px-4 pb-2 overflow-x-auto">
+              {['swap 5 VOI for USDC', 'price of VIA', 'resolve nugget.voi'].map(h => (
+                <span key={h} className="text-[9px] px-2 py-1 rounded-full bg-surf2 border border-border text-muted whitespace-nowrap">
+                  {h}
+                </span>
+              ))}
+            </div>
+
+            {/* Input */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 bg-surf1 border border-border rounded-xl px-3 py-2">
+                <input type="text" placeholder="Ask anything about Voi DeFi..." className="flex-1 bg-transparent text-xs text-text placeholder:text-muted outline-none" readOnly />
+                <div className="w-6 h-6 rounded-lg gradient-btn flex items-center justify-center text-[10px]">↑</div>
+              </div>
+            </div>
+          </PopupShell>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl">
+            {[
+              { icon: '💱', label: 'Swap tokens', desc: 'DEX quotes + execution' },
+              { icon: '📡', label: 'Resolve names', desc: '.voi name lookups' },
+              { icon: '💰', label: 'Check balances', desc: 'Token + NFT holdings' },
+              { icon: '🏦', label: 'DeFi lending', desc: 'DorkFi positions' },
+            ].map(f => (
+              <div key={f.label} className="bg-surf1 border border-border rounded-xl p-3 text-center">
+                <div className="text-lg mb-1">{f.icon}</div>
+                <div className="text-[10px] font-bold text-text">{f.label}</div>
+                <div className="text-[9px] text-muted">{f.desc}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Two-column: WC agent sign + AP2 */}
