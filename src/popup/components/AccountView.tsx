@@ -6,7 +6,7 @@ import ChainToggle from "./ChainToggle";
 import AssetList from "./AssetList";
 import { sendBg } from "../App";
 import { abbreviateAddress, formatAmount } from "@shared/utils/format";
-import { CHAINS, STORAGE_KEY_META, WC_PAIR_TAB_KEY, COINBASE_ONRAMP_ENABLED, COINBASE_SESSION_URL, COINBASE_ONRAMP_URL, COINBASE_NETWORK, COINBASE_ASSET } from "@shared/constants";
+import { CHAINS, STORAGE_KEY_META, STORAGE_KEY_SEEN_VERSION, STORAGE_KEY_AVAILABLE_UPDATE, WC_PAIR_TAB_KEY, COINBASE_ONRAMP_ENABLED, COINBASE_SESSION_URL, COINBASE_ONRAMP_URL, COINBASE_NETWORK, COINBASE_ASSET } from "@shared/constants";
 import { useWalletConnect } from "../hooks/useWalletConnect";
 import VaultPanel from "./VaultPanel";
 import ImportMnemonicModal from "./ImportMnemonicModal";
@@ -221,6 +221,8 @@ export default function AccountView() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [updateBanner, setUpdateBanner] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState<{ latest: string; url: string; notes: string } | null>(null);
 
   const activeChain = (meta?.activeChain ?? "algorand") as ChainId;
   const activeAccount = meta?.accounts.find((a) => a.id === meta.activeAccountId);
@@ -293,6 +295,41 @@ export default function AccountView() {
       .then((r) => setExpiresAt(r.expiresAt))
       .catch(() => setExpiresAt(null));
   }, [meta?.activeAccountId]);
+
+  // Show "what's new" banner after an extension update.
+  // Compares manifest version against the last version the user dismissed.
+  useEffect(() => {
+    const currentVersion = chrome.runtime.getManifest().version;
+    chrome.storage.local.get(STORAGE_KEY_SEEN_VERSION, (result) => {
+      const seen = result[STORAGE_KEY_SEEN_VERSION] as string | undefined;
+      if (seen !== currentVersion) {
+        setUpdateBanner(true);
+        // Clear the badge now that the user has opened the popup
+        chrome.action.setBadgeText({ text: "" });
+      }
+    });
+  }, []);
+
+  function dismissUpdateBanner() {
+    const currentVersion = chrome.runtime.getManifest().version;
+    chrome.storage.local.set({ [STORAGE_KEY_SEEN_VERSION]: currentVersion });
+    setUpdateBanner(false);
+  }
+
+  // Check for server-reported available update
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY_AVAILABLE_UPDATE, (result) => {
+      const update = result[STORAGE_KEY_AVAILABLE_UPDATE] as
+        { latest: string; url: string; notes: string } | undefined;
+      if (update?.latest) setAvailableUpdate(update);
+    });
+  }, []);
+
+  function dismissAvailableUpdate() {
+    setAvailableUpdate(null);
+    chrome.storage.local.remove(STORAGE_KEY_AVAILABLE_UPDATE);
+    chrome.action.setBadgeText({ text: "" });
+  }
 
   // Switch chain by writing directly to storage — same approach as switchAccount.
   // This persists the preference across popup reopens AND ensures loadState() reads
@@ -447,6 +484,51 @@ export default function AccountView() {
           </button>
         </div>
       </div>
+
+      {/* Update banner */}
+      {updateBanner && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-algo/10 border border-algo/20 rounded-lg flex items-center justify-between">
+          <span className="text-xs text-algo">
+            Updated to v{chrome.runtime.getManifest().version}
+          </span>
+          <button
+            onClick={dismissUpdateBanner}
+            className="text-xs text-gray-400 hover:text-white ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* New version available banner */}
+      {availableUpdate && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-amber-400">
+              v{availableUpdate.latest} available
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href={availableUpdate.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-amber-400 hover:text-amber-300 underline"
+              >
+                Download
+              </a>
+              <button
+                onClick={dismissAvailableUpdate}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+          {availableUpdate.notes && (
+            <p className="text-xs text-gray-400 mt-1">{availableUpdate.notes}</p>
+          )}
+        </div>
+      )}
 
       {/* Chain toggle */}
       <div className="px-4 py-2">
