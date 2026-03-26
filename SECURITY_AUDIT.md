@@ -20,6 +20,7 @@ XIX-2 (Medium)  CLOSED — side panel keeps wallet unlocked indefinitely
 XIX-3 (Medium)  CLOSED — SW suspension lock bypassed while side panel open (resolved by XIX-2)
 XIX-4 (Low)     CLOSED — no audit trail for side-panel-extended sessions (accepted, documented)
 XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned address
+XXI   (None)    Version check + update notification — no new findings
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -70,6 +71,16 @@ XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned ad
 - **XVII-2 (Medium) — Coinbase open redirect:** `data.url` from backend response passed directly to `chrome.tabs.create` without origin validation — compromised backend could open phishing page. Fix: `startsWith("https://pay.coinbase.com/")` guard in both `AccountView.tsx` and `coinbase-onramp.ts` before opening. **Status: CLOSED.**
 - **XVII-3 (Low) — `AGENT_CHAT` trusts `msg.activeAddress`:** Popup-supplied address forwarded to MCP tool calls without verifying it matches the actual active account. Fix: background sources address from `walletStore.getMeta()` directly; `msg.activeAddress` ignored. **Status: CLOSED.**
 - **XVII-4 (Medium) — `mcp-client.ts::payVoi()` key not wiped:** Secret key retrieved via `getActiveSecretKey()` had no `try/finally { sk.fill(0) }` — if `signTxn`, `submitTransaction`, or `waitForConfirmation` threw, key remained live in SW memory. Missed in XIV-1 (which fixed all other 7 paths). Fix: `try/finally` wrapping sign block; `sk.fill(0)` always executes. **Status: CLOSED.**
+
+**Hardening XXI (v0.5.0 — March 2026):** Version check + update notification system. Server-side `/version` endpoint on MCP server returns latest published version from `version.json`. Extension checks on startup + daily alarm, compares semver, stores update info in `chrome.storage.local`, shows amber badge + banner with GitHub release link. Full security review — no new findings.
+- No new permissions: `mcp.ilovechicken.co.uk` already in `host_permissions` and CSP `connect-src`
+- No secrets involved: version string, release URL, and notes are all public data
+- 10-second `AbortSignal.timeout` prevents hanging the service worker
+- Response validation: checks `resp.ok`, `typeof data.latest === "string"` before processing
+- `url` rendered as `<a>` with `target="_blank" rel="noopener noreferrer"` — no opener leak
+- `notes` rendered as text-only `<p>` — no `dangerouslySetInnerHTML`, no XSS vector
+- Server trust boundary: same as existing MCP endpoint (SSH-only, Caddy TLS)
+- GitHub release auto-sync: systemd timer on MCP server pulls latest release every 30 minutes
 
 **Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
 - **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
@@ -142,6 +153,7 @@ XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned ad
 | XVI-8 | Info | ℹ️ ACCEPTED | Lock state oracle via error messages — same as MetaMask, standard practice |
 | XVI-9 | Info | ℹ️ ACCEPTED | Extension fingerprinting — inherent to ARC-0027 spec |
 | XVI-10 | Info | ℹ️ ACCEPTED | postMessage eavesdropping — MV3 architectural limitation, no secrets in transit |
+| XXI | None | ✅ NO FINDINGS | Version check + update notification — read-only, public data, existing trust boundary |
 
 ---
 
@@ -300,8 +312,9 @@ All 7 security claims independently validated by **Comet CDP** (all CONFIRMED). 
 manifest.json                           ← modified v0.5.0 (version bump, Coinbase host permissions added)
 package.json                            ← modified v0.5.0 (version bump)
 vite.config.ts
-src/background/index.ts
-src/background/message-handler.ts       ← modified v0.5.0 (AGENT_CHAT + COINBASE_OPEN_ONRAMP handlers)
+src/background/index.ts                ← modified v0.5.0 (version check alarm wiring)
+src/background/version-check.ts        ← new v0.5.0 (server version check + badge + storage)
+src/background/message-handler.ts       ← modified v0.5.0 (AGENT_CHAT + COINBASE_OPEN_ONRAMP + CHECK_VERSION handlers)
 src/background/wallet-store.ts          ← modified v0.5.0
 src/background/vault-store.ts
 src/background/agent-chat.ts            ← new v0.5.0 (direct action dispatcher + AI fallback)
@@ -319,14 +332,14 @@ src/content/index.ts
 src/content/provider-bridge.ts
 src/inpage/index.ts
 src/popup/App.tsx
-src/popup/components/AccountView.tsx    ← modified v0.5.0 (Buy button, AI Chat tab wiring)
+src/popup/components/AccountView.tsx    ← modified v0.5.0 (Buy button, AI Chat tab wiring, update-available banner)
 src/popup/components/AgentChat.tsx      ← new v0.5.0 (AI chat UI with categories + hints)
 src/popup/components/SwapPanel.tsx
 src/popup/components/VaultPanel.tsx
 src/popup/components/WalletConnectModal.tsx
 src/popup/hooks/useWalletConnect.ts
 src/approval/index.tsx
-src/shared/constants.ts                 ← modified v0.5.0 (Coinbase constants + COINBASE_ONRAMP_ENABLED flag)
+src/shared/constants.ts                 ← modified v0.5.0 (Coinbase constants + COINBASE_ONRAMP_ENABLED flag + STORAGE_KEY_AVAILABLE_UPDATE)
 src/shared/debug-log.ts
 src/shared/utils/crypto.ts
 src/shared/utils/asset-cache.ts

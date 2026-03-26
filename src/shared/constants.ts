@@ -88,6 +88,10 @@ export const STORAGE_KEY_ASSET_CACHE = "algovou_asset_cache";
  * every SignClient.init(). See src/shared/utils/wc-storage.ts.
  */
 export const STORAGE_KEY_WC_SESSIONS = "algovou_wc_sessions";
+/** Tracks the last version the user has seen — used for "what's new" banner */
+export const STORAGE_KEY_SEEN_VERSION = "algovou_seen_version";
+/** Server-reported available update (set by version-check.ts) */
+export const STORAGE_KEY_AVAILABLE_UPDATE = "algovou_available_update";
 
 /** Auto-lock timeout in minutes */
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;

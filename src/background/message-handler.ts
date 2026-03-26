@@ -192,6 +192,7 @@ const KNOWN_TYPES = new Set([
   "APPROVAL_GET_PENDING","APPROVAL_APPROVE","APPROVAL_REJECT",
   "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
   "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
+  "CHECK_VERSION",
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1843,6 +1844,12 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       await walletStore.saveVaultApp(msg.chain, msg.appId, msg.appAddress);
       const remapAgentAddrFinal = walletStore.getAgentAddress();
       return { txId: remapTxId, agentAddress: remapAgentAddrFinal };
+    }
+
+    case "CHECK_VERSION": {
+      const { checkForUpdate } = await import("./version-check");
+      const update = await checkForUpdate();
+      return { update };
     }
 
     default:
