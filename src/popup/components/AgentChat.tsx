@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import type { ChainId } from "../../shared/types/chain";
 
 function sendBg<T = unknown>(msg: object): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -12,7 +13,9 @@ function sendBg<T = unknown>(msg: object): Promise<T> {
 
 type Category = "tokens" | "nfts" | "swaps" | "names" | "lending" | "general";
 
-const CATEGORIES: { id: Category; label: string; emoji: string; hints: string[] }[] = [
+interface CategoryDef { id: Category; label: string; emoji: string; hints: string[] }
+
+const VOI_CATEGORIES: CategoryDef[] = [
   { id: "tokens", label: "Tokens", emoji: "\u{1FA99}", hints: [
     "List tokens", "Check balance", "Token holders", "Transfer history", "Build transfer",
   ]},
@@ -30,6 +33,21 @@ const CATEGORIES: { id: Category; label: string; emoji: string; hints: string[] 
   ]},
   { id: "general", label: "General", emoji: "\u{2699}", hints: [
     "Send payment", "Bridge to Algorand", "Submit transaction",
+  ]},
+];
+
+const ALGORAND_CATEGORIES: CategoryDef[] = [
+  { id: "tokens", label: "Tokens", emoji: "\u{1FA99}", hints: [
+    "Search ALGO assets", "Asset verification", "Asset details", "Check balance",
+  ]},
+  { id: "swaps", label: "Swaps", emoji: "\u{1F504}", hints: [
+    "Get Haystack quote", "Swap ALGO for USDC", "Check opt-in", "Best swap route",
+  ]},
+  { id: "names", label: "Names", emoji: "\u{1F30D}", hints: [
+    "Lookup NFD", "Search NFDs", "Browse NFDs for sale", "NFD analytics",
+  ]},
+  { id: "general", label: "General", emoji: "\u{2699}", hints: [
+    "Send payment", "Submit transaction",
   ]},
 ];
 
@@ -52,10 +70,12 @@ interface ChatMessage {
 export default function AgentChat({
   activeAddress,
   balance,
+  chain,
   onActiveChange,
 }: {
   activeAddress: string;
   balance?: string;
+  chain: ChainId;
   onActiveChange?: (active: boolean) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -66,20 +86,29 @@ export default function AgentChat({
   const [expanded, setExpanded] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const CATEGORIES = chain === "algorand" ? ALGORAND_CATEGORIES : VOI_CATEGORIES;
+  const placeholder = chain === "algorand" ? "Ask about Algorand..." : "Ask about Voi...";
+  const accentBg = chain === "algorand" ? "bg-algo/30" : "bg-voi/30";
+  const accentBorder = chain === "algorand" ? "border-algo/50" : "border-voi/50";
+  const accentBtn = chain === "algorand" ? "bg-algo hover:bg-algo/80" : "bg-voi hover:bg-voi/80";
+  const bubbleBg = chain === "algorand" ? "bg-algo/20" : "bg-voi/20";
+
   const isActive = expanded || messages.length > 0 || loading;
 
-  // Clear chat on wallet/chain switch — prevents cross-account leakage
+  // Clear chat on wallet/chain switch — prevents cross-account and cross-chain leakage
   const prevAddress = useRef(activeAddress);
+  const prevChain = useRef(chain);
   useEffect(() => {
-    if (prevAddress.current !== activeAddress) {
+    if (prevAddress.current !== activeAddress || prevChain.current !== chain) {
       setMessages([]);
       setInput("");
       setCategory("general");
       setLoading(false);
       setSigning(false);
       prevAddress.current = activeAddress;
+      prevChain.current = chain;
     }
-  }, [activeAddress]);
+  }, [activeAddress, chain]);
 
   useEffect(() => {
     onActiveChange?.(isActive);
@@ -108,6 +137,7 @@ export default function AgentChat({
         activeAddress,
         balance,
         category,
+        chain,
       });
       setMessages((prev) => [...prev, {
         role: "assistant",
@@ -188,29 +218,14 @@ export default function AgentChat({
           >
             ✕
           </button>
-          <div className="flex gap-1 justify-center">
-            {CATEGORIES.filter((c) => !["lending", "general"].includes(c.id)).map((c) => (
+          <div className="flex flex-wrap gap-1 justify-center">
+            {CATEGORIES.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setCategory(c.id)}
                 className={`text-[10px] px-2 py-1 rounded-lg whitespace-nowrap transition-colors ${
                   category === c.id
-                    ? "bg-voi/30 text-white border border-voi/50"
-                    : "bg-surface-2 text-gray-400 border border-transparent hover:text-white"
-                }`}
-              >
-                {c.emoji} {c.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1 justify-center">
-            {CATEGORIES.filter((c) => ["lending", "general"].includes(c.id)).map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setCategory(c.id)}
-                className={`text-[10px] px-2 py-1 rounded-lg whitespace-nowrap transition-colors ${
-                  category === c.id
-                    ? "bg-voi/30 text-white border border-voi/50"
+                    ? `${accentBg} text-white border ${accentBorder}`
                     : "bg-surface-2 text-gray-400 border border-transparent hover:text-white"
                 }`}
               >
@@ -241,7 +256,7 @@ export default function AgentChat({
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-[85%] rounded-xl px-2.5 py-1.5 text-xs leading-relaxed ${
-                  msg.role === "user" ? "bg-voi/20 text-white" : "bg-surface-2 text-gray-200"
+                  msg.role === "user" ? `${bubbleBg} text-white` : "bg-surface-2 text-gray-200"
                 }`}
               >
                 <p className="whitespace-pre-wrap break-words">{msg.content}</p>
@@ -261,7 +276,7 @@ export default function AgentChat({
                     <button
                       onClick={() => handleSignAll(msg.pendingTxns!, i)}
                       disabled={signing}
-                      className="w-full bg-voi hover:bg-voi/80 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                      className={`w-full ${accentBtn} text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors`}
                     >
                       {signing ? "Signing..." : `Sign & Send (${msg.pendingTxns.reduce((n, t) => n + t.txns.length, 0)} txns)`}
                     </button>
@@ -287,7 +302,7 @@ export default function AgentChat({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about Voi..."
+              placeholder={placeholder}
               disabled={loading}
               rows={1}
               className="flex-1 bg-surface-2 border border-surface-2 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 resize-none focus:outline-none focus:border-gray-500 disabled:opacity-50"
@@ -295,7 +310,7 @@ export default function AgentChat({
             <button
               onClick={handleSend}
               disabled={loading || !input.trim()}
-              className="bg-voi hover:bg-voi/80 text-white text-xs px-3 rounded-lg disabled:opacity-40 transition-colors"
+              className={`${accentBtn} text-white text-xs px-3 rounded-lg disabled:opacity-40 transition-colors`}
             >
               Send
             </button>
@@ -376,7 +391,7 @@ export default function AgentChat({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about Voi..."
+            placeholder={placeholder}
             disabled={loading}
             rows={1}
             className="flex-1 bg-surface-2 border border-surface-2 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 resize-none focus:outline-none focus:border-gray-500 disabled:opacity-50"

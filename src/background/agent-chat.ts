@@ -30,7 +30,8 @@ export async function handleAgentChat(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
   activeAddress: string,
   category: string = "general",
-  balance?: string
+  balance?: string,
+  chain: string = "voi"
 ): Promise<AgentChatResult> {
   const current = messages[messages.length - 1];
   if (!current || current.role !== "user") {
@@ -38,14 +39,14 @@ export async function handleAgentChat(
   }
 
   // 1. Try direct action (zero AI tokens)
-  const action = parseDirectAction(current.content);
+  const action = parseDirectAction(current.content, chain);
   if (action) {
-    console.log(`[agent-chat] direct action: ${action.type}`, action.params);
-    return executeDirectAction(action, activeAddress, balance);
+    console.log(`[agent-chat] direct action (${chain}): ${action.type}`, action.params);
+    return executeDirectAction(action, activeAddress, balance, chain);
   }
 
   // 2. Fall back to AI (conversational/ambiguous)
-  console.log(`[agent-chat] AI fallback: "${current.content.slice(0, 50)}"`);
+  console.log(`[agent-chat] AI fallback (${chain}): "${current.content.slice(0, 50)}"`);
   const sessionId = await initSession();
   const history = messages.slice(0, -1);
 
@@ -53,6 +54,7 @@ export async function handleAgentChat(
     message: current.content,
     address: activeAddress,
     category,
+    chain,
     ...(balance ? { balance } : {}),
     ...(history.length > 0 ? { history } : {}),
   });
