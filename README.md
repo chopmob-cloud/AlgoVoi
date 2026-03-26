@@ -292,12 +292,42 @@ Available on **both chains** in the **Agents** tab. Ask questions or issue comma
 **Voi categories:** tokens · nfts · swaps · names · lending · general
 **Algorand categories:** tokens · swaps · names · general
 
-62 MCP tools across 14 modules:
-- **Voi**: arc200 (6) · arc72 (3) · envoi (4) · humble (10) · snowball (4) · swap200 (2) · marketplace (3) · dorkfi (7)
-- **Algorand**: nfd (6) · haystack (3) · pera (3)
-- **Shared**: txns (7) · algod (1) · chat (1) · x402 (2)
+63 MCP tools across 15 modules. The Anthropic API key lives exclusively on the UluMCP server — it is never bundled in the extension. Tool calls are whitelisted per category; blocked attempts are logged server-side. `agent_chat` requires dual authentication (chrome-extension:// origin + API key).
 
-The Anthropic API key lives exclusively on the UluMCP server — it is never bundled in the extension. Tool calls are whitelisted per category; blocked attempts are logged server-side.
+### Voi Chain Tools (39 tools)
+
+| Module | Tools | Description |
+|--------|-------|-------------|
+| **arc200** (6) | `arc200_list_tokens`, `arc200_balance_of`, `arc200_transfers`, `arc200_holders`, `arc200_allowance`, `arc200_approvals` | ARC-200 token queries — list, balances, transfers, holders |
+| **arc200 txns** (2) | `arc200_transfer_txn`, `arc200_approve_txn` | Build unsigned ARC-200 transfer/approve transactions |
+| **arc72** (3) | `arc72_tokens`, `arc72_collections`, `arc72_transfers` | ARC-72 NFT queries — tokens, collections, transfer history |
+| **arc72 txns** (1) | `arc72_transferFrom_txn` | Build unsigned NFT transfer transaction |
+| **envoi** (4) | `envoi_resolve_name`, `envoi_resolve_address`, `envoi_resolve_token`, `envoi_search` | enVoi .voi name resolution and search |
+| **envoi txns** (1) | `envoi_purchase_txn` | Build unsigned .voi name registration transaction |
+| **humble** (10) | `humble_protocol_stats`, `humble_pools`, `humble_pool_details`, `humble_pool_analytics`, `humble_pool_state`, `humble_quote`, `humble_tokens`, `humble_token_metadata`, `humble_token_price`, `humble_price_history` | HumbleSwap DEX — pools, quotes, token prices, analytics |
+| **humble txns** (2) | `humble_swap_txn`, `humble_router` | Build unsigned swap transactions, route via HumbleSwap |
+| **humble advanced** (1) | `humble_arbitrage` | Arbitrage opportunity detection across pools |
+| **snowball** (4) | `snowball_quote`, `snowball_pool`, `snowball_pools`, `snowball_tokens` | Snowball aggregator — quotes, pools, token list |
+| **swap200** (2) | `swap200_pool_state`, `swap200_quote` | Direct pool state and swap quotes |
+| **marketplace** (3) | `mp_listings`, `mp_sales`, `mp_deletes` | NFT marketplace — active listings, sales history |
+| **dorkfi** (7) | `dorkfi_markets`, `dorkfi_market_data`, `dorkfi_market_detail`, `dorkfi_pool_state`, `dorkfi_user_health`, `dorkfi_user_positions`, `dorkfi_liquidatable_users` | DorkFi lending — markets, positions, health factors, liquidations |
+
+### Algorand Chain Tools (12 tools)
+
+| Module | Tools | Description |
+|--------|-------|-------------|
+| **nfd** (6) | `nfd_get`, `nfd_lookup_address`, `nfd_search`, `nfd_browse`, `nfd_activity`, `nfd_analytics` | NFDomains (.algo) — name resolution, reverse lookup, browse, search, activity, sales analytics |
+| **haystack** (3) | `haystack_quote`, `haystack_swap_txn`, `haystack_needs_optin` | Haystack Router DEX aggregator (Tinyman, Pact, Folks) — best-route quotes, unsigned swap txns, opt-in checks |
+| **pera** (3) | `pera_asset_verification`, `pera_asset_details`, `pera_asset_search` | Pera Wallet asset data — verification status (verified/trusted/suspicious), asset details, search |
+
+### Shared Tools (12 tools, both chains)
+
+| Module | Tools | Description |
+|--------|-------|-------------|
+| **txns** (7) | `payment_txn`, `arc200_transfer_txn`, `arc200_approve_txn`, `arc72_transferFrom_txn`, `envoi_purchase_txn`, `aramid_bridge_txn` + 1 more | Transaction builders — payment, token transfer, NFT transfer, bridge |
+| **algod** (1) | `algod_send_raw_transactions` | Submit signed transactions to the network |
+| **chat** (1) | `agent_chat` | AI assistant — Claude Sonnet 4 with per-category tool whitelist |
+| **x402** (2) | `x402_check`, `x402_pay_to` | x402 payment protocol — check requirements, execute payment |
 
 ```
 User types "swap 10 VOI for USDC" (Voi chain)
