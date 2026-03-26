@@ -94,7 +94,7 @@ export const STORAGE_KEY_SEEN_VERSION = "algovou_seen_version";
 export const STORAGE_KEY_AVAILABLE_UPDATE = "algovou_available_update";
 
 /** Auto-lock timeout in minutes */
-export const DEFAULT_AUTO_LOCK_MINUTES = 5;
+export const DEFAULT_AUTO_LOCK_MINUTES = 10;
 
 // ── WalletConnect v2 ──────────────────────────────────────────────────────────
 

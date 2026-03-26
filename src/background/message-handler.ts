@@ -173,6 +173,9 @@ async function handleMessage(
   }
 }
 
+// XXII-10: Rate limiter for SIGN_TRANSACTIONS (sliding window)
+let signTimestamps: number[] = [];
+
 /** Known message types — reject anything not in this set to prevent injection. */
 const KNOWN_TYPES = new Set([
   "WALLET_STATE","WALLET_GET_META","WALLET_INIT","WALLET_UNLOCK","KEEP_ALIVE",
@@ -323,6 +326,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
     // ── Native coin send ──────────────────────────────────────────────────────
     case "CHAIN_SEND_PAYMENT": {
+      // XXII-5: Only the extension's own pages can send payments (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("CHAIN_SEND_PAYMENT is only available to internal extension pages");
+      }
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       walletStore.resetAutoLock();
       // Validate destination address (throws if invalid)
@@ -353,6 +360,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "CHAIN_SEND_ASSET": {
+      // XXII-5: Only the extension's own pages can send assets (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("CHAIN_SEND_ASSET is only available to internal extension pages");
+      }
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       walletStore.resetAutoLock();
       if (!algosdk.isValidAddress(msg.to)) throw new Error("Invalid destination address");
@@ -1203,6 +1214,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "SWAP_EXECUTE": {
+      // XXII-5: Only the extension's own pages can execute swaps (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("SWAP_EXECUTE is only available to internal extension pages");
+      }
       const { executeSwap } = await import("./swap-handler");
       return executeSwap({
         fromAssetId: msg.fromAssetId,
@@ -1288,20 +1303,46 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     // ── AI Agent chat ─────────────────────────────────────────────────────────
 
     case "AGENT_CHAT": {
+      // XXII-5: Only the extension's own pages can use agent chat (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("AGENT_CHAT is only available to internal extension pages");
+      }
       const chatMeta = await walletStore.getMeta();
-      if (chatMeta.activeChain !== "voi") throw new Error("AI chat is only available on the Voi chain");
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       // Source address from wallet state — do not trust msg.activeAddress
       const chatAccount = chatMeta.accounts.find((a) => a.id === chatMeta.activeAccountId);
       if (!chatAccount) throw new Error("No active account");
+      // XXII-7: validate category against known set
+      const VALID_CATEGORIES = ["tokens", "nfts", "swaps", "names", "lending", "general"];
+      const safeCategory = VALID_CATEGORIES.includes(msg.category ?? "") ? msg.category! : "general";
+      // XXII-8: bound message array to prevent DoS
+      const safeMessages = (msg.messages || []).slice(-20).map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: typeof m.content === "string" ? m.content.slice(0, 4000) : "",
+      }));
       const { handleAgentChat } = await import("./agent-chat");
-      return await handleAgentChat(msg.messages, chatAccount.address, msg.category, msg.balance);
+      return await handleAgentChat(safeMessages, chatAccount.address, safeCategory, msg.balance, chatMeta.activeChain);
     }
 
     // ── AI Agent: sign and submit transactions ────────────────────────────────
 
     case "SIGN_TRANSACTIONS": {
+      // XXII-5: Only the extension's own pages can sign transactions (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("SIGN_TRANSACTIONS is only available to internal extension pages");
+      }
       if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+
+      // XXII-10: Rate limit — max 10 signing requests per 30 seconds
+      const SIGN_RATE_WINDOW = 30_000;
+      const SIGN_RATE_MAX = 10;
+      const signNow = Date.now();
+      signTimestamps = signTimestamps.filter((t) => signNow - t < SIGN_RATE_WINDOW);
+      if (signTimestamps.length >= SIGN_RATE_MAX) {
+        throw new Error("Too many signing requests — try again shortly");
+      }
+      signTimestamps.push(signNow);
+
       const meta = await walletStore.getMeta();
       const account = meta.accounts.find((a) => a.id === meta.activeAccountId);
       if (!account) throw new Error("No active account");
@@ -1324,6 +1365,14 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
           if (actualHash !== expectedGenesisHash) {
             throw new Error(`Transaction ${i}: genesis hash mismatch — expected ${meta.activeChain}`);
           }
+        }
+
+        // XXII-1: Sender verification — every txn must be from the active account.
+        // Prevents signing transactions for other addresses (defense-in-depth;
+        // Algorand nodes would also reject, but we should never touch the key).
+        const txnSender = algosdk.encodeAddress(txn.from.publicKey);
+        if (txnSender !== account.address) {
+          throw new Error(`Transaction ${i}: sender ${txnSender.slice(0, 8)}… does not match active account`);
         }
 
         // Dangerous field check — reject rekey, drain, clawback
@@ -1360,9 +1409,22 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "SUBMIT_TRANSACTIONS": {
+      // XXII-5: Only the extension's own pages can submit transactions (not content scripts)
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("SUBMIT_TRANSACTIONS is only available to internal extension pages");
+      }
+      // XXII-3: require unlock — prevents submitting cached signed txns after auto-lock
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       const { getAlgodClient } = await import("./chain-clients");
-      const network = (msg.network as string) || "voi";
-      const algod = getAlgodClient(network === "voi-mainnet" ? "voi" : network);
+      const network = (msg.network as string) || "voi-mainnet";
+      // XXII-4: strict network validation — reject unexpected values
+      const NETWORK_MAP: Record<string, import("../shared/types/chain").ChainId> = {
+        "voi-mainnet": "voi",
+        "algorand-mainnet": "algorand",
+      };
+      const chainId = NETWORK_MAP[network];
+      if (!chainId) throw new Error(`Invalid network: ${network}`);
+      const algod = getAlgodClient(chainId);
       const rawTxns = (msg.signedTxns as string[]).map((b64: string) =>
         Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
       );

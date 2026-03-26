@@ -558,8 +558,8 @@ export default function AccountView() {
         </div>
       )}
 
-      {/* Account card — hidden only when AI chat active on Voi Agents tab */}
-      {(tab === "agents" && activeChain === "voi") ? null : <div className={`mx-4 rounded-xl p-4 ${activeChain === "algorand" ? "bg-gradient-to-br from-algo/20 to-surface-1" : "bg-gradient-to-br from-voi/20 to-surface-1"}`}>
+      {/* Account card — hidden when AI chat active on Agents tab */}
+      {tab === "agents" ? null : <div className={`mx-4 rounded-xl p-4 ${activeChain === "algorand" ? "bg-gradient-to-br from-algo/20 to-surface-1" : "bg-gradient-to-br from-voi/20 to-surface-1"}`}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-1.5">
@@ -1519,10 +1519,8 @@ function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { is
 
   return (
     <div className={`flex flex-col ${chatActive ? "h-full min-h-[400px]" : "gap-3"}`}>
-      {/* AI Chat — Voi only */}
-      {activeChain === "voi" && (
-        <AgentChat activeAddress={activeAddress} balance={balance} onActiveChange={setChatActive} />
-      )}
+      {/* AI Chat — Voi + Algorand */}
+      <AgentChat activeAddress={activeAddress} balance={balance} chain={activeChain} onActiveChange={setChatActive} />
 
       {/* Hide everything below when chat is active */}
       {chatActive ? null : <>
