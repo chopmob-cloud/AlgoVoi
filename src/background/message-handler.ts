@@ -714,11 +714,15 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       walletStore.resetAutoLock();
 
       const internalSk = await walletStore.getActiveSecretKey();
-      const internalData = new Uint8Array(msg.data);
-      // algosdk.signBytes prepends "MX" (ARC-1) before signing.
-      // The backend must verify with the same "MX" prefix.
-      const internalSig = algosdk.signBytes(internalData, internalSk);
-      return { ok: true, signature: btoa(String.fromCharCode(...internalSig)) };
+      try {
+        const internalData = new Uint8Array(msg.data);
+        // algosdk.signBytes prepends "MX" (ARC-1) before signing.
+        // The backend must verify with the same "MX" prefix.
+        const internalSig = algosdk.signBytes(internalData, internalSk);
+        return { ok: true, signature: btoa(String.fromCharCode(...internalSig)) };
+      } finally {
+        wipeKey(internalSk); // XXII: wipe secret key after signing
+      }
     }
 
     case "ARC27_DISCONNECT": {
