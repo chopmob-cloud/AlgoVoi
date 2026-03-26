@@ -19,12 +19,12 @@ export default function HeroSection() {
         </h1>
 
         <p className="text-lg text-gray max-w-xl mx-auto mb-8 leading-relaxed">
-          Non-custodial Chrome extension. Send tokens, swap assets across Algorand DEXes, sign transactions, and handle
+          Non-custodial Chrome extension. Send tokens, swap assets, chat with an AI agent, handle
           x402, MPP &amp; AP2 payments — automatically, without copy-paste. Built for humans and AI agents alike.
         </p>
 
         <div className="flex flex-wrap justify-center gap-2 mb-10">
-          {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '💱 DEX swaps', '🤖 AI agent signing', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
+          {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '💱 DEX swaps', '🤖 AI Agent Chat', '💳 Buy crypto', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
             <span key={p} className="bg-surf1 border border-border rounded-full px-4 py-1.5 text-xs text-gray">{p}</span>
           ))}
         </div>

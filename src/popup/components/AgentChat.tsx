@@ -131,24 +131,28 @@ export default function AgentChat({
     }
   }
 
-  async function handleSign(txn: PendingTxn, msgIndex: number) {
+  async function handleSignAll(pendingTxns: PendingTxn[], msgIndex: number) {
     setSigning(true);
     try {
-      // Sign the unsigned transactions via the background wallet
+      // Merge all pending txns into a single sign + submit flow.
+      // AVM swaps often produce multiple tool calls (approve + swap + withdraw)
+      // which the server returns as separate PendingTxn objects. We combine
+      // all txns into one group so the user signs once.
+      const allTxns = pendingTxns.flatMap((t) => t.txns);
+      const network = pendingTxns[0].network;
+
       const signResult = await sendBg<{ signedTxns: string[] }>({
         type: "SIGN_TRANSACTIONS",
-        txns: txn.txns,
-        network: txn.network,
+        txns: allTxns,
+        network,
       });
 
-      // Submit signed transactions
       const submitResult = await sendBg<{ txId: string }>({
         type: "SUBMIT_TRANSACTIONS",
         signedTxns: signResult.signedTxns,
-        network: txn.network,
+        network,
       });
 
-      // Update the message to show success
       setMessages((prev) => prev.map((m, i) =>
         i === msgIndex
           ? { ...m, content: m.content + `\n\nTransaction submitted! TxID: ${submitResult.txId}`, pendingTxns: undefined }
@@ -244,23 +248,23 @@ export default function AgentChat({
                 {msg.pendingTxns && msg.pendingTxns.length > 0 && (
                   <div className="mt-2 flex flex-col gap-1">
                     {msg.pendingTxns.map((txn, ti) => (
-                      <div key={ti} className="flex flex-col gap-1 bg-black/20 rounded-lg px-2 py-1.5">
+                      <div key={ti} className="bg-black/20 rounded-lg px-2 py-1.5">
                         <div className="text-[9px] text-gray-400 space-y-0.5">
                           <div><span className="text-gray-500">Action:</span> {txn.action}</div>
                           {txn.receiver && <div><span className="text-gray-500">To:</span> {txn.receiver.slice(0, 8)}…{txn.receiver.slice(-4)}</div>}
                           {txn.amount && <div><span className="text-gray-500">Amount:</span> {txn.amount}</div>}
-                          <div><span className="text-gray-500">Network:</span> {txn.network}</div>
-                          <div className="text-yellow-600/80">⚠ Review before signing</div>
+                          <div><span className="text-gray-500">Txns:</span> {txn.txns.length}</div>
                         </div>
-                        <button
-                          onClick={() => handleSign(txn, i)}
-                          disabled={signing}
-                          className="bg-voi hover:bg-voi/80 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
-                        >
-                          {signing ? "Signing..." : `Sign & Send`}
-                        </button>
                       </div>
                     ))}
+                    <div className="text-[9px] text-yellow-600/80 text-center">⚠ Review before signing</div>
+                    <button
+                      onClick={() => handleSignAll(msg.pendingTxns!, i)}
+                      disabled={signing}
+                      className="w-full bg-voi hover:bg-voi/80 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                    >
+                      {signing ? "Signing..." : `Sign & Send (${msg.pendingTxns.reduce((n, t) => n + t.txns.length, 0)} txns)`}
+                    </button>
                   </div>
                 )}
               </div>

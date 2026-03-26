@@ -3,6 +3,7 @@ import HeroSection from './components/HeroSection'
 import WalletScreen from './components/WalletScreen'
 import SendScreen from './components/SendScreen'
 import SwapScreen from './components/SwapScreen'
+import BuyScreen from './components/BuyScreen'
 import VoiWalletScreen from './components/VoiWalletScreen'
 import X402Screen from './components/X402Screen'
 import MppScreen from './components/MppScreen'
@@ -23,6 +24,7 @@ export default function App() {
         <WalletScreen />
         <SendScreen />
         <SwapScreen />
+        <BuyScreen />
         <VoiWalletScreen />
         <X402Screen />
         <MppScreen />
