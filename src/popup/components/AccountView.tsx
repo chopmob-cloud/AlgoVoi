@@ -645,7 +645,7 @@ export default function AccountView() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     address: addr,
-                    signature: sigResp.data.signature,
+                    signature: sigResp.data.sig,
                     message,
                     nonce,
                     addresses: { [addr]: [network] },
