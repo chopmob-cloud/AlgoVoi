@@ -1370,16 +1370,21 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         // XXII-1: Sender verification — every txn must be from the active account.
         // Prevents signing transactions for other addresses (defense-in-depth;
         // Algorand nodes would also reject, but we should never touch the key).
-        const txnSender = algosdk.encodeAddress(txn.from.publicKey);
+        // algosdk v3: txn.sender is an Address object with .toString() and .publicKey
+        const txnSender = txn.sender?.toString() ?? "";
         if (txnSender !== account.address) {
           throw new Error(`Transaction ${i}: sender ${txnSender.slice(0, 8)}… does not match active account`);
         }
 
         // Dangerous field check — reject rekey, drain, clawback
+        // algosdk v3: rekeyTo is top-level; closeRemainderTo is nested under payment/assetTransfer
         const rekeyTo = txn.rekeyTo?.toString?.() || undefined;
-        const closeRemainderTo = txn.closeRemainderTo?.toString?.() || undefined;
-        const assetCloseTo = txn.assetCloseTo?.toString?.() || undefined;
-        const clawbackFrom = txn.revocationTarget?.toString?.() || txn.assetRevocationTarget?.toString?.() || undefined;
+        const closeRemainderTo = (txn as any).payment?.closeRemainderTo?.toString?.()
+          || (txn as any).closeRemainderTo?.toString?.() || undefined;
+        const assetCloseTo = (txn as any).assetTransfer?.closeRemainderTo?.toString?.()
+          || (txn as any).assetCloseTo?.toString?.() || undefined;
+        const clawbackFrom = (txn as any).assetTransfer?.assetSender?.toString?.()
+          || (txn as any).revocationTarget?.toString?.() || undefined;
         const dangerous = [
           rekeyTo && "rekeyTo",
           closeRemainderTo && "closeRemainderTo",
