@@ -22,6 +22,7 @@ const SPENDING_CAP_NATIVE = 10_000_000n; // 10 VOI
 
 const MCP_ENDPOINT = "https://mcp.ilovechicken.co.uk/mcp";
 const MCP_ACCEPT = "application/json, text/event-stream";
+const MCP_API_KEY = "55318ce48a353fe5d9a01bd85c4c4c52dd73d2197512f42c1ad41b443de4ca85";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ const MCP_TIMEOUT_MS = 30_000;
 export async function initSession(): Promise<string> {
   const res = await fetch(MCP_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT },
+    headers: { "Content-Type": "application/json", Accept: MCP_ACCEPT, "X-AlgoVoi-Key": MCP_API_KEY },
     signal: AbortSignal.timeout(MCP_TIMEOUT_MS),
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -240,6 +241,7 @@ export async function callTool(
     "Content-Type": "application/json",
     Accept: MCP_ACCEPT,
     "mcp-session-id": sessionId,
+    "X-AlgoVoi-Key": MCP_API_KEY,
   };
 
   // First attempt — expect a 402
