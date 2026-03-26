@@ -5,6 +5,7 @@
 
 import { registerMessageHandler } from "./message-handler";
 import { restoreWeb3WalletSessions } from "./web3wallet-handler";
+import { scheduleVersionCheck, handleVersionCheckAlarm } from "./version-check";
 import { WC_PROJECT_ID, DEFAULT_AUTO_LOCK_MINUTES } from "@shared/constants";
 
 // Suppress benign WC "No matching key" unhandled rejections in the SW context.
@@ -17,6 +18,16 @@ self.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
     String(event.reason ?? "");
   if (msg.includes("No matching key")) {
     event.preventDefault();
+  }
+});
+
+// ── Update notification ──────────────────────────────────────────────────────
+// Set a badge on the icon after an extension update so the user knows there's
+// something new. Cleared when they open the popup and dismiss the banner.
+chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
+  if (reason === "update" && previousVersion) {
+    chrome.action.setBadgeText({ text: "NEW" });
+    chrome.action.setBadgeBackgroundColor({ color: "#00DC82" });
   }
 });
 
@@ -83,6 +94,7 @@ chrome.runtime.onConnect.addListener((port) => {
 // because _web3wallet is null immediately after a SW wake-up (async init has
 // not completed yet), which would cause a false-clear on every tick.
 chrome.alarms.onAlarm.addListener((alarm) => {
+  if (handleVersionCheckAlarm(alarm.name)) return;
   if (alarm.name === "w3w-keepalive") {
     restoreWeb3WalletSessions(WC_PROJECT_ID).catch(() => {});
     return;
@@ -101,3 +113,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 restoreWeb3WalletSessions(WC_PROJECT_ID).catch((err) => {
   console.warn("[AlgoVoi] Web3Wallet session restore failed:", err);
 });
+
+// Schedule periodic version check against the MCP server.
+scheduleVersionCheck();
