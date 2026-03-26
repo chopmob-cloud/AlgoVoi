@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Status
@@ -22,6 +22,14 @@ XIX-4 (Low)     CLOSED — no audit trail for side-panel-extended sessions (acce
 XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned address
 XXI   (None)    Version check + update notification — no new findings
 XXI-1 (Medium) CLOSED — Import mnemonic unreachable on empty-wallet view
+XXII-1 (High)   CLOSED — SIGN_TRANSACTIONS missing sender address verification
+XXII-5 (High)   CLOSED — Internal handlers callable from content scripts (SIGN, SEND, SWAP, SUBMIT, AGENT_CHAT)
+XXII-9 (Medium) CLOSED — Name resolution shows truncated address (spoofable)
+XXII-3 (Medium) CLOSED — SUBMIT_TRANSACTIONS missing wallet lock check
+XXII-4 (Medium) CLOSED — Network parameter accepted arbitrary strings
+XXII-7 (Low)    CLOSED — Agent chat category not validated against whitelist
+XXII-8 (Low)    CLOSED — No bounds on message history array (DoS vector)
+XXII-10 (Low)   CLOSED — No rate limiting on SIGN_TRANSACTIONS
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -77,6 +85,17 @@ XXI-1 (Medium) CLOSED — Import mnemonic unreachable on empty-wallet view
 - Version check: server-side `/version` endpoint returns latest version from `version.json`. Extension checks on startup + daily alarm, compares semver, shows amber badge + banner. No new permissions needed. GitHub release auto-sync via systemd timer every 30 minutes.
 - Account removal: `window.confirm` replaced with in-app styled modal showing account name, truncated address, and recovery phrase backup warning.
 - **XXI-1 (Medium) — Import mnemonic unreachable on empty-wallet view — CLOSED:** The empty-wallet early return path rendered an "Import Mnemonic" button that called `setModal("import_mnemonic")`, but the `ImportMnemonicModal` JSX was only inside the main return block — so the modal never appeared. Users with zero accounts had no way to import a mnemonic without going through full `WALLET_INIT`, which creates a brand-new meta with `accounts: [newAccount]` — **silently wiping any accounts that existed on the other chain**. Fix: render `ImportMnemonicModal` inside the empty-wallet return block.
+
+**Hardening XXII (v0.6.0 — March 2026):** Algorand AI Agent integration + red team penetration test. 12 new Algorand MCP tools (NFD, Haystack, Pera) added alongside existing Voi tools. Full red team audit identified 3 exploitable paths — all fixed in same pass.
+- **XXII-1 (High) — `SIGN_TRANSACTIONS` missing sender address verification:** Transactions returned by MCP tools were signed without verifying each txn's `from` field matched the active account. A compromised MCP server could include transactions for other addresses in the group. Fix: decode each transaction, extract sender via `algosdk.encodeAddress(txn.from.publicKey)`, compare against `account.address`. Mismatch → immediate rejection before key access. **Status: CLOSED.**
+- **XXII-5 (High) — Internal message handlers callable from content scripts:** `SIGN_TRANSACTIONS`, `SUBMIT_TRANSACTIONS`, `CHAIN_SEND_PAYMENT`, `CHAIN_SEND_ASSET`, `SWAP_EXECUTE`, and `AGENT_CHAT` had no sender verification — any Chrome content script (injected into any https:// page) could call them via `chrome.runtime.sendMessage()`. The provider bridge correctly blocked webpage access to these types, but a compromised content script could bypass this single-layer defence. Fix: `sender.id !== chrome.runtime.id` check on all 6 handlers — only the extension's own pages (popup, approval, side panel) can invoke them. **Status: CLOSED.**
+- **XXII-9 (Medium) — Name resolution shows truncated address (easy to spoof with vanity addresses):** `executeSend` resolved `.voi`/`.algo` names to addresses via MCP but only showed the name in the reply — users could not verify the resolved address. Fix: when name resolution occurs, reply shows both the name and full resolved address: `"Send 1 ALGO to grampantics.algo (GHSRL2...full address...)"`. **Status: CLOSED.**
+- **XXII-3 (Medium) — `SUBMIT_TRANSACTIONS` missing wallet lock check:** Signed transactions cached in the UI could be submitted after auto-lock. Fix: `walletStore.getLockState() !== "unlocked"` guard added. **Status: CLOSED.**
+- **XXII-4 (Medium) — Network parameter accepted arbitrary strings:** `SUBMIT_TRANSACTIONS` used `msg.network` to select algod client without validation. Fix: strict `NETWORK_MAP` whitelist (`voi-mainnet`, `algorand-mainnet`); unknown values → immediate rejection. **Status: CLOSED.**
+- **XXII-7 (Low) — Agent chat category not validated:** `msg.category` was passed directly to the server without checking against the known set. Fix: whitelist validation; unknown categories default to `"general"`. **Status: CLOSED.**
+- **XXII-8 (Low) — No bounds on message history array:** `msg.messages` could be arbitrarily large. Fix: `.slice(-20)` and `.slice(0, 4000)` per message content. **Status: CLOSED.**
+- **XXII-10 (Low) — No rate limiting on `SIGN_TRANSACTIONS`:** Unlike `ARC27_SIGN_TXNS` (5 per origin), `SIGN_TRANSACTIONS` had no rate limit. Fix: sliding window — max 10 requests per 30 seconds. **Status: CLOSED.**
+- Server-side: all 12 new Algorand tools added to x402 exempt list (extension tool calls are free; x402 applies to external callers only). `version.json` auto-sync from GitHub releases via systemd timer.
 
 **Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
 - **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
@@ -144,6 +163,14 @@ XXI-1 (Medium) CLOSED — Import mnemonic unreachable on empty-wallet view
 | XVI-3 | Medium | ✅ CLOSED | Debug log 7-day auto-expiry (`MAX_AGE_MS`) added to flush cycle |
 | XVI-4 | Medium | ✅ CLOSED | CSP `img-src` wildcards replaced with explicit WalletConnect subdomains |
 | XVI-5 | Low | ✅ CLOSED | `console.log/warn/info/debug` stripped from production builds via terser |
+| XXII-1 | High | ✅ CLOSED | `SIGN_TRANSACTIONS` sender address verification — every txn must be from the active account |
+| XXII-5 | High | ✅ CLOSED | `sender.id === chrome.runtime.id` check on all 6 internal message handlers |
+| XXII-9 | Medium | ✅ CLOSED | Name resolution shows full resolved address (prevents vanity address spoofing) |
+| XXII-3 | Medium | ✅ CLOSED | `SUBMIT_TRANSACTIONS` wallet lock check added |
+| XXII-4 | Medium | ✅ CLOSED | Strict network whitelist on `SUBMIT_TRANSACTIONS` |
+| XXII-7 | Low | ✅ CLOSED | Agent chat category validated against known set |
+| XXII-8 | Low | ✅ CLOSED | Message history bounded (20 messages, 4000 chars each) |
+| XXII-10 | Low | ✅ CLOSED | `SIGN_TRANSACTIONS` rate limiting (10/30s sliding window) |
 | XVI-6 | Low | ✅ CLOSED | `WC_PROJECT_ID` validated non-empty at service worker startup |
 | XVI-7 | Low | ℹ️ ACCEPTED | `tabs` permission required for chain-change broadcast and x402/MPP origin validation |
 | XVI-8 | Info | ℹ️ ACCEPTED | Lock state oracle via error messages — same as MetaMask, standard practice |
