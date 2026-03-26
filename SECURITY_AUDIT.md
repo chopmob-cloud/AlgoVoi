@@ -21,6 +21,7 @@ XIX-3 (Medium)  CLOSED — SW suspension lock bypassed while side panel open (re
 XIX-4 (Low)     CLOSED — no audit trail for side-panel-extended sessions (accepted, documented)
 XX-1  (Medium)  CLOSED — executeResolve() displays unvalidated MCP-returned address
 XXI   (None)    Version check + update notification — no new findings
+XXI-1 (Medium) CLOSED — Import mnemonic unreachable on empty-wallet view
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -72,15 +73,10 @@ XXI   (None)    Version check + update notification — no new findings
 - **XVII-3 (Low) — `AGENT_CHAT` trusts `msg.activeAddress`:** Popup-supplied address forwarded to MCP tool calls without verifying it matches the actual active account. Fix: background sources address from `walletStore.getMeta()` directly; `msg.activeAddress` ignored. **Status: CLOSED.**
 - **XVII-4 (Medium) — `mcp-client.ts::payVoi()` key not wiped:** Secret key retrieved via `getActiveSecretKey()` had no `try/finally { sk.fill(0) }` — if `signTxn`, `submitTransaction`, or `waitForConfirmation` threw, key remained live in SW memory. Missed in XIV-1 (which fixed all other 7 paths). Fix: `try/finally` wrapping sign block; `sk.fill(0)` always executes. **Status: CLOSED.**
 
-**Hardening XXI (v0.5.0 — March 2026):** Version check + update notification system. Server-side `/version` endpoint on MCP server returns latest published version from `version.json`. Extension checks on startup + daily alarm, compares semver, stores update info in `chrome.storage.local`, shows amber badge + banner with GitHub release link. Full security review — no new findings.
-- No new permissions: `mcp.ilovechicken.co.uk` already in `host_permissions` and CSP `connect-src`
-- No secrets involved: version string, release URL, and notes are all public data
-- 10-second `AbortSignal.timeout` prevents hanging the service worker
-- Response validation: checks `resp.ok`, `typeof data.latest === "string"` before processing
-- `url` rendered as `<a>` with `target="_blank" rel="noopener noreferrer"` — no opener leak
-- `notes` rendered as text-only `<p>` — no `dangerouslySetInnerHTML`, no XSS vector
-- Server trust boundary: same as existing MCP endpoint (SSH-only, Caddy TLS)
-- GitHub release auto-sync: systemd timer on MCP server pulls latest release every 30 minutes
+**Hardening XXI (v0.5.0 — March 2026):** Version check + update notification + account removal modal + empty-wallet import fix.
+- Version check: server-side `/version` endpoint returns latest version from `version.json`. Extension checks on startup + daily alarm, compares semver, shows amber badge + banner. No new permissions needed. GitHub release auto-sync via systemd timer every 30 minutes.
+- Account removal: `window.confirm` replaced with in-app styled modal showing account name, truncated address, and recovery phrase backup warning.
+- **XXI-1 (Medium) — Import mnemonic unreachable on empty-wallet view — CLOSED:** The empty-wallet early return path rendered an "Import Mnemonic" button that called `setModal("import_mnemonic")`, but the `ImportMnemonicModal` JSX was only inside the main return block — so the modal never appeared. Users with zero accounts had no way to import a mnemonic without going through full `WALLET_INIT`, which creates a brand-new meta with `accounts: [newAccount]` — **silently wiping any accounts that existed on the other chain**. Fix: render `ImportMnemonicModal` inside the empty-wallet return block.
 
 **Hardening XVI (v0.4.0 — March 2026):** Full security audit with 37 automated live tests + independent Comet CDP cross-validation. Findings:
 - **XVI-1 (HIGH):** Authorization header forwarded on x402/MPP fetch retry — malicious 402 endpoint could capture Bearer tokens. **Status: CLOSED.** `Authorization` added to stripped headers list in both MPP and x402 retry paths in `src/inpage/index.ts`.
@@ -154,6 +150,7 @@ XXI   (None)    Version check + update notification — no new findings
 | XVI-9 | Info | ℹ️ ACCEPTED | Extension fingerprinting — inherent to ARC-0027 spec |
 | XVI-10 | Info | ℹ️ ACCEPTED | postMessage eavesdropping — MV3 architectural limitation, no secrets in transit |
 | XXI | None | ✅ NO FINDINGS | Version check + update notification — read-only, public data, existing trust boundary |
+| XXI-1 | Medium | ✅ CLOSED | Import mnemonic modal unreachable on empty-wallet view — forced users through WALLET_INIT which replaces entire meta |
 
 ---
 
