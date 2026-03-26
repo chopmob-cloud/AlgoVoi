@@ -11,11 +11,11 @@ export default function Header() {
         <a href="#wallet" className="hover:text-text transition-colors">Wallet</a>
         <a href="#send" className="hover:text-text transition-colors">Send</a>
         <a href="#swap" className="hover:text-text transition-colors">Swap</a>
+        <a href="#buy" className="hover:text-text transition-colors">Buy</a>
         <a href="#x402" className="hover:text-text transition-colors">x402</a>
         <a href="#mpp" className="hover:text-text transition-colors">MPP</a>
         <a href="#agents" className="hover:text-text transition-colors">AI Agents</a>
         <a href="#get-started" className="hover:text-text transition-colors">Setup</a>
-        <a href="#multitenant" className="text-voi font-semibold hover:text-text transition-colors">Platform</a>
       </nav>
       <a
         href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl"
