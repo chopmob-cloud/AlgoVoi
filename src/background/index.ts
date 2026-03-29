@@ -53,6 +53,13 @@ chrome.sidePanel
 // session (auto-lock timer, in-memory keys) stays alive as long as the
 // side panel is visible.
 chrome.runtime.onConnect.addListener((port) => {
+  // W3W pairing keepalive: popup holds this port while a pairing URI is displayed,
+  // preventing SW suspension so session_proposal arrives with handlers registered.
+  if (port.name === "w3w-pairing-keepalive") {
+    if (port.sender?.tab) return; // reject content-script connections
+    // Port existence is sufficient to keep SW alive — no action needed on disconnect.
+    return;
+  }
   if (port.name !== "sidepanel-keepalive") return;
   // XIX-1: reject connections from content scripts (injected into web pages).
   // Only the extension's own side-panel page (no sender.tab) may hold this port.

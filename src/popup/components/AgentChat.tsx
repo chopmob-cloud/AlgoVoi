@@ -168,11 +168,20 @@ export default function AgentChat({
       // AVM swaps often produce multiple tool calls (approve + swap + withdraw)
       // which the server returns as separate PendingTxn objects. We combine
       // all txns into one group so the user signs once.
+      // Pre-sign check: if any txn group was built for a different address,
+      // the background XXII-1 check will reject it — catch early with a clear message.
+      const mismatch = pendingTxns.find((t) => t.sender && t.sender !== activeAddress);
+      if (mismatch) {
+        throw new Error(
+          `These transactions were built for ${mismatch.sender!.slice(0, 8)}… — switch to that account first, or ask again.`
+        );
+      }
+
       const allTxns = pendingTxns.flatMap((t) => t.txns);
       const network = pendingTxns[0].network;
 
       const signResult = await sendBg<{ signedTxns: string[] }>({
-        type: "SIGN_TRANSACTIONS",
+        type: "SIGN_AGENT_TRANSACTIONS",
         txns: allTxns,
         network,
       });
