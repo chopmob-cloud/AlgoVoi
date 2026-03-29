@@ -57,7 +57,7 @@ export async function startListener(topic, _wsUrl) {
     if (oldest) stopListener(oldest[0]);
   }
 
-  const entry = { ws: null, messages: [], created: Date.now() };
+  const entry = { ws: null, messages: [], created: Date.now(), reconnectDelay: 2000 };
   listeners.set(topic, entry);
 
   const connect = async () => {
@@ -76,6 +76,7 @@ export async function startListener(topic, _wsUrl) {
 
     ws.on("open", () => {
       console.log(`[wc-bridge] Connected for topic ${topic.slice(0, 8)}`);
+      entry.reconnectDelay = 2000; // reset backoff on successful connect
       const sub = JSON.stringify({
         id: Date.now(),
         jsonrpc: "2.0",
@@ -117,7 +118,10 @@ export async function startListener(topic, _wsUrl) {
     ws.on("close", () => {
       entry.ws = null;
       if (listeners.has(topic)) {
-        setTimeout(() => connect().catch(() => {}), 2000);
+        // XXIII-10: exponential backoff (2s → 4s → 8s → … → 60s max)
+        const delay = entry.reconnectDelay;
+        entry.reconnectDelay = Math.min(delay * 2, 60_000);
+        setTimeout(() => connect().catch(() => {}), delay);
       }
     });
 
