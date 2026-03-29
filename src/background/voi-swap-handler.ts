@@ -74,9 +74,18 @@ export async function getVoiSwapQuote(params: {
   let isMultiHop = false;
 
   if (routeType === "direct" && data.poolId) {
-    poolId = Number(data.poolId);
+    const candidate = Number(data.poolId);
+    // XXIII-11: validate poolId from Snowball response
+    if (!Number.isInteger(candidate) || candidate < 1 || candidate > 1_000_000_000) {
+      throw new Error("Invalid poolId from quote response");
+    }
+    poolId = candidate;
   } else if (hops.length === 1 && hops[0].pools?.length) {
-    poolId = Number(hops[0].pools[0].poolId);
+    const candidate = Number(hops[0].pools[0].poolId);
+    if (!Number.isInteger(candidate) || candidate < 1 || candidate > 1_000_000_000) {
+      throw new Error("Invalid poolId from quote response");
+    }
+    poolId = candidate;
   } else if (hops.length > 1) {
     isMultiHop = true;
   }
