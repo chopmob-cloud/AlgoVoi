@@ -8,8 +8,14 @@ export default function Footer() {
           <span className="text-muted">— Web3 wallet for Algorand &amp; Voi</span>
         </div>
         <div className="flex gap-4">
+          <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" target="_blank" rel="noopener noreferrer"
+            className="hover:text-text transition-colors">Chrome</a>
+          <a href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/" target="_blank" rel="noopener noreferrer"
+            className="hover:text-text transition-colors">Firefox</a>
           <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer"
             className="hover:text-text transition-colors">GitHub</a>
+          <a href="https://algovoi-gateway.fly.dev/demo" target="_blank" rel="noopener noreferrer"
+            className="hover:text-text transition-colors">x402 Demo</a>
           <a href="/AlgoVoi/privacy-policy.html" className="hover:text-text transition-colors">Privacy Policy</a>
         </div>
       </div>

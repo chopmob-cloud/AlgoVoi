@@ -10,8 +10,8 @@ export default function CTASection() {
           <span className="gradient-text">with crypto?</span>
         </h2>
         <p className="text-gray mb-8 leading-relaxed">
-          AlgoVoi is free, open source, and built for the future of on-chain micropayments.
-          Install in seconds.
+          AlgoVoi is free, open source, and built for on-chain micropayments and AI agent commerce.
+          Swap tokens, connect agents, and pay the web — install in seconds.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
@@ -21,6 +21,14 @@ export default function CTASection() {
             className="gradient-btn text-[#0D1117] font-bold px-8 py-3 rounded-xl text-sm"
           >
             Add to Chrome — Free
+          </a>
+          <a
+            href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-surf1 border border-border text-text font-bold px-8 py-3 rounded-xl text-sm hover:bg-surf2 transition-colors"
+          >
+            Add to Firefox — Free
           </a>
           <a
             href="https://github.com/chopmob-cloud/AlgoVoi"
