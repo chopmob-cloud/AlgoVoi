@@ -382,8 +382,12 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
         signers: item.signers,
       }));
 
+      // XXIII-6: bound transaction array to prevent memory exhaustion
       if (txns.length === 0) {
         throw new Error("Empty transaction list");
+      }
+      if (txns.length > 16) {
+        throw new Error("Too many transactions in a single request (max 16)");
       }
 
       // Rate limit: max pending requests per session
@@ -666,11 +670,21 @@ async function startRelayBridge(w3w: IWeb3Wallet, topic: string): Promise<void> 
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.messages?.length > 0) {
-          // Feed messages into the WC Core's processing pipeline
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const relayer = (w3w.core as any).relayer;
-          await relayer.handleBatchMessageEvents(data.messages);
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+          // XXIII-4: Validate each message has the expected shape before feeding to WC SDK
+          const valid = data.messages.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (m: any) =>
+              typeof m?.topic === "string" &&
+              typeof m?.message === "string" &&
+              m.message.length > 0 &&
+              m.message.length < 10_000,
+          );
+          if (valid.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const relayer = (w3w.core as any).relayer;
+            await relayer.handleBatchMessageEvents(valid);
+          }
         }
       }
     } catch {

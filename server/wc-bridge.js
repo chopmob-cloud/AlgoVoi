@@ -29,6 +29,8 @@ const listeners = new Map();
 
 const MAX_LISTENER_AGE_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_MESSAGES = 50;
+const MAX_LISTENERS = 20; // prevent resource exhaustion
+const MAX_MESSAGE_SIZE = 10_000; // max chars per message (WC proposals are ~1000)
 
 // Cleanup expired listeners every 60 seconds
 setInterval(() => {
@@ -47,6 +49,13 @@ setInterval(() => {
  */
 export async function startListener(topic, _wsUrl) {
   if (listeners.has(topic)) stopListener(topic);
+
+  // Prevent resource exhaustion — cap total listeners
+  if (listeners.size >= MAX_LISTENERS) {
+    // Evict the oldest listener
+    const oldest = [...listeners.entries()].sort((a, b) => a[1].created - b[1].created)[0];
+    if (oldest) stopListener(oldest[0]);
+  }
 
   const entry = { ws: null, messages: [], created: Date.now() };
   listeners.set(topic, entry);
@@ -126,9 +135,13 @@ export async function startListener(topic, _wsUrl) {
  * @param {object} msg — { topic, message, publishedAt }
  */
 export function pushMessage(topic, msg) {
+  // Validate message size to prevent memory abuse
+  if (typeof msg.message !== "string" || msg.message.length > MAX_MESSAGE_SIZE) {
+    return false;
+  }
   let entry = listeners.get(topic);
   if (!entry) {
-    // Create a passive listener (no WebSocket) for direct-post mode
+    if (listeners.size >= MAX_LISTENERS) return false; // cap passive listeners too
     entry = { ws: null, messages: [], created: Date.now() };
     listeners.set(topic, entry);
   }
