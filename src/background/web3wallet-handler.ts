@@ -237,6 +237,10 @@ async function getStoredTopics(): Promise<string[]> {
 
 // ── Session proposal handler (standalone so it can be called for buffered proposals) ─
 
+// XXIII-12: rate-limit session proposals to prevent DDoS via proposal spam
+const _proposalTimestamps: number[] = [];
+const MAX_PROPOSALS_PER_MINUTE = 5;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleSessionProposal(w3w: IWeb3Wallet, proposal: any): Promise<void> {
   const dbg = (msg: string) => {
@@ -246,6 +250,22 @@ async function handleSessionProposal(w3w: IWeb3Wallet, proposal: any): Promise<v
   try {
     const { id, params } = proposal;
     dbg(`session_proposal received id=${id}`);
+
+    // Rate limit: max 5 proposals per minute
+    const now = Date.now();
+    const cutoff = now - 60_000;
+    while (_proposalTimestamps.length > 0 && _proposalTimestamps[0] < cutoff) {
+      _proposalTimestamps.shift();
+    }
+    if (_proposalTimestamps.length >= MAX_PROPOSALS_PER_MINUTE) {
+      dbg("rejecting: proposal rate limit exceeded");
+      await w3w.rejectSession({
+        id,
+        reason: { code: 5100, message: "Too many session proposals. Try again later." },
+      });
+      return;
+    }
+    _proposalTimestamps.push(now);
 
     // Validate that the dApp only requests the "algorand" namespace.
     // WC SDK ≥2.17 moves requiredNamespaces → optionalNamespaces; check both.
