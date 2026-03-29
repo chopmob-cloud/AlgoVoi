@@ -165,7 +165,8 @@ export async function executeVoiSwap(params: {
 
 function parseDecimal(amount: string, decimals: number): bigint {
   const clean = amount.trim();
-  if (!/^(\d+(\.\d+)?|\.\d+)$/.test(clean)) throw new Error(`Invalid amount: ${amount}`);
+  // XXIII-8: require leading digit — ".5" is rejected (must be "0.5")
+  if (!/^\d+(\.\d+)?$/.test(clean)) throw new Error(`Invalid amount: ${amount}`);
   const [intStr, fracStr = ""] = clean.split(".");
   const fracPadded = fracStr.slice(0, decimals).padEnd(decimals, "0");
   const atomic = BigInt(intStr) * BigInt(10 ** decimals) + BigInt(fracPadded);

@@ -1257,6 +1257,13 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (sender.id !== chrome.runtime.id) {
         throw new Error("VOI_SWAP_EXECUTE is only available to internal extension pages");
       }
+      // XXIII-7: Backend slippage validation (UI enforces 0–50 but defense-in-depth)
+      if (!Number.isFinite(msg.slippage) || msg.slippage < 0 || msg.slippage > 50) {
+        throw new Error("Slippage must be between 0 and 50");
+      }
+      if (!Number.isInteger(msg.decimalsIn) || msg.decimalsIn < 0 || msg.decimalsIn > 19) {
+        throw new Error("Invalid decimalsIn");
+      }
       const { executeVoiSwap } = await import("./voi-swap-handler");
       return executeVoiSwap({
         poolId:     msg.poolId,
@@ -1287,11 +1294,15 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "W3W_AGENT_SIGN_GET_PENDING": {
+      // XXIII-5: internal-only — approval popup reads pending request
+      if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
       const agentReq = getPendingAgentSignRequest(msg.requestId);
       return { request: agentReq };
     }
 
     case "W3W_AGENT_SIGN_APPROVE": {
+      // XXIII-5: internal-only
+      if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
       const agentReq = getPendingAgentSignRequest(msg.requestId);
       if (!agentReq) throw new Error("Pending agent sign request not found");
       if (walletStore.getLockState() !== "unlocked") {
@@ -1316,6 +1327,8 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     }
 
     case "W3W_AGENT_SIGN_REJECT": {
+      // XXIII-5: internal-only
+      if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
       await rejectAgentSignRequest(msg.requestId);
       return { success: true };
     }
