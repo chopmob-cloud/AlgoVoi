@@ -37,12 +37,19 @@
         return;
       }
       const { topic, wsUrl } = body;
-      if (!topic || !wsUrl || !wsUrl.startsWith("wss://")) {
+      // XXIII-1: validate topic is a 64-char hex string (WC topic format)
+      if (!topic || !/^[a-f0-9]{64}$/.test(topic)) {
         res.writeHead(400, { "Content-Type": "application/json", ...bridgeCors });
-        res.end(JSON.stringify({ ok: false, error: "Missing topic or wsUrl" }));
+        res.end(JSON.stringify({ ok: false, error: "Invalid topic format" }));
         return;
       }
-      startListener(topic, wsUrl);
+      // XXIII-2: wsUrl must be wss:// to relay.walletconnect.org (prevent SSRF)
+      if (!wsUrl || !/^wss:\/\/relay\.walletconnect\.(org|com)\//.test(wsUrl)) {
+        res.writeHead(400, { "Content-Type": "application/json", ...bridgeCors });
+        res.end(JSON.stringify({ ok: false, error: "Invalid relay URL" }));
+        return;
+      }
+      await startListener(topic, wsUrl);
       res.writeHead(200, { "Content-Type": "application/json", ...bridgeCors });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -67,9 +74,10 @@
         res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
         return;
       }
-      if (!body.message) {
+      // XXIII-3: validate message exists and isn't oversized
+      if (!body.message || typeof body.message !== "string" || body.message.length > 10000) {
         res.writeHead(400, { "Content-Type": "application/json", ...bridgeCors });
-        res.end(JSON.stringify({ ok: false, error: "Missing message" }));
+        res.end(JSON.stringify({ ok: false, error: "Missing or oversized message" }));
         return;
       }
       pushMessage(topic, {
