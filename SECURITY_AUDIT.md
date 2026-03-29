@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Status
@@ -30,6 +30,18 @@ XXII-4 (Medium) CLOSED — Network parameter accepted arbitrary strings
 XXII-7 (Low)    CLOSED — Agent chat category not validated against whitelist
 XXII-8 (Low)    CLOSED — No bounds on message history array (DoS vector)
 XXII-10 (Low)   CLOSED — No rate limiting on SIGN_TRANSACTIONS
+XXIII-1  (High)   CLOSED — WC bridge topic format validation (64-char hex)
+XXIII-2  (High)   CLOSED — SSRF prevention: wsUrl restricted to relay.walletconnect.org
+XXIII-3  (High)   CLOSED — Message size limit (10KB) on bridge POST
+XXIII-4  (Critical) CLOSED — Unvalidated MCP bridge response fed to WC SDK
+XXIII-5  (Critical) CLOSED — W3W_AGENT_SIGN_* handlers missing sender.id check
+XXIII-6  (High)   CLOSED — No transaction array size limit in session_request (max 16)
+XXIII-7  (Medium) CLOSED — Slippage validation only on UI, not backend (0–50%)
+XXIII-8  (Medium) CLOSED — parseDecimal crash on leading-dot amounts (.5)
+XXIII-9  (Medium) CLOSED — Server accepts client-provided publishedAt timestamp
+XXIII-10 (Low)    CLOSED — Fixed reconnect delay (no backoff) → exponential backoff
+XXIII-11 (High)   CLOSED — Snowball poolId not validated (injection via MITM quote)
+XXIII-12 (Medium) CLOSED — No rate limit on session proposals (DDoS vector)
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -378,6 +390,10 @@ src/shared/types/mpp.ts
 src/shared/types/x402.ts
 src/devtools/components/X402Inspector.tsx
 ```
+
+---
+
+**Hardening XXIII (v0.7.0 — March 2026):** AI Agent WalletConnect connection + MCP relay bridge + Voi swap. Full 3-agent parallel security audit + red team final audit + independent Comet CDP validation (18/18 checks PASS). 12 findings (2 Critical, 5 High, 4 Medium, 1 Low) all closed in same pass. Accepted risks: API key in bundle (inherent to browser extensions), chromeKvStorage race (SW single-threaded), MITM on Snowball (HTTPS enforced).
 
 ---
 
