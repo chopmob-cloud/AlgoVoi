@@ -45,7 +45,7 @@ export const CHAINS: Record<string, ChainConfig> = {
       token: "",
       port: 443,
     },
-    explorer: "https://voi.observer",
+    explorer: "https://explorer.voi.network",
     x402Network: "voi-mainnet",
     defaultPaymentAsset: {
       asaId: 302190, // aUSDC on Voi mainnet

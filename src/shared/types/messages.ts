@@ -119,7 +119,11 @@ export type BgRequest =
   | { type: "AGENT_CHAT"; messages: Array<{ role: "user" | "assistant"; content: string }>; activeAddress: string; category?: string; chain?: string }
   // AI Agent: sign and submit transactions (XXII-2)
   | { type: "SIGN_TRANSACTIONS"; txns: string[]; network: string }
+  | { type: "SIGN_AGENT_TRANSACTIONS"; txns: string[]; network: string }
   | { type: "SUBMIT_TRANSACTIONS"; signedTxns: string[]; network: string }
+  // Voi native swap via Snowball + HumbleSwap
+  | { type: "VOI_SWAP_QUOTE"; tokenIn: number; tokenOut: number; amountIn: string; decimalsIn: number; decimalsOut: number; address: string }
+  | { type: "VOI_SWAP_EXECUTE"; poolId: number; tokenIn: number; tokenOut: number; amountIn: string; decimalsIn: number; slippage: number; address: string }
   // Keep-alive: resets auto-lock timer without side-effects
   | { type: "KEEP_ALIVE" };
 
@@ -175,6 +179,8 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "W3W_AGENT_SIGN_REJECT" ? { success: boolean } :
   T extends "SWAP_QUOTE" ? { quoteAmount: string; priceImpact: number | null; usdIn: number | null; usdOut: number | null; routeCount: number } :
   T extends "SWAP_EXECUTE" ? { txIds: string[]; confirmedRound: string; outputAmount: string } :
+  T extends "VOI_SWAP_QUOTE" ? { quoteAmount: string; priceImpact: number | null; poolId: number | null; isMultiHop: boolean; outputAmountAtomic: string } :
+  T extends "VOI_SWAP_EXECUTE" ? { txId: string } :
   T extends "KEEP_ALIVE" ? { alive: boolean } :
   { success: boolean; error?: string };
 

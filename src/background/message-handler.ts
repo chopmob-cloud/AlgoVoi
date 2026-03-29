@@ -191,7 +191,8 @@ const KNOWN_TYPES = new Set([
   "SWAP_QUOTE","SWAP_EXECUTE",
   "W3W_GENERATE_URI","W3W_GET_SESSIONS","W3W_DISCONNECT",
   "W3W_AGENT_SIGN_GET_PENDING","W3W_AGENT_SIGN_APPROVE","W3W_AGENT_SIGN_REJECT",
-  "VOI_RESOLVE_NAME","AGENT_CHAT","SIGN_TRANSACTIONS","SUBMIT_TRANSACTIONS",
+  "VOI_RESOLVE_NAME","AGENT_CHAT","SIGN_TRANSACTIONS","SIGN_AGENT_TRANSACTIONS","SUBMIT_TRANSACTIONS",
+  "VOI_SWAP_QUOTE","VOI_SWAP_EXECUTE",
   "APPROVAL_GET_PENDING","APPROVAL_APPROVE","APPROVAL_REJECT",
   "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
   "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
@@ -1234,6 +1235,40 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       });
     }
 
+    // ── Voi native swap via Snowball + HumbleSwap ────────────────────────────
+
+    case "VOI_SWAP_QUOTE": {
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("VOI_SWAP_QUOTE is only available to internal extension pages");
+      }
+      const { getVoiSwapQuote } = await import("./voi-swap-handler");
+      return getVoiSwapQuote({
+        tokenIn:    msg.tokenIn,
+        tokenOut:   msg.tokenOut,
+        amountIn:   msg.amountIn,
+        decimalsIn: msg.decimalsIn,
+        decimalsOut: msg.decimalsOut,
+        address:    msg.address,
+      });
+    }
+
+    case "VOI_SWAP_EXECUTE": {
+      // XXII-5: Only the extension's own pages can execute swaps
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("VOI_SWAP_EXECUTE is only available to internal extension pages");
+      }
+      const { executeVoiSwap } = await import("./voi-swap-handler");
+      return executeVoiSwap({
+        poolId:     msg.poolId,
+        tokenIn:    msg.tokenIn,
+        tokenOut:   msg.tokenOut,
+        amountIn:   msg.amountIn,
+        decimalsIn: msg.decimalsIn,
+        slippage:   msg.slippage,
+        address:    msg.address,
+      });
+    }
+
     // ── WalletConnect Web3Wallet (AlgoVoi as wallet for AI agents) ───────────
 
     case "W3W_GENERATE_URI": {
@@ -1415,6 +1450,89 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         wipeKey(sk); // XIV-1: wipe secret key after signing (always, even on error)
       }
       return { signedTxns };
+    }
+
+    case "SIGN_AGENT_TRANSACTIONS": {
+      // Like SIGN_TRANSACTIONS but looks up the signing account by sender address rather
+      // than activeAccountId. Used by the AI agent chat where the active account may change
+      // (e.g. auto-expiry cleanup) between chat initiation and sign click.
+      // All the same security checks apply — only the account lookup differs.
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("SIGN_AGENT_TRANSACTIONS is only available to internal extension pages");
+      }
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+
+      // Rate limit — shared with SIGN_TRANSACTIONS
+      const agentSignNow = Date.now();
+      signTimestamps = signTimestamps.filter((t) => agentSignNow - t < 30_000);
+      if (signTimestamps.length >= 10) throw new Error("Too many signing requests — try again shortly");
+      signTimestamps.push(agentSignNow);
+
+      const agentRawTxns = msg.txns as string[];
+      if (!Array.isArray(agentRawTxns) || agentRawTxns.length === 0 || agentRawTxns.length > 16) {
+        throw new Error(`Invalid transaction count: ${agentRawTxns?.length ?? 0}`);
+      }
+
+      // Decode first txn to get the sender address, then find that account in the wallet
+      const firstBytes = Uint8Array.from(atob(agentRawTxns[0]), (c) => c.charCodeAt(0));
+      const firstTxn = algosdk.decodeUnsignedTransaction(firstBytes);
+      const agentSenderAddr = firstTxn.sender?.toString() ?? "";
+      if (!agentSenderAddr) throw new Error("Could not determine transaction sender");
+
+      const agentMeta = await walletStore.getMeta();
+      const agentChain = agentMeta.activeChain;
+
+      // Validate and decode all transactions
+      const agentExpectedGenesisHash = CHAINS[agentChain]?.genesisHash;
+      const agentDecodedTxns = agentRawTxns.map((b64, i) => {
+        const txnBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const txn = algosdk.decodeUnsignedTransaction(txnBytes);
+
+        if (agentExpectedGenesisHash) {
+          const actualHash = btoa(String.fromCharCode(...Array.from(txn.genesisHash ?? new Uint8Array(0))));
+          if (actualHash !== agentExpectedGenesisHash) {
+            throw new Error(`Transaction ${i}: genesis hash mismatch — expected ${agentChain}`);
+          }
+        }
+
+        const txnSender = txn.sender?.toString() ?? "";
+        if (txnSender !== agentSenderAddr) {
+          throw new Error(`Transaction ${i}: sender mismatch within group`);
+        }
+
+        const rekeyTo = txn.rekeyTo?.toString?.() || undefined;
+        const closeRemainderTo = (txn as any).payment?.closeRemainderTo?.toString?.()
+          || (txn as any).closeRemainderTo?.toString?.() || undefined;
+        const assetCloseTo = (txn as any).assetTransfer?.closeRemainderTo?.toString?.()
+          || (txn as any).assetCloseTo?.toString?.() || undefined;
+        const clawbackFrom = (txn as any).assetTransfer?.assetSender?.toString?.()
+          || (txn as any).revocationTarget?.toString?.() || undefined;
+        const dangerous = [
+          rekeyTo && "rekeyTo",
+          closeRemainderTo && "closeRemainderTo",
+          assetCloseTo && "assetCloseTo",
+          clawbackFrom && "clawback",
+        ].filter(Boolean);
+        if (dangerous.length > 0) {
+          throw new Error(`Transaction ${i} contains dangerous fields: ${dangerous.join(", ")}`);
+        }
+
+        return txn;
+      });
+
+      const agentSk = await walletStore.getSecretKeyForAddress(agentSenderAddr);
+      if (!agentSk) throw new Error("Cannot access signing key for " + agentSenderAddr.slice(0, 8) + "…");
+
+      const agentSignedTxns: string[] = [];
+      try {
+        for (const txn of agentDecodedTxns) {
+          const signed = txn.signTxn(agentSk);
+          agentSignedTxns.push(Buffer.from(signed).toString("base64"));
+        }
+      } finally {
+        wipeKey(agentSk);
+      }
+      return { signedTxns: agentSignedTxns };
     }
 
     case "SUBMIT_TRANSACTIONS": {
