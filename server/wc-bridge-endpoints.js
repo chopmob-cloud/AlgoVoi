@@ -10,6 +10,8 @@
       "Access-Control-Allow-Headers": "Content-Type, X-AlgoVoi-Key",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
     };
     if (isExtOrigin) bridgeCors["Access-Control-Allow-Origin"] = origin;
 
@@ -80,10 +82,11 @@
         res.end(JSON.stringify({ ok: false, error: "Missing or oversized message" }));
         return;
       }
+      // XXIII-9: Always use server-side timestamp (ignore client publishedAt)
       pushMessage(topic, {
         topic,
         message: body.message,
-        publishedAt: body.publishedAt || Date.now(),
+        publishedAt: Date.now(),
       });
       console.log(`[wc-bridge] Direct push for ${topic.slice(0,8)} (${body.message.length} chars)`);
       res.writeHead(200, { "Content-Type": "application/json", ...bridgeCors });
