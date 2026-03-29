@@ -54,13 +54,13 @@ export function abbreviateTxId(txId: string, chars = 8): string {
 /** Explorer URL for a transaction */
 export function txExplorerUrl(txId: string, chain: ChainId): string {
   if (chain === "algorand") return `https://allo.info/tx/${txId}`;
-  return `https://voi.observer/explorer/transaction/${txId}`;
+  return `https://explorer.voi.network/explorer/transaction/${txId}`;
 }
 
 /** Explorer URL for an account */
 export function accountExplorerUrl(address: string, chain: ChainId): string {
   if (chain === "algorand") return `https://allo.info/account/${address}`;
-  return `https://voi.observer/explorer/account/${address}`;
+  return `https://explorer.voi.network/explorer/account/${address}`;
 }
 
 /** Format unix timestamp relative to now */

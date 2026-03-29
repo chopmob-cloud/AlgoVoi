@@ -12,6 +12,7 @@ import VaultPanel from "./VaultPanel";
 import ImportMnemonicModal from "./ImportMnemonicModal";
 import { checkClipboardHijack } from "@shared/utils/anti-phishing";
 import SwapPanel from "./SwapPanel";
+import VoiSwapPanel from "./VoiSwapPanel";
 import AgentChat from "./AgentChat";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
@@ -689,7 +690,7 @@ export default function AccountView() {
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
         {(activeChain === "algorand"
           ? ["assets", "swap", "history", "apps", "agents", "vault"]
-          : ["assets", "history", "apps", "agents", "vault"]
+          : ["assets", "swap", "history", "apps", "agents", "vault"]
         ).map((t) => (
           <button
             key={t}
@@ -714,8 +715,15 @@ export default function AccountView() {
             assets={chainState?.assets ?? []}
           />
         )}
-        {tab === "swap" && activeAccount && (
+        {tab === "swap" && activeAccount && activeChain === "algorand" && (
           <SwapPanel
+            activeAccount={activeAccount}
+            balance={chainState?.balance ?? 0n}
+            assets={chainState?.assets ?? []}
+          />
+        )}
+        {tab === "swap" && activeAccount && activeChain === "voi" && (
+          <VoiSwapPanel
             activeAccount={activeAccount}
             balance={chainState?.balance ?? 0n}
             assets={chainState?.assets ?? []}
@@ -1251,7 +1259,7 @@ function ReceiveModal({
   const explorerBase =
     chain === "algorand"
       ? "https://explorer.perawallet.app/address/"
-      : "https://voi.observer/explorer/account/";
+      : "https://explorer.voi.network/explorer/account/";
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -1460,7 +1468,37 @@ function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { is
 
   useEffect(() => { loadSessions(); }, []);
 
+  // Auto-refresh when an agent connects (background broadcasts W3W_SESSION_APPROVED)
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const listener = (msg: any) => {
+      if (msg?.type === "W3W_SESSION_APPROVED") {
+        setUri(null);
+        setQrDataUrl(null);
+        loadSessions();
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, []);
+
+  // Keep the service worker alive while the URI is displayed.
+  // MV3 service workers suspend after ~30s of inactivity — shorter than the 60s
+  // alarm interval — so the relay WebSocket drops before session_proposal arrives.
+  // An open chrome.runtime.Port prevents suspension for as long as the port exists.
+  useEffect(() => {
+    if (!uri) return; // only while waiting for an agent to connect
+    let port: chrome.runtime.Port | null = null;
+    try {
+      port = chrome.runtime.connect({ name: "w3w-pairing-keepalive" });
+    } catch { /* non-fatal */ }
+    return () => {
+      try { port?.disconnect(); } catch { /* ignore */ }
+    };
+  }, [uri]);
+
   async function handleGenerateUri() {
+    setChatActive(false); // collapse chat so the QR section is visible
     setGenerating(true);
     setError(null);
     setUri(null);
@@ -1520,15 +1558,12 @@ function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { is
   }
 
   return (
-    <div className={`flex flex-col ${chatActive ? "h-full min-h-[400px]" : "gap-3"}`}>
+    <div className="flex flex-col gap-3">
       {/* AI Chat — Voi + Algorand */}
       <AgentChat activeAddress={activeAddress} balance={balance} chain={activeChain} onActiveChange={setChatActive} />
 
-      {/* Hide everything below when chat is active */}
-      {chatActive ? null : <>
-
-      {/* Connected agents */}
-      {sessionEntries.length > 0 && (
+      {/* Connected agents — hidden while chat is active */}
+      {!chatActive && sessionEntries.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-xs text-gray-400 uppercase tracking-wider">Connected Agents</p>
           {sessionEntries.map(([topic, session]) => {
@@ -1554,30 +1589,6 @@ function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { is
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Connect new agent */}
-      {!uri && (
-        <div className="flex flex-col gap-2">
-          {sessionEntries.length === 0 && (
-            <p className="text-xs text-gray-500 text-center py-2">
-              No AI agents connected. Generate a pairing URI for an agent to connect.
-            </p>
-          )}
-          <button
-            onClick={handleGenerateUri}
-            disabled={generating}
-            className="w-full py-2.5 rounded-xl bg-algo text-black text-xs font-semibold hover:bg-algo/90 transition-colors disabled:opacity-50"
-          >
-            {generating ? "Generating…" : "+ Connect an AI Agent"}
-          </button>
-          <button
-            onClick={loadSessions}
-            className="w-full py-1.5 rounded-xl bg-surface-2 text-gray-400 text-xs hover:text-white transition-colors"
-          >
-            Refresh
-          </button>
         </div>
       )}
 
@@ -1629,19 +1640,37 @@ function AgentsTab({ isVaultAccount, activeChain, activeAddress, balance }: { is
         </div>
       )}
 
-      {error && (
+      {error && !chatActive && (
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
           <p className="text-xs text-red-400">{error}</p>
         </div>
       )}
 
-      <div className="bg-surface-2 border border-white/10 rounded-xl p-3 mt-1">
-        <p className="text-[10px] text-gray-500">
-          AI agents connect as WalletConnect dApps. AlgoVoi signs transactions using your vault keys — you approve each request in a popup. Agents never access your private keys.
-        </p>
-      </div>
-
-      </>}
+      {/* Connect button — always visible at the bottom */}
+      {!uri && (
+        <div className="flex flex-col gap-2 mt-auto pt-2">
+          {!chatActive && sessionEntries.length === 0 && (
+            <p className="text-xs text-gray-500 text-center py-1">
+              No AI agents connected. Generate a pairing URI for an agent to connect.
+            </p>
+          )}
+          <button
+            onClick={handleGenerateUri}
+            disabled={generating}
+            className="w-full py-2.5 rounded-xl bg-algo text-black text-xs font-semibold hover:bg-algo/90 transition-colors disabled:opacity-50"
+          >
+            {generating ? "Generating…" : "+ Connect an AI Agent"}
+          </button>
+          {!chatActive && (
+            <button
+              onClick={loadSessions}
+              className="w-full py-1.5 rounded-xl bg-surface-2 text-gray-400 text-xs hover:text-white transition-colors"
+            >
+              Refresh
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

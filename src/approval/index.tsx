@@ -1126,6 +1126,7 @@ function AgentSignPage({ requestId }: { requestId: string }) {
   const [loading,  setLoading]  = useState(true);
   const [approving, setApproving] = useState(false);
   const [error,    setError]    = useState("");
+  const [blindAck, setBlindAck] = useState(false);
 
   useEffect(() => {
     sendBg<{ request: PendingAgentSignRequest | null }>({ type: "W3W_AGENT_SIGN_GET_PENDING", requestId })
@@ -1159,13 +1160,10 @@ function AgentSignPage({ requestId }: { requestId: string }) {
 
   const chainLabel = request.chain === "algorand" ? "Algorand" : "Voi";
   const chainColor = request.chain === "algorand" ? "text-algo" : "text-voi";
-
-  // Build summaries from the request (background pre-decoded them via approval entry)
-  // We fetch the raw PendingAgentSignRequest which has agentName, agentUrl, chain, txns
-  // The approval entry (PendingAgentSignApproval) has txnSummaries but we fetch the
-  // raw request here to also show txn details inline via the approval handler.
-  // Re-fetch the approval entry for txnSummaries:
   const txCount = request.txns.length;
+  const summaries = request.txnSummaries ?? [];
+  const hasBlind = summaries.some((s) => s.blind);
+  const approveDisabled = (hasBlind && !blindAck) || approving;
 
   return (
     <div className="flex flex-col min-h-screen p-5 gap-4">
@@ -1199,8 +1197,30 @@ function AgentSignPage({ requestId }: { requestId: string }) {
         </div>
       </div>
 
-      {/* Per-txn details (raw AgentSignTxn — decode inline for display) */}
-      <AgentTxnList txns={request.txns} />
+      {/* Per-txn details — use pre-decoded summaries from background */}
+      {summaries.length > 0 && (
+        <div className="card flex flex-col gap-1">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+            Transactions ({txCount})
+          </p>
+          {summaries.map((s, i) => <TxnRow key={i} summary={s} index={i} />)}
+        </div>
+      )}
+
+      {/* Blind ack gate — required when any txn could not be decoded */}
+      {hasBlind && (
+        <label className="flex items-start gap-2 cursor-pointer bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3">
+          <input
+            type="checkbox"
+            checked={blindAck}
+            onChange={(e) => setBlindAck(e.target.checked)}
+            className="mt-0.5 accent-yellow-400"
+          />
+          <span className="text-xs text-yellow-300">
+            I understand that one or more transactions could not be decoded and I am signing them without being able to verify their contents.
+          </span>
+        </label>
+      )}
 
       {/* Security warnings */}
       <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3">
@@ -1230,59 +1250,8 @@ function AgentSignPage({ requestId }: { requestId: string }) {
         rejectLabel="Reject"
         onApprove={approve}
         onReject={reject}
-        approving={approving}
+        approving={approveDisabled}
       />
-    </div>
-  );
-}
-
-/**
- * Per-transaction display for agent sign requests.
- * Decodes in the popup context using atob — note that algosdk is NOT bundled
- * in the approval popup. We do a minimal decode here for display (type + amount).
- * The background already validated the transactions before opening the popup.
- */
-function AgentTxnList({
-  txns,
-}: {
-  txns: { txn: string; signers?: string[] }[];
-}) {
-  return (
-    <div className="card flex flex-col gap-1">
-      <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
-        Transactions ({txns.length})
-      </p>
-      {txns.map((item, i) => {
-        const isRef = Array.isArray(item.signers) && item.signers.length === 0;
-        if (isRef) {
-          return (
-            <div key={i} className="flex justify-between items-center opacity-40 text-xs py-1.5 border-b border-surface-3 last:border-0">
-              <span className="font-mono text-gray-500">Txn {i + 1}</span>
-              <span className="text-gray-500 italic">reference (not signing)</span>
-            </div>
-          );
-        }
-        // Minimal decode for display — just show raw bytes size + first few chars
-        let byteCount = 0;
-        try {
-          const b64 = item.txn.replace(/-/g, "+").replace(/_/g, "/");
-          const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-          byteCount = atob(padded).length;
-        } catch { byteCount = 0; }
-        return (
-          <div key={i} className="flex flex-col gap-0.5 py-1.5 border-b border-surface-3 last:border-0">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-mono text-gray-400">Txn {i + 1}</span>
-              <span className="text-xs text-algo font-semibold">
-                {byteCount > 0 ? `${byteCount} bytes` : "—"}
-              </span>
-            </div>
-            <p className="text-[9px] font-mono text-gray-500 truncate">
-              {item.txn.slice(0, 32)}…
-            </p>
-          </div>
-        );
-      })}
     </div>
   );
 }

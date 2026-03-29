@@ -12,19 +12,51 @@
  * Method: algo_signTxn (same as Pera/Defly/Voi Wallet).
  *
  * NOTE: The Web3Wallet WebSocket drops when the MV3 service worker suspends.
- * On next SW wake, restoreWeb3WalletSessions() re-initialises. Some agent
- * requests may be missed during suspension — this is acceptable for v0.1.4.
- * The alarms keepalive (w3w-keepalive, every 0.4 min) reduces suspension
- * frequency while agents are connected.
+ * On next SW wake, restoreWeb3WalletSessions() re-initialises and the
+ * chrome.storage-backed WC Core restores all pairing and session data
+ * (including symKeys) so buffered relay messages are decrypted correctly.
  */
 
 import { Web3Wallet } from "@walletconnect/web3wallet";
 import type { IWeb3Wallet } from "@walletconnect/web3wallet";
 import { Core } from "@walletconnect/core";
-// Web3Wallet uses default in-memory storage (not chromeStorage) to avoid
-// keychain conflicts with the SignClient in the popup. Sessions are manually
-// persisted to chrome.storage.local via storeSessions().
 import algosdk from "algosdk";
+
+// ── chrome.storage-backed WC key-value store ──────────────────────────────────
+// Service workers don't have localStorage, so the default WC in-memory store
+// loses all pairing data (symKeys) when the SW suspends. This adapter persists
+// WC Core state to chrome.storage.local so pairings survive SW restarts.
+const W3W_STORE_KEY = "algovou_w3w_kv";
+
+function chromeKvStorage() {
+  const read = (): Promise<Record<string, unknown>> =>
+    new Promise((resolve) =>
+      chrome.storage.local.get(W3W_STORE_KEY, (r) =>
+        resolve((r[W3W_STORE_KEY] as Record<string, unknown>) ?? {})
+      )
+    );
+  const write = (data: Record<string, unknown>): Promise<void> =>
+    new Promise((resolve) =>
+      chrome.storage.local.set({ [W3W_STORE_KEY]: data }, resolve)
+    );
+  return {
+    getKeys: async () => Object.keys(await read()),
+    getEntries: async <T>(): Promise<[string, T][]> =>
+      Object.entries(await read()) as [string, T][],
+    getItem: async <T>(key: string): Promise<T | undefined> =>
+      ((await read())[key] as T) ?? undefined,
+    setItem: async <T>(key: string, value: T): Promise<void> => {
+      const data = await read();
+      data[key] = value as unknown;
+      await write(data);
+    },
+    removeItem: async (key: string): Promise<void> => {
+      const data = await read();
+      delete data[key];
+      await write(data);
+    },
+  };
+}
 import { walletStore } from "./wallet-store";
 import { APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
@@ -60,6 +92,8 @@ let _web3wallet: IWeb3Wallet | null = null;
 let _projectId: string = "";
 /** Guards restoreWeb3WalletSessions against concurrent invocations from the alarm */
 let _restoring: boolean = false;
+/** Set of proposal IDs already handled, to prevent double-processing */
+const _handledProposalIds = new Set<number>();
 
 // ── Pending agent sign requests ───────────────────────────────────────────────
 
@@ -201,86 +235,116 @@ async function getStoredTopics(): Promise<string[]> {
   });
 }
 
+// ── Session proposal handler (standalone so it can be called for buffered proposals) ─
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleSessionProposal(w3w: IWeb3Wallet, proposal: any): Promise<void> {
+  const dbg = (msg: string) => {
+    chrome.storage.local.set({ algovou_w3w_debug: { msg, ts: Date.now() } });
+    console.info("[AlgoVoi W3W debug]", msg);
+  };
+  try {
+    const { id, params } = proposal;
+    dbg(`session_proposal received id=${id}`);
+
+    // Validate that the dApp only requests the "algorand" namespace.
+    // WC SDK ≥2.17 moves requiredNamespaces → optionalNamespaces; check both.
+    const requestedNs = {
+      ...(params?.optionalNamespaces ?? {}),
+      ...(params?.requiredNamespaces ?? {}),
+    };
+    if (!requestedNs.algorand) {
+      dbg(`rejecting: no algorand namespace. keys=${Object.keys(requestedNs).join(",")}`);
+      await w3w.rejectSession({
+        id,
+        reason: { code: 5100, message: "Unsupported namespace — AlgoVoi only supports algorand namespace" },
+      });
+      return;
+    }
+    dbg("algorand namespace found, getting account");
+
+    // Get active account address
+    let address: string | null = null;
+    try {
+      const meta = await walletStore.getMeta();
+      const active = meta.accounts.find((a) => a.id === meta.activeAccountId);
+      if (active?.type === "walletconnect") {
+        dbg("rejecting: active account is walletconnect type");
+        await w3w.rejectSession({
+          id,
+          reason: { code: 5100, message: "Agent connections require a vault account. Switch to a mnemonic-backed account." },
+        });
+        return;
+      }
+      address = active?.address ?? null;
+      dbg(`address=${address ?? "null"}`);
+    } catch (err) {
+      dbg(`getMeta error: ${err}`);
+      console.error("[AlgoVoi W3W] Failed to get active account:", err);
+    }
+
+    if (!address) {
+      dbg("rejecting: no active vault account");
+      await w3w.rejectSession({
+        id,
+        reason: { code: 5100, message: "No active vault account found" },
+      });
+      return;
+    }
+
+    // Build approved namespaces with both chains, both accounts
+    const approvedNamespaces = {
+      algorand: {
+        chains: SUPPORTED_CHAINS,
+        methods: SUPPORTED_METHODS,
+        events: SUPPORTED_EVENTS,
+        accounts: SUPPORTED_CHAINS.map((chain) => `${chain}:${address}`),
+      },
+    };
+
+    dbg("calling approveSession");
+    let session;
+    try {
+      session = await w3w.approveSession({ id, namespaces: approvedNamespaces });
+    } catch (approveErr) {
+      dbg(`approveSession threw: ${approveErr}`);
+      throw approveErr;
+    }
+    const topic = session.topic;
+    dbg(`session approved topic=${topic.slice(0, 8)}`);
+
+    // Persist the new session topic
+    const existing = await getStoredTopics();
+    if (!existing.includes(topic)) {
+      await storeSessions([...existing, topic]);
+    }
+
+    // Notify popup tabs so they can refresh the session list
+    chrome.runtime.sendMessage({
+      type: "W3W_SESSION_APPROVED",
+      topic,
+      agentName: session.peer.metadata.name,
+    }).catch(() => {}); // ignore if no popup open
+
+    // Start keepalive alarm now that we have an active session.
+    chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
+
+    // Stop the relay bridge — session approved, pairing complete.
+    // (Keep bridge running for session_request delivery — signing also uses push.)
+    // stopRelayBridge(topic);
+
+    console.info(`[AlgoVoi W3W] Agent session approved: ${topic.slice(0, 8)}… (${session.peer.metadata.name})`);
+  } catch (err) {
+    chrome.storage.local.set({ algovou_w3w_debug: { msg: `handler error: ${err}`, ts: Date.now() } });
+    console.error("[AlgoVoi W3W] session_proposal handler error:", err);
+  }
+}
+
 // ── Event handler registration ────────────────────────────────────────────────
 
 function registerEventHandlers(w3w: IWeb3Wallet): void {
   // ── session_proposal ──────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  w3w.on("session_proposal", async (proposal: any) => {
-    try {
-      const { id, params } = proposal;
-
-      // Validate that the dApp only requests the "algorand" namespace
-      const requestedNs = params?.requiredNamespaces ?? {};
-      if (!requestedNs.algorand) {
-        await w3w.rejectSession({
-          id,
-          reason: { code: 5100, message: "Unsupported namespace — AlgoVoi only supports algorand namespace" },
-        });
-        return;
-      }
-
-      // Get active account address
-      let address: string | null = null;
-      try {
-        const meta = await walletStore.getMeta();
-        const active = meta.accounts.find((a) => a.id === meta.activeAccountId);
-        if (active?.type === "walletconnect") {
-          await w3w.rejectSession({
-            id,
-            reason: { code: 5100, message: "Agent connections require a vault account. Switch to a mnemonic-backed account." },
-          });
-          return;
-        }
-        address = active?.address ?? null;
-      } catch (err) {
-        console.error("[AlgoVoi W3W] Failed to get active account:", err);
-      }
-
-      if (!address) {
-        await w3w.rejectSession({
-          id,
-          reason: { code: 5100, message: "No active vault account found" },
-        });
-        return;
-      }
-
-      // Build approved namespaces with both chains, both accounts
-      const approvedNamespaces = {
-        algorand: {
-          chains: SUPPORTED_CHAINS,
-          methods: SUPPORTED_METHODS,
-          events: SUPPORTED_EVENTS,
-          accounts: SUPPORTED_CHAINS.map((chain) => `${chain}:${address}`),
-        },
-      };
-
-      const session = await w3w.approveSession({ id, namespaces: approvedNamespaces });
-      const topic = session.topic;
-
-      // Persist the new session topic
-      const existing = await getStoredTopics();
-      if (!existing.includes(topic)) {
-        await storeSessions([...existing, topic]);
-      }
-
-      // Notify popup tabs so they can refresh the session list
-      chrome.runtime.sendMessage({
-        type: "W3W_SESSION_APPROVED",
-        topic,
-        agentName: session.peer.metadata.name,
-      }).catch(() => {}); // ignore if no popup open
-
-      // Start keepalive alarm now that we have an active session.
-      // periodInMinutes: 1 — Chrome clamps sub-1-minute alarms to 1 min anyway;
-      // using 1 explicitly avoids CWS reviewer concern about aggressive keepalive.
-      chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
-
-      console.info(`[AlgoVoi W3W] Agent session approved: ${topic.slice(0, 8)}… (${session.peer.metadata.name})`);
-    } catch (err) {
-      console.error("[AlgoVoi W3W] session_proposal handler error:", err);
-    }
-  });
+  w3w.on("session_proposal", (proposal) => handleSessionProposal(w3w, proposal));
 
   // ── session_request ───────────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -404,6 +468,7 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
         chain,
         txns,
         decodedTxns,
+        txnSummaries,
         timestamp: Date.now(),
         accountId: agentActiveAccountId,
       };
@@ -491,13 +556,147 @@ export async function initWeb3Wallet(projectId: string): Promise<IWeb3Wallet> {
 
   _projectId = projectId;
 
-  const core = new Core({ projectId });
+  const core = new Core({ projectId, storage: chromeKvStorage() });
   const w3w = await Web3Wallet.init({ core, metadata: W3W_METADATA });
 
+  // Register handlers on the Web3Wallet wrapper (for proposals arriving after init).
   registerEventHandlers(w3w);
   _web3wallet = w3w;
 
+  // The Web3Wallet SDK init order causes a race:
+  //   1. SignClient.init() connects & fetches buffered relay messages
+  //      → session_proposal is emitted on signClient (no listeners yet)
+  //   2. engine.init() registers the bridge: signClient → Web3Wallet
+  //      → too late for the buffered proposal
+  //
+  // Fix A: register directly on signClient so buffered proposals are caught.
+  // Fix B: drain getPendingSessionProposals() for proposals still in the store.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const signClient = (w3w as any).signClient;
+    if (signClient) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      signClient.on("session_proposal", (proposal: any) => {
+        console.info("[AlgoVoi W3W] session_proposal via signClient direct listener");
+        handleSessionProposal(w3w, proposal).catch(console.error);
+      });
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  // Drain any proposals already stored but not yet emitted (arrived during init).
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pending: any[] = (w3w as any).getPendingSessionProposals?.() ?? [];
+    const items = Array.isArray(pending) ? pending : Object.values(pending);
+    for (const proposal of items) {
+      console.info("[AlgoVoi W3W] Processing stored session proposal from init drain");
+      await handleSessionProposal(w3w, proposal);
+    }
+  } catch {
+    // Non-fatal
+  }
+
   return w3w;
+}
+
+/**
+ * Poll for pending session proposals every 2 s while a pairing is active.
+ * This is the primary delivery mechanism — it bypasses the WC event-emission
+ * race condition where proposals may arrive before bridge handlers are registered.
+ * Stops when there are no active pairings left (proposal approved, rejected, or expired).
+ */
+// ── MCP Server WC Relay Bridge ──────────────────────────────────────────────
+// Chrome MV3 service workers can't receive WebSocket push notifications from
+// the WC relay. The MCP server (Node.js) acts as a proxy: it opens a WebSocket
+// to the relay, stores incoming messages, and the extension polls via HTTP.
+
+const MCP_BRIDGE_URL = "https://mcp.ilovechicken.co.uk/wc-bridge";
+const MCP_API_KEY = "55318ce48a353fe5d9a01bd85c4c4c52dd73d2197512f42c1ad41b443de4ca85";
+
+/** Timer for the bridge poll loop */
+let _bridgePollTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Start the MCP relay bridge: tell the server to listen on the pairing topic,
+ * then poll for messages every 2 seconds.
+ */
+async function startRelayBridge(w3w: IWeb3Wallet, topic: string): Promise<void> {
+  // Get the relay WebSocket URL (with JWT auth) from the WC provider
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const provider = (w3w.core as any).relayer?.provider;
+  const conn = provider?.connection;
+  const wsUrl: string | undefined =
+    conn?.url ?? conn?.socket?.url ?? conn?.registering?.url;
+
+  if (!wsUrl) return;
+
+  // Tell the MCP server to open a WebSocket to the relay and subscribe
+  try {
+    await fetch(`${MCP_BRIDGE_URL}/listen`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-AlgoVoi-Key": MCP_API_KEY,
+      },
+      body: JSON.stringify({ topic, wsUrl }),
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    // Non-fatal — polling will just return empty
+  }
+
+  // Start polling the MCP server for relay messages
+  if (_bridgePollTimer !== null) {
+    clearTimeout(_bridgePollTimer);
+    _bridgePollTimer = null;
+  }
+
+  const tick = async () => {
+    if (!_web3wallet || _web3wallet !== w3w) {
+      _bridgePollTimer = null;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${MCP_BRIDGE_URL}/${topic}`, {
+        headers: { "X-AlgoVoi-Key": MCP_API_KEY },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.messages?.length > 0) {
+          // Feed messages into the WC Core's processing pipeline
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const relayer = (w3w.core as any).relayer;
+          await relayer.handleBatchMessageEvents(data.messages);
+        }
+      }
+    } catch {
+      // Network error — retry on next tick
+    }
+
+    _bridgePollTimer = setTimeout(tick, 2000);
+  };
+
+  _bridgePollTimer = setTimeout(tick, 1000);
+}
+
+/** Stop the bridge poll and tell the server to close the listener. */
+function stopRelayBridge(topic: string): void {
+  if (_bridgePollTimer !== null) {
+    clearTimeout(_bridgePollTimer);
+    _bridgePollTimer = null;
+  }
+  fetch(`${MCP_BRIDGE_URL}/stop`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-AlgoVoi-Key": MCP_API_KEY,
+    },
+    body: JSON.stringify({ topic }),
+  }).catch(() => {});
 }
 
 /**
@@ -513,14 +712,21 @@ export async function generatePairingUri(projectId: string): Promise<string> {
   }
 
   const w3w = await initWeb3Wallet(projectId);
-  const { uri } = await w3w.core.pairing.create();
+  const { uri, topic: pairingTopic } = await w3w.core.pairing.create();
   if (!uri) throw new Error("Failed to generate pairing URI");
 
-  // Start keepalive immediately so the SW stays alive during the pairing window.
-  // Without this, Chrome can suspend the SW within ~30 s of idling, dropping the
-  // relay WebSocket before session_proposal arrives from the agent.
-  // The alarm handler will self-clear once all sessions AND pairings are gone.
+  // Extend wallet-side pairing TTL from 5 to 10 minutes
+  try {
+    const extendedExpiry = Math.floor(Date.now() / 1000) + 10 * 60;
+    w3w.core.expirer.set(pairingTopic, extendedExpiry);
+  } catch { /* non-fatal */ }
+
+  // Start keepalive alarm so the SW stays alive during the pairing window.
   chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
+
+  // Start the MCP relay bridge — the server opens a WebSocket to the WC relay
+  // and the extension polls for messages via HTTP (bypasses Chrome MV3 WS limitation).
+  await startRelayBridge(w3w, pairingTopic);
 
   return uri;
 }
@@ -542,7 +748,11 @@ export function getActivePairings(): number {
   if (!_web3wallet) return 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pairings: any[] = _web3wallet.core.pairing.getPairings();
-  return pairings.filter((p) => p.active).length;
+  // WC pairings start with active: false — they become active only after
+  // the dApp connects and extends. Count non-expired pairings instead,
+  // so the poll and keepalive alarm stay alive during the pairing window.
+  const now = Date.now() / 1000; // expiry is in seconds
+  return pairings.filter((p) => !p.expiry || p.expiry > now).length;
 }
 
 /**

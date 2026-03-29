@@ -6,6 +6,8 @@
  * approval popup — the user must explicitly approve each one.
  */
 
+import type { TxnSummary } from "./approval";
+
 /**
  * A single transaction in an algo_signTxn request.
  * Follows the Pera/Defly/Voi Wallet encoding convention.
@@ -46,6 +48,8 @@ export interface PendingAgentSignRequest {
   /** Pre-decoded transaction summaries (built in background, same as ARC-27) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   decodedTxns: Record<string, any>[];
+  /** Human-readable summaries for the approval popup (built in background via buildTxnSummary) */
+  txnSummaries: TxnSummary[];
   timestamp: number;
   /** accountId of the active account at request creation time — asserted on approval */
   accountId?: string;
