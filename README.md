@@ -6,14 +6,14 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-0.6.0-brightgreen)
+![Version](https://img.shields.io/badge/version-0.7.0-brightgreen)
 
 ---
 
 ## Features
 
 - **Multi-chain wallet** — Algorand mainnet and Voi mainnet from a single extension
-- **DEX token swaps** — Swap any Algorand ASA via Haystack Router (best-route aggregation across all Algorand DEXes, ALGO→USDC→USDt and beyond); mnemonic and WalletConnect paths both supported
+- **DEX token swaps** — Swap any Algorand ASA via Haystack Router (best-route aggregation across all Algorand DEXes); swap Voi tokens via Snowball aggregator (direct pool swaps with slippage protection)
 - **ARC-0027 provider** — `window.algorand` injected into every page, compatible with Pera, Defly, and Lute dApps
 - **WalletConnect v2** — Pair with any WalletConnect-compatible mobile wallet (Pera, Defly, Voi Wallet)
 - **x402 micropayments** — Automatic HTTP 402 payment handling; pay for API calls and content without leaving the page
@@ -258,13 +258,16 @@ The wallet:
 
 AI agents can connect to AlgoVoi as their wallet via WalletConnect — they never touch private keys:
 
-1. Open AlgoVoi popup → **Agents** tab → **Connect Agent**
-2. Share the WC pairing URI with your agent (or scan the QR code)
-3. Agent connects using any WC-compatible SDK (`viem`, `algosdk`, ADK, etc.)
-4. Agent sends `algo_signTxn` requests — AlgoVoi shows an approval popup for each one
-5. User approves → AlgoVoi signs with the vault key → signed transaction returned to agent
+1. Open AlgoVoi popup → **Agents** tab → **Connect AI Agent**
+2. Copy the WC pairing URI and pass it to your agent
+3. Agent connects using WalletConnect Sign Client (`@walletconnect/sign-client`)
+4. Session is auto-approved — agent gets access to both Algorand + Voi accounts
+5. Agent sends `algo_signTxn` requests → AlgoVoi shows an approval popup with transaction details
+6. User approves → AlgoVoi signs with the vault key → signed transaction returned to agent
 
 Both **Algorand mainnet** and **Voi mainnet** are available in the same agent session using CAIP-2 namespaces.
+
+> **MCP Relay Bridge:** Chrome MV3 service workers cannot receive WalletConnect relay WebSocket push notifications. AlgoVoi works around this by routing relay messages through the MCP server (`mcp.ilovechicken.co.uk/wc-bridge`) as an HTTP polling bridge. The agent must re-encrypt and POST its session proposal to the bridge; the extension polls every 2 seconds. See `C:\algo\aiagent\agent-auto.mjs` for a working example.
 
 ```typescript
 // Example: agent using WalletConnect to request a transaction signature
