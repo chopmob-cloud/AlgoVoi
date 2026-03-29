@@ -50,10 +50,11 @@
     "https://pay.coinbase.com/*",
     "https://api.developer.coinbase.com/*",
     "https://voi-mainnet-mimirapi.nftnavigator.xyz/*",
-    "https://api.snowballswap.com/*"
+    "https://api.snowballswap.com/*",
+    "https://algovoi-gateway.fly.dev/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://verify.walletconnect.com https://registry.walletconnect.com https://explorer-api.walletconnect.com https://verify.walletconnect.org https://registry.walletconnect.org https://imagedelivery.net https://perawallet.app https://static.defly.app https://defly.app https://lute.app; connect-src 'self' https://mainnet-api.algonode.cloud https://mainnet-idx.algonode.cloud https://mainnet-api.voi.nodely.dev https://mainnet-idx.voi.nodely.dev https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://mcp.ilovechicken.co.uk https://hayrouter.txnlab.dev https://voi-mainnet-mimirapi.nftnavigator.xyz https://api.snowballswap.com; worker-src 'self'; frame-src https://verify.walletconnect.org; object-src 'none'; frame-ancestors 'none';"
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://verify.walletconnect.com https://registry.walletconnect.com https://explorer-api.walletconnect.com https://verify.walletconnect.org https://registry.walletconnect.org https://imagedelivery.net https://perawallet.app https://static.defly.app https://defly.app https://lute.app; connect-src 'self' https://mainnet-api.algonode.cloud https://mainnet-idx.algonode.cloud https://mainnet-api.voi.nodely.dev https://mainnet-idx.voi.nodely.dev https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://mcp.ilovechicken.co.uk https://hayrouter.txnlab.dev https://voi-mainnet-mimirapi.nftnavigator.xyz https://api.snowballswap.com https://algovoi-gateway.fly.dev; worker-src 'self'; frame-src https://verify.walletconnect.org; object-src 'none'; frame-ancestors 'none';"
   },
   "web_accessible_resources": [
     {

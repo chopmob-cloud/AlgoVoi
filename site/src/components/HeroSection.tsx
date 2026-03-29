@@ -10,7 +10,7 @@ export default function HeroSection() {
       <div className="relative z-10 max-w-3xl">
         <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-4 py-1.5 text-xs text-gray mb-6">
           <span className="w-1.5 h-1.5 rounded-full bg-algo animate-pulse" />
-          Now available on Chrome Web Store
+          Now available on Chrome &amp; Firefox
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black leading-tight mb-6">
@@ -19,12 +19,12 @@ export default function HeroSection() {
         </h1>
 
         <p className="text-lg text-gray max-w-xl mx-auto mb-8 leading-relaxed">
-          Non-custodial Chrome extension. Send tokens, swap assets, chat with an AI agent, handle
-          x402, MPP &amp; AP2 payments — automatically, without copy-paste. Built for humans and AI agents alike.
+          Non-custodial browser extension for Chrome and Firefox. Send tokens, swap on both chains, connect AI agents
+          via WalletConnect, handle x402, MPP &amp; AP2 payments — all automatic. Built for humans and AI agents alike.
         </p>
 
         <div className="flex flex-wrap justify-center gap-2 mb-10">
-          {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '💱 DEX swaps', '🤖 AI Agent Chat', '💳 Buy crypto', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
+          {['🔒 Non-custodial', '⚡ x402 · MPP · AP2', '💱 Algorand + Voi swaps', '🤖 AI Agent Wallet', '💳 Buy crypto', '📱 WalletConnect', '🔗 ARC-0027'].map(p => (
             <span key={p} className="bg-surf1 border border-border rounded-full px-4 py-1.5 text-xs text-gray">{p}</span>
           ))}
         </div>
@@ -37,6 +37,14 @@ export default function HeroSection() {
             className="gradient-btn text-[#0D1117] font-bold px-8 py-3 rounded-xl text-sm"
           >
             Add to Chrome — Free
+          </a>
+          <a
+            href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-surf1 border border-border text-text font-bold px-8 py-3 rounded-xl text-sm hover:bg-surf2 transition-colors"
+          >
+            Add to Firefox — Free
           </a>
           <a
             href="https://github.com/chopmob-cloud/AlgoVoi"
