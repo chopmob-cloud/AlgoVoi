@@ -42,6 +42,14 @@ XXIII-9  (Medium) CLOSED — Server accepts client-provided publishedAt timestam
 XXIII-10 (Low)    CLOSED — Fixed reconnect delay (no backoff) → exponential backoff
 XXIII-11 (High)   CLOSED — Snowball poolId not validated (injection via MITM quote)
 XXIII-12 (Medium) CLOSED — No rate limit on session proposals (DDoS vector)
+XXIV-1  (Critical) CLOSED — new Function() code injection via WASM glue (SHA-256 integrity check)
+XXIV-2  (High)   CLOSED — Malformed hex key causes silent corruption (fromHex validation)
+XXIV-3  (High)   CLOSED — No WASM binary integrity verification (SHA-256 hash check)
+XXIV-4  (Medium) CLOSED — No Falcon account expiry check in signing branch
+XXIV-5  (Medium) CLOSED — WALLET_EXPORT_FALCON missing explicit unlock check
+XXIV-6  (Medium) CLOSED — Counter hardcoded to 0 in address derivation (now iterates 0-255)
+XXIV-7  (Medium) CLOSED — Falcon key size not validated in getFalconVaultData
+XXIV-8  (Low)    CLOSED — Group size assertion missing in signFalconTxnGroup
 ```
 
 **Hardening I–VIII** (historical): vault encryption, CSP, rate limiting, origin checks, genesis hash verification, spending caps, WC chain guard, byte truncation.
@@ -394,6 +402,8 @@ src/devtools/components/X402Inspector.tsx
 ---
 
 **Hardening XXIII (v0.7.0 — March 2026):** AI Agent WalletConnect connection + MCP relay bridge + Voi swap. Full 3-agent parallel security audit + red team final audit + independent Comet CDP validation (18/18 checks PASS). 12 findings (2 Critical, 5 High, 4 Medium, 1 Low) all closed in same pass. Accepted risks: API key in bundle (inherent to browser extensions), chromeKvStorage race (SW single-threaded), MITM on Snowball (HTTPS enforced).
+
+**Hardening XXIV (v0.7.0 — March 2026):** Falcon PQC post-quantum signatures (Algorand mainnet). Full security audit + Comet CDP validation (16/17 PASS). 8 findings (1 Critical, 2 High, 4 Medium, 1 Low) all closed in same pass. WASM + JS glue integrity verified via SHA-256 hashes. Accepted risks: `new Function()` used for Emscripten glue (mitigated by hash verification), TOCTOU on vault copy (mitigated — getFalconVaultData returns decoded copies, not references).
 
 ---
 
