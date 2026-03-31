@@ -125,7 +125,10 @@ export type BgRequest =
   | { type: "VOI_SWAP_QUOTE"; tokenIn: number; tokenOut: number; amountIn: string; decimalsIn: number; decimalsOut: number; address: string }
   | { type: "VOI_SWAP_EXECUTE"; poolId: number; tokenIn: number; tokenOut: number; amountIn: string; decimalsIn: number; slippage: number; address: string }
   // Keep-alive: resets auto-lock timer without side-effects
-  | { type: "KEEP_ALIVE" };
+  | { type: "KEEP_ALIVE" }
+  // Falcon PQC accounts (Algorand mainnet only)
+  | { type: "WALLET_CREATE_FALCON"; name: string }
+  | { type: "WALLET_EXPORT_FALCON"; id: string };
 
 export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_STATE" ? { lockState: LockState; meta: WalletMeta | null } :
@@ -134,6 +137,8 @@ export type BgResponse<T extends BgRequest["type"] = BgRequest["type"]> =
   T extends "WALLET_UNLOCK" ? { success: boolean; error?: string } :
   T extends "WALLET_LOCK" ? { success: boolean } :
   T extends "WALLET_CREATE_ACCOUNT" ? { account: Account } :
+  T extends "WALLET_CREATE_FALCON" ? { account: Account } :
+  T extends "WALLET_EXPORT_FALCON" ? { pk: string; sk: string } | { error: string } :
   T extends "WALLET_IMPORT_ACCOUNT" ? { account: Account; error?: string } :
   T extends "CHAIN_GET_ACCOUNT_STATE" ? { state: AccountState | null; error?: string } :
   T extends "CHAIN_SEND_PAYMENT" ? { txId: string } :

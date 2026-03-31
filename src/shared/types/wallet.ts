@@ -1,6 +1,6 @@
 import type { ChainId } from "./chain";
 
-export type AccountType = "mnemonic" | "walletconnect" | "ledger" | "watch";
+export type AccountType = "mnemonic" | "walletconnect" | "ledger" | "watch" | "falcon";
 
 export interface Account {
   id: string; // uuid
@@ -32,6 +32,23 @@ export interface VaultData {
      * the account is auto-removed on the next unlock.
      * Undefined = permanent (no expiry).
      */
+    expiresAt?: number;
+  }>;
+  /**
+   * Falcon PQC accounts — separate from mnemonic accounts because they use
+   * raw key bytes (1793 PK + 2305 SK), not 25-word mnemonics.
+   * Stored encrypted in the same AES-GCM vault.
+   */
+  falconAccounts?: Array<{
+    id: string;
+    address: string;
+    /** Hex-encoded Falcon-1024 public key (1793 bytes) */
+    pk: string;
+    /** Hex-encoded Falcon-1024 private key (2305 bytes) */
+    sk: string;
+    /** Hex-encoded compiled TEAL logic sig program */
+    program: string;
+    /** Unix timestamp (ms) when this account expires. Undefined = permanent. */
     expiresAt?: number;
   }>;
   /**
