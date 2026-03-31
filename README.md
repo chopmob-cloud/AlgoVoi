@@ -23,6 +23,7 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **SpendingCapVault** — Deploy an AVM smart contract that enforces per-transaction and daily spending caps for autonomous agent payments; supports ALGO, VOI, USDC, aUSDC and any ASA via `pay_asa()` + `opt_in_asa()`; owner actions (suspend, resume, withdraw, update limits) via mnemonic or WalletConnect
 - **30-day local signing key** — Import your mnemonic with a 30-day TTL for reliable local signing; eliminates WalletConnect relay dependency for all operations; auto-expires and prompts re-import
 - **Anti-phishing** — Clipboard hijacking detection (warns if pasted address was swapped by malware), homograph domain detection (flags Unicode lookalike domains like Cyrillic 'а'), transaction simulation via algod `/v2/transactions/simulate`, dangerous transaction field warnings (rekeyTo, closeRemainderTo, clawback, etc.)
+- **Falcon PQC signatures** — Post-quantum Falcon-1024 accounts on Algorand mainnet; WASM build (88KB) of the exact same C Falcon library as the AVM v12 `falcon_verify` opcode; deterministic signing, logic sig addresses, encrypted key storage; quantum-resistant today
 - **Encrypted vault** — PBKDF2 (600k iterations) + AES-GCM-256; your keys never leave your device unencrypted
 - **WC chromeStorage adapter** — WalletConnect sessions persist in `chrome.storage.local` via a custom `IKeyValueStorage` adapter; survives lock/unlock cycles, SW suspension, and browser restarts
 - **enVoi name resolution** — Send to `.voi` names via UluMCP (x402-gated, 1 VOI per lookup)
@@ -280,6 +281,27 @@ const result = await signClient.request({
   },
 });
 ```
+
+---
+
+## Falcon PQC (Post-Quantum Signatures)
+
+AlgoVoi supports **Falcon-1024** post-quantum accounts on Algorand mainnet — quantum-resistant signing using the same C Falcon library as Algorand's AVM v12 `falcon_verify` opcode, compiled to 88KB WASM via Emscripten.
+
+1. **+ Add** → **Falcon PQC Account** (Algorand chain only)
+2. Fund the new address with ALGO (it's a logic sig address, needs MBR + fees)
+3. Transactions are signed with deterministic Falcon and submitted as 4-txn groups (1 real + 3 dummy for logic sig byte budget pooling)
+
+| Property | Value |
+|----------|-------|
+| Public key | 1,793 bytes |
+| Private key | 2,305 bytes (encrypted in vault) |
+| Signature | ~1,230 bytes (deterministic compressed) |
+| WASM size | 88 KB |
+| AVM version | 12 (`falcon_verify` opcode) |
+| Security level | NIST Level 5 (AES-256 equivalent) |
+
+> **No mnemonic backup** — Falcon keys are raw bytes stored encrypted in the vault. Use key export for backup. Voi support will be added when Voi upgrades to AVM 12+.
 
 ---
 
