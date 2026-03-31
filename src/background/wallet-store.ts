@@ -14,6 +14,16 @@
  */
 
 import algosdk from "algosdk";
+
+/** Hex encode/decode helpers for Falcon key storage. */
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function fromHex(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  return bytes;
+}
 import {
   encryptVault,
   decryptVault,
@@ -537,6 +547,61 @@ export const walletStore = {
   /** Returns the deployed app for a chain, or null if not yet deployed. */
   getVaultApp(chain: string): { appId: number; appAddress: string } | null {
     return _vaultData?.vaultApps?.[chain] ?? null;
+  },
+
+  // ── Falcon PQC accounts ──────────────────────────────────────────────────
+  // Post-quantum Falcon-1024 accounts. Keys are raw bytes (not mnemonics).
+  // Stored encrypted in the same AES-GCM vault as Ed25519 accounts.
+
+  /** Create a new Falcon PQC account. Returns the Account metadata. */
+  async createFalconAccount(name: string): Promise<Account> {
+    if (!_vaultData) throw new Error("Wallet is locked");
+    const { falconKeygen } = await import("@shared/utils/falcon-wasm");
+    const { deriveFalconAddress } = await import("@shared/utils/falcon-teal");
+    const { pk, sk } = await falconKeygen();
+    const { program, address } = deriveFalconAddress(pk);
+    const id = randomId();
+
+    if (!_vaultData.falconAccounts) _vaultData.falconAccounts = [];
+    _vaultData.falconAccounts.push({
+      id,
+      address,
+      pk: toHex(pk),
+      sk: toHex(sk),
+      program: toHex(program),
+    });
+    await persistVaultData();
+
+    const account: Account = { id, name, address, type: "falcon" };
+    const meta = await loadMeta();
+    meta.accounts.push(account);
+    if (!meta.activeAccountId) meta.activeAccountId = id;
+    await saveMeta(meta);
+    return account;
+  },
+
+  /** Get Falcon vault data for signing (wallet must be unlocked). */
+  getFalconVaultData(accountId: string): {
+    pk: Uint8Array;
+    sk: Uint8Array;
+    program: Uint8Array;
+  } | null {
+    if (!_vaultData?.falconAccounts) return null;
+    const fa = _vaultData.falconAccounts.find((a) => a.id === accountId);
+    if (!fa) return null;
+    return {
+      pk: fromHex(fa.pk),
+      sk: fromHex(fa.sk),
+      program: fromHex(fa.program),
+    };
+  },
+
+  /** Export Falcon keys as hex strings (for backup). */
+  exportFalconKeys(accountId: string): { pk: string; sk: string } | null {
+    if (!_vaultData?.falconAccounts) return null;
+    const fa = _vaultData.falconAccounts.find((a) => a.id === accountId);
+    if (!fa) return null;
+    return { pk: fa.pk, sk: fa.sk };
   },
 
   /** Store Claude API key in encrypted vault. */
