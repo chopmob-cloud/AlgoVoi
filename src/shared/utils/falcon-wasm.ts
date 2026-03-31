@@ -10,24 +10,39 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _module: any = null;
 
-/** Load the Falcon WASM module (lazy, cached). */
+// SHA-256 hashes of the bundled Falcon binaries (integrity verification)
+const EXPECTED_WASM_HASH = "311d79abcfca3898cce53c3b120dfe1acde0dc180716ff48dfdf159ba09650f8";
+const EXPECTED_JS_HASH   = "76beab0d96a735d4aef3a3e1ed40f3a7b3995bd15c88c841648409c68d0ac932";
+
+/** Compute SHA-256 hex hash of an ArrayBuffer. */
+async function sha256hex(data: ArrayBuffer): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Load the Falcon WASM module (lazy, cached, integrity-verified). */
 async function getModule() {
   if (_module) return _module;
 
-  // Load the Emscripten glue JS
   const glueUrl = chrome.runtime.getURL("falcon/falcon.js");
   const wasmUrl = chrome.runtime.getURL("falcon/falcon.wasm");
 
-  // Fetch WASM binary directly (Emscripten's fetch doesn't work in SW context)
-  const wasmResponse = await fetch(wasmUrl);
+  // Fetch both binaries
+  const [wasmResponse, glueResponse] = await Promise.all([fetch(wasmUrl), fetch(glueUrl)]);
   const wasmBinary = await wasmResponse.arrayBuffer();
-
-  // Load glue script via import (it's in public/ → dist/)
-  // Emscripten outputs a MODULARIZE pattern: var FalconModule = (()=>{...return async function(opts){...}})()
-  const glueResponse = await fetch(glueUrl);
   const glueCode = await glueResponse.text();
 
-  // Execute the glue to get the factory function
+  // Integrity verification — reject tampered binaries
+  const wasmHash = await sha256hex(wasmBinary);
+  if (wasmHash !== EXPECTED_WASM_HASH) {
+    throw new Error("Falcon WASM binary integrity check failed");
+  }
+  const jsHash = await sha256hex(new TextEncoder().encode(glueCode).buffer);
+  if (jsHash !== EXPECTED_JS_HASH) {
+    throw new Error("Falcon JS glue integrity check failed");
+  }
+
+  // Execute the Emscripten glue to get the factory function
   // eslint-disable-next-line no-new-func
   const factory = new Function("module", "exports", glueCode + "\nreturn module.exports;");
   const m = { exports: {} as Record<string, unknown> };

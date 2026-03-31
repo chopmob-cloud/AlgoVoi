@@ -262,6 +262,7 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
 
     case "WALLET_EXPORT_FALCON": {
       if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
+      if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
       const falconKeys = walletStore.exportFalconKeys(msg.id);
       if (!falconKeys) throw new Error("Falcon account not found");
       return falconKeys;
@@ -1468,6 +1469,10 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (account.type === "falcon") {
         const falconData = walletStore.getFalconVaultData(account.id);
         if (!falconData) throw new Error("Falcon account keys not found in vault");
+        // Expiry check (same as Ed25519 mnemonic accounts)
+        if (falconData.expiresAt && Date.now() > falconData.expiresAt) {
+          throw new Error("Falcon account has expired");
+        }
 
         const { falconSign } = await import("@shared/utils/falcon-wasm");
         const { buildFalconTxnGroup, signFalconTxnGroup } = await import("@shared/utils/falcon-teal");
