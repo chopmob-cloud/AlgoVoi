@@ -479,11 +479,32 @@ export default function AccountView() {
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setModal("import_mnemonic"); }}
-                className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5"
+                className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5 border-b border-white/5"
               >
                 🔑 Import Mnemonic
                 <span className="block text-[10px] text-gray-500 mt-0.5">30-day local signing key</span>
               </button>
+              {activeChain === "algorand" && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setModal(null);
+                    try {
+                      const r = await chrome.runtime.sendMessage({ type: "WALLET_CREATE_FALCON", name: "Falcon PQC" });
+                      if (r?.account) {
+                        await loadAccounts();
+                        alert(`Quantum-secure account created!\n\nAddress: ${r.account.address}\n\nFund this address with ALGO to use it. No mnemonic — export keys for backup.`);
+                      }
+                    } catch (err) {
+                      alert(`Failed: ${err instanceof Error ? err.message : err}`);
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-white/5"
+                >
+                  🛡️ Falcon PQC Account
+                  <span className="block text-[10px] text-gray-500 mt-0.5">Quantum-secure (Algorand only)</span>
+                </button>
+              )}
             </div>
           )}
           <button onClick={handleLock} className="text-xs text-gray-400 hover:text-white transition-colors">
@@ -552,7 +573,7 @@ export default function AccountView() {
           >
             {meta?.accounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} · {a.address.slice(0, 6)}…{a.address.slice(-4)}
+                {a.type === "falcon" ? "🛡️ " : ""}{a.name} · {a.address.slice(0, 6)}…{a.address.slice(-4)}
               </option>
             ))}
           </select>

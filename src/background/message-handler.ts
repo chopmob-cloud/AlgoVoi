@@ -179,6 +179,7 @@ let signTimestamps: number[] = [];
 /** Known message types — reject anything not in this set to prevent injection. */
 const KNOWN_TYPES = new Set([
   "WALLET_STATE","WALLET_GET_META","WALLET_INIT","WALLET_UNLOCK","KEEP_ALIVE",
+  "WALLET_CREATE_FALCON","WALLET_EXPORT_FALCON",
   "WALLET_LOCK","WALLET_CREATE_ACCOUNT","WALLET_IMPORT_ACCOUNT","WALLET_IMPORT_TIMED",
   "WALLET_GET_EXPIRY","WALLET_REMOVE_ACCOUNT","WALLET_RENAME_ACCOUNT",
   "WALLET_SET_ACTIVE_ACCOUNT","WALLET_SET_CHAIN","CHAIN_GET_ACCOUNT_STATE",
@@ -251,6 +252,19 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
     case "WALLET_CREATE_ACCOUNT": {
       const account = await walletStore.createAccount(msg.name);
       return { account };
+    }
+
+    case "WALLET_CREATE_FALCON": {
+      if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
+      const falconAccount = await walletStore.createFalconAccount(msg.name);
+      return { account: falconAccount };
+    }
+
+    case "WALLET_EXPORT_FALCON": {
+      if (sender.id !== chrome.runtime.id) throw new Error("Internal only");
+      const falconKeys = walletStore.exportFalconKeys(msg.id);
+      if (!falconKeys) throw new Error("Falcon account not found");
+      return falconKeys;
     }
 
     case "WALLET_IMPORT_ACCOUNT": {
@@ -1450,6 +1464,36 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         return txn;
       });
 
+      // ── Falcon PQC signing (logic sig + dummy group) ─────────────────────
+      if (account.type === "falcon") {
+        const falconData = walletStore.getFalconVaultData(account.id);
+        if (!falconData) throw new Error("Falcon account keys not found in vault");
+
+        const { falconSign } = await import("@shared/utils/falcon-wasm");
+        const { buildFalconTxnGroup, signFalconTxnGroup } = await import("@shared/utils/falcon-teal");
+
+        const signedTxns: string[] = [];
+        try {
+          for (const txn of decodedTxns) {
+            // Build grouped txns (real + 3 dummies for logic sig byte budget)
+            const sp = { ...txn.suggestedParams, minFee: BigInt(1000) };
+            const group = buildFalconTxnGroup(txn, sp);
+
+            // Sign the real txn's TxID with Falcon
+            const txIdRaw = group[0].rawTxID();
+            const sig = await falconSign(falconData.sk, txIdRaw);
+
+            // Build signed group bytes
+            const combined = signFalconTxnGroup(group, falconData.program, sig);
+            signedTxns.push(Buffer.from(combined).toString("base64"));
+          }
+        } finally {
+          falconData.sk.fill(0); // wipe Falcon SK after signing
+        }
+        return { signedTxns };
+      }
+
+      // ── Standard Ed25519 signing ──────────────────────────────────────────
       const sk = await walletStore.getSecretKeyForAddress(account.address);
       if (!sk) throw new Error("Cannot access signing key");
 
