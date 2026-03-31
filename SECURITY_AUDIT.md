@@ -1,7 +1,7 @@
 # AlgoVoi Chrome Extension (MV3) — Security Audit Report
 
 **Date:** March 2026
-**Version:** 0.7.0
+**Version:** 0.8.0
 **Scope:** Comprehensive review of all `src/` files, `manifest.json`, and build configuration
 
 ## Status
