@@ -20,8 +20,13 @@ function toHex(bytes: Uint8Array): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 function fromHex(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) throw new Error("Odd-length hex string");
   const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  for (let i = 0; i < hex.length; i += 2) {
+    const b = parseInt(hex.slice(i, i + 2), 16);
+    if (isNaN(b)) throw new Error(`Invalid hex at offset ${i}`);
+    bytes[i / 2] = b;
+  }
   return bytes;
 }
 import {
@@ -585,14 +590,20 @@ export const walletStore = {
     pk: Uint8Array;
     sk: Uint8Array;
     program: Uint8Array;
+    expiresAt?: number;
   } | null {
     if (!_vaultData?.falconAccounts) return null;
     const fa = _vaultData.falconAccounts.find((a) => a.id === accountId);
     if (!fa) return null;
+    // Validate key sizes
+    if (fa.pk.length !== 1793 * 2 || fa.sk.length !== 2305 * 2) {
+      throw new Error("Falcon key size mismatch — vault may be corrupted");
+    }
     return {
       pk: fromHex(fa.pk),
       sk: fromHex(fa.sk),
       program: fromHex(fa.program),
+      expiresAt: fa.expiresAt,
     };
   },
 
