@@ -207,7 +207,9 @@ function VoiSwapForm({
         (raw.includes("assert") && raw.includes("pc="));
       // Surface user-safe messages; mask internal details for unknown errors
       const isSafeMsg =
+        raw.startsWith("Swap failed") ||
         raw.includes("insufficient balance") ||
+        raw.includes("insufficient liquidity") ||
         raw.includes("address mismatch") ||
         raw.includes("locked") ||
         raw.includes("WalletConnect") ||
