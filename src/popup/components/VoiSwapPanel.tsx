@@ -113,11 +113,17 @@ function VoiSwapForm({
     resetQuote();
   }
 
-  // Available balance for the "From" asset
-  const availableAtomic =
+  // Available balance for the "From" asset.
+  // For native VOI, reserve 10_000 µVOI (0.01 VOI) for fees + potential box MBR
+  // so the displayed max doesn't cause a simulation failure at the server.
+  const FEE_RESERVE = 10_000n; // µVOI
+  const rawAvailable =
     fromId === 0
       ? balance
       : (assets.find((a) => a.assetId === fromId)?.amount ?? 0n);
+  const availableAtomic = fromId === 0
+    ? (rawAvailable > FEE_RESERVE ? rawAvailable - FEE_RESERVE : 0n)
+    : rawAvailable;
   const availableDisplay = formatAtomic(availableAtomic, fromToken.decimals);
 
   // ── Get Quote ──────────────────────────────────────────────────────────────
