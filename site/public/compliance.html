@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance — AlgoVoi</title>
+  <meta name="description" content="AlgoVoi-Hand compliance summary — PSR 2017/PSD2 alignment for the B2B x402 payment gateway." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0D1117;
+      color: #E6EDF3;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+    .logo-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 900; color: #0D1117;
+    }
+    .logo-name { font-weight: 700; font-size: 0.875rem; color: #E6EDF3; }
+    header a.cta {
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      color: #0D1117; font-size: 0.75rem; font-weight: 700;
+      padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;
+    }
+
+    /* Layout */
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    /* Hero */
+    .hero { margin-bottom: 3rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8B5CF6;
+      border: 1px solid rgba(139,92,246,0.35);
+      background: rgba(139,92,246,0.08);
+      padding: 0.25rem 0.75rem; border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800; line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    h1 span { background: linear-gradient(135deg, #00C8FF, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .subtitle { color: #8B949E; font-size: 1rem; max-width: 600px; }
+
+    /* Section */
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.1rem; font-weight: 700;
+      color: #E6EDF3;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #30363D;
+    }
+
+    /* Cards grid */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .card-icon { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .card-title { font-size: 0.875rem; font-weight: 700; color: #E6EDF3; margin-bottom: 0.3rem; }
+    .card-desc { font-size: 0.8rem; color: #8B949E; line-height: 1.5; }
+
+    /* Frameworks table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      background: #161B22;
+      color: #8B949E;
+      font-weight: 600;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #30363D;
+    }
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      color: #E6EDF3;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(22,27,34,0.6); }
+    .pill {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 600;
+      padding: 0.15rem 0.6rem; border-radius: 999px;
+    }
+    .pill-green  { background: rgba(46,160,67,0.15);  color: #3FB950; border: 1px solid rgba(46,160,67,0.3); }
+    .pill-yellow { background: rgba(210,153,34,0.15); color: #D29922; border: 1px solid rgba(210,153,34,0.3); }
+    .pill-blue   { background: rgba(0,200,255,0.1);   color: #00C8FF; border: 1px solid rgba(0,200,255,0.25); }
+
+    /* Notice box */
+    .notice {
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      font-size: 0.875rem;
+      color: #8B949E;
+    }
+    .notice strong { color: #E6EDF3; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid #30363D;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #484F58;
+    }
+    footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
+    footer a:hover { color: #E6EDF3; }
+    .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+    .footer-logo { display: flex; align-items: center; gap: 0.5rem; }
+    .footer-logo-mark {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 900; color: #0D1117;
+    }
+
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr; }
+      th, td { padding: 0.6rem 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/AlgoVoi/" class="logo">
+    <div class="logo-mark">AV</div>
+    <span class="logo-name">AlgoVoi</span>
+  </a>
+  <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" class="cta">Add to Chrome</a>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="badge">Compliance</div>
+    <h1>AlgoVoi-Hand<br><span>Compliance Summary</span></h1>
+    <p class="subtitle">
+      AlgoVoi-Hand operates as a B2B x402 payment gateway. This page summarises
+      its alignment with UK PSR&nbsp;2017/PSD2 and related frameworks.
+      Full audit documentation is available post-KYB/NDA.
+    </p>
+  </div>
+
+  <!-- Key Alignments -->
+  <section>
+    <h2>Key Alignments</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <div class="card-title">No Custody</div>
+        <div class="card-desc">Crypto settles direct on-chain. No fiat funds are held or pooled by AlgoVoi-Hand at any point.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">✍️</div>
+        <div class="card-title">SCA via x402</div>
+        <div class="card-desc">Wallet signatures provide strong customer authentication with dynamic linking — amount, payee, and token are bound to every signature.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏗️</div>
+        <div class="card-title">Tenant Isolation</div>
+        <div class="card-desc">5-layer row-level security with opaque tokens. Payment data, API keys, and receipts are fully isolated per tenant at the database level.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">Security</div>
+        <div class="card-desc">TLS 1.3, MFA enforcement, immutable audit logs, and per-tenant kill switches. Security is enforced at the gateway, not just documented.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🪪</div>
+        <div class="card-title">AML / KYB</div>
+        <div class="card-desc">Operator-gated onboarding. Tenants complete KYB before accessing live payment flows. No anonymous merchant access.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <div class="card-title">Audit Trail</div>
+        <div class="card-desc">Every challenge, verification, limit change, and key event is logged per tenant with typed event codes and no PII in log lines.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Frameworks -->
+  <section>
+    <h2>Regulatory Frameworks</h2>
+    <div style="background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Framework</th>
+            <th>Scope</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>PSR 2017 / PSD2</strong></td>
+            <td style="color:#8B949E;">B2B x402 gateway — safeguarding N/A (no fiat held)</td>
+            <td><span class="pill pill-green">Aligned</span></td>
+          </tr>
+          <tr>
+            <td><strong>SCA RTS</strong></td>
+            <td style="color:#8B949E;">Wallet-signature SCA with dynamic linking; low-value exemptions apply</td>
+            <td><span class="pill pill-green">Aligned</span></td>
+          </tr>
+          <tr>
+            <td><strong>MLR 2017</strong></td>
+            <td style="color:#8B949E;">Crypto asset activity — HMRC registration</td>
+            <td><span class="pill pill-yellow">Pending</span></td>
+          </tr>
+          <tr>
+            <td><strong>UK GDPR</strong></td>
+            <td style="color:#8B949E;">90-day PII purge policy; no PII in audit log lines</td>
+            <td><span class="pill pill-green">Aligned</span></td>
+          </tr>
+          <tr>
+            <td><strong>FCA Cryptoassets Register</strong></td>
+            <td style="color:#8B949E;">Cryptoasset business registration</td>
+            <td><span class="pill pill-yellow">Pending</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Notice -->
+  <section>
+    <div class="notice">
+      <strong>Full audit available post-KYB/NDA.</strong> This summary is provided for
+      prospective tenants and partners during initial due diligence. Detailed technical
+      security documentation, penetration test reports, and the complete compliance
+      framework are released under NDA following KYB completion.
+      <br><br>
+      <span style="color:#484F58;">Audit v1.0 &nbsp;·&nbsp; Q2 2026 &nbsp;·&nbsp;
+      Contact: <a href="mailto:compliance@algovou.app" style="color:#8B5CF6;">compliance@algovou.app</a></span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="footer-logo-mark">AV</div>
+      <span style="color:#8B949E; font-weight:600;">AlgoVoi</span>
+      <span style="color:#484F58;">— Web3 wallet for Algorand &amp; Voi</span>
+    </div>
+    <div>
+      <a href="/AlgoVoi/">Home</a>
+      <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="/AlgoVoi/privacy-policy.html">Privacy Policy</a>
+      <a href="/AlgoVoi/compliance.html">Compliance</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

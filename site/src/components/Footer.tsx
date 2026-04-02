@@ -17,6 +17,7 @@ export default function Footer() {
           <a href="https://algovoi-gateway.fly.dev/demo" target="_blank" rel="noopener noreferrer"
             className="hover:text-text transition-colors">x402 Demo</a>
           <a href="/AlgoVoi/privacy-policy.html" className="hover:text-text transition-colors">Privacy Policy</a>
+          <a href="/AlgoVoi/compliance.html" className="hover:text-text transition-colors">Compliance</a>
         </div>
       </div>
     </footer>
