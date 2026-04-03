@@ -258,6 +258,13 @@ async function routeToBackground(msg: InpageMessage): Promise<unknown> {
       return sendToBg({ type: "AP2_LIST_INTENT_MANDATES" });
     }
 
+    case "CHECKOUT_SPONSORED_SIGN": {
+      const { chain, receiver, amount, assetId, memo } = msg.payload as {
+        chain: string; receiver: string; amount: string; assetId: string; memo: string;
+      };
+      return sendToBg({ type: "CHECKOUT_SPONSORED_SIGN", chain, receiver, amount, assetId, memo });
+    }
+
     default:
       throw new Error(`Unhandled inpage message type: ${msg.type}`);
   }

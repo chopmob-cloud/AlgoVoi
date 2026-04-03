@@ -198,6 +198,7 @@ const KNOWN_TYPES = new Set([
   "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
   "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
   "CHECK_VERSION",
+  "CHECKOUT_SPONSORED_SIGN",
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2101,6 +2102,17 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       const { checkForUpdate } = await import("./version-check");
       const update = await checkForUpdate();
       return { update };
+    }
+
+    case "CHECKOUT_SPONSORED_SIGN": {
+      // Sponsored checkout: build and sign a 0-fee payment tx.
+      // Platform backend wraps it in an atomic group with fee-covering tx.
+      if (walletStore.getLockState() !== "unlocked") {
+        throw new Error("Wallet is locked. Unlock AlgoVoi to pay.");
+      }
+      walletStore.resetAutoLock();
+      const { buildSponsoredPayment } = await import("./x402-handler");
+      return await buildSponsoredPayment(msg);
     }
 
     default:
