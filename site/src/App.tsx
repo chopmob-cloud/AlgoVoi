@@ -11,7 +11,9 @@ import AgentScreen from './components/AgentScreen'
 import VaultScreen from './components/VaultScreen'
 import GetStartedScreen from './components/GetStartedScreen'
 import VaultRecoveryScreen from './components/VaultRecoveryScreen'
+import EcommerceSection from './components/EcommerceSection'
 import MultiTenantSection from './components/MultiTenantSection'
+import SecuritySection from './components/SecuritySection'
 import CTASection from './components/CTASection'
 import Footer from './components/Footer'
 
@@ -32,7 +34,9 @@ export default function App() {
         <VaultScreen />
         <GetStartedScreen />
         <VaultRecoveryScreen />
+        <EcommerceSection />
         <MultiTenantSection />
+        <SecuritySection />
         <CTASection />
       </main>
       <Footer />

@@ -15,16 +15,29 @@ export default function Header() {
         <a href="#x402" className="hover:text-text transition-colors">x402</a>
         <a href="#mpp" className="hover:text-text transition-colors">MPP</a>
         <a href="#agents" className="hover:text-text transition-colors">AI Agents</a>
+        <a href="#ecommerce" className="hover:text-text transition-colors">eCommerce</a>
+        <a href="#platform" className="hover:text-text transition-colors">Platform</a>
+        <a href="#security" className="hover:text-text transition-colors">Security</a>
         <a href="#get-started" className="hover:text-text transition-colors">Setup</a>
       </nav>
-      <a
-        href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="gradient-btn text-[#0D1117] text-xs font-bold px-4 py-2 rounded-lg"
-      >
-        Add to Chrome
-      </a>
+      <div className="flex items-center gap-2">
+        <a
+          href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="gradient-btn text-[#0D1117] text-xs font-bold px-4 py-2 rounded-lg"
+        >
+          <span className="hidden sm:inline">Add to </span>Chrome
+        </a>
+        <a
+          href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden sm:inline-flex bg-surf1 border border-border text-text text-xs font-bold px-4 py-2 rounded-lg hover:bg-surf2 transition-colors"
+        >
+          Add to Firefox
+        </a>
+      </div>
     </header>
   )
 }

@@ -450,3 +450,123 @@ export async function handleX402(params: {
   await openApprovalPopup(requestId);
   return requestId;
 }
+
+
+// ── Sponsored checkout payment ───────────────────────────────────────────────
+
+/**
+ * Build and sign a 0-fee payment transaction for sponsored checkout.
+ * The platform backend wraps this in an atomic group with a fee-covering tx.
+ *
+ * Returns signed tx bytes (base64) — does NOT submit (platform submits the group).
+ * Spending caps are still enforced. Approval popup is shown for user consent.
+ */
+export async function buildSponsoredPayment(params: {
+  chain: string;
+  receiver: string;
+  amount: string;
+  assetId: string;
+  memo: string;
+}): Promise<{ signedTxB64: string; senderAddress: string; chain: string }> {
+  const chain = resolveChain(params.chain);
+  if (!chain) throw new Error(`Unsupported network: ${params.chain}`);
+
+  if (!algosdk.isValidAddress(params.receiver)) {
+    throw new Error(`Invalid receiver address: ${params.receiver}`);
+  }
+
+  const meta = await walletStore.getMeta();
+  const senderAddress = meta.accounts.find((a) => a.id === meta.activeAccountId)?.address;
+  if (!senderAddress) throw new Error("No active account");
+
+  const rawAmount = String(params.amount);
+  if (!/^\d+$/.test(rawAmount)) {
+    throw new Error(`Invalid payment amount: ${rawAmount}`);
+  }
+  const amount = BigInt(rawAmount);
+
+  const asaId = params.assetId === "0" || !params.assetId ? 0 : parseInt(params.assetId, 10);
+
+  // Spending cap enforcement (same as x402)
+  function safeCap(stored: number | undefined, defaultCap: bigint): bigint {
+    if (stored === undefined || stored <= 0 || !Number.isFinite(stored)) return defaultCap;
+    try { const v = BigInt(Math.floor(stored)); return v > 0n ? v : defaultCap; } catch { return defaultCap; }
+  }
+  const cap = asaId !== 0
+    ? safeCap(meta.spendingCaps?.asaMicrounits, SPENDING_CAP_ASA)
+    : safeCap(meta.spendingCaps?.nativeMicrounits, SPENDING_CAP_NATIVE);
+
+  if (amount > cap) {
+    throw new Error(
+      `Payment amount ${amount} microunits exceeds safety cap of ${cap}. ` +
+      `Adjust the cap in settings or reject this payment.`
+    );
+  }
+
+  // Balance check — only need the amount (no fee for sponsored tx), plus min balance
+  const accountState = await getAccountState(senderAddress, chain);
+  const spendable = accountState.balance - accountState.minBalance;
+  const needed = asaId !== 0 ? 0n : amount; // ASA transfers don't debit native coin
+  if (needed > 0n && spendable < needed) {
+    const ticker = CHAINS[chain].ticker;
+    throw new Error(
+      `Insufficient ${ticker} balance. ` +
+      `Need ${needed} µ${ticker} but only ${spendable} µ${ticker} spendable.`
+    );
+  }
+
+  // Build the 0-fee transaction
+  const suggestedParams = await getSuggestedParams(chain);
+  suggestedParams.fee = 0;
+  suggestedParams.flatFee = true;
+
+  const note = new TextEncoder().encode(params.memo).slice(0, 1000);
+
+  let txn: algosdk.Transaction;
+  if (asaId !== 0) {
+    const optedIn = await hasOptedIn(chain, senderAddress, asaId);
+    if (!optedIn) {
+      throw new Error(
+        `Account is not opted-in to asset ${asaId}. ` +
+        `Open AlgoVoi, find the asset, and opt-in before paying.`
+      );
+    }
+    txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      sender: senderAddress,
+      receiver: params.receiver,
+      assetIndex: asaId,
+      amount,
+      note,
+      suggestedParams,
+    });
+  } else {
+    txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: senderAddress,
+      receiver: params.receiver,
+      amount,
+      note,
+      suggestedParams,
+    });
+  }
+
+  // Sign with vault key (WalletConnect not supported for sponsored — needs popup flow)
+  const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
+  if (activeAccount?.type === "walletconnect") {
+    throw new Error(
+      "Sponsored checkout requires a local account. " +
+      "WalletConnect accounts cannot be used for sponsored payments yet."
+    );
+  }
+
+  const sk = await walletStore.getActiveSecretKey();
+  let signedBytes: Uint8Array;
+  try {
+    signedBytes = txn.signTxn(sk);
+  } finally {
+    sk.fill(0); // XIV-1: wipe secret key after signing
+  }
+
+  const signedTxB64 = btoa(String.fromCharCode(...signedBytes));
+
+  return { signedTxB64, senderAddress, chain: params.chain };
+}
