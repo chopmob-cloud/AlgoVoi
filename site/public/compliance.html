@@ -151,7 +151,7 @@
     }
     footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
     footer a:hover { color: #E6EDF3; }
-    .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+    .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
     .footer-logo { display: flex; align-items: center; gap: 0.5rem; }
     .footer-logo-mark {
       width: 20px; height: 20px; border-radius: 6px;
@@ -290,10 +290,12 @@
       <span style="color:#8B949E; font-weight:600;">AlgoVoi</span>
       <span style="color:#484F58;">— Web3 wallet for Algorand &amp; Voi</span>
     </div>
-    <div>
-      <a href="/">Home</a>
+    <div style="display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;justify-content:center;">
+      <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" target="_blank" rel="noopener noreferrer">Chrome</a>
+      <a href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/" target="_blank" rel="noopener noreferrer">Firefox</a>
       <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer">GitHub</a>
-      <a href="/privacy-policy.html">Privacy Policy</a>
+      <a href="https://x402.ilovechicken.co.uk" target="_blank" rel="noopener noreferrer">x402 Demo</a>
+      <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
       <a href="/compliance.html">Compliance</a>
     </div>
   </div>
