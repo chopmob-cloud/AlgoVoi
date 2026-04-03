@@ -131,6 +131,22 @@ const provider = {
     return this;
   },
 
+  // ── Sponsored checkout payment ───────────────────────────────────────────────
+  /**
+   * Build and sign a 0-fee payment transaction for sponsored checkout.
+   * The platform backend wraps this in an atomic group with a fee-covering tx.
+   * Returns { signedTxB64, senderAddress, chain }.
+   */
+  async sponsoredSign(params: {
+    chain: string;
+    receiver: string;
+    amount: string;
+    assetId: string;
+    memo: string;
+  }): Promise<{ signedTxB64: string; senderAddress: string; chain: string }> {
+    return sendToContent("CHECKOUT_SPONSORED_SIGN", params);
+  },
+
   // ── AP2 (Agent Payments Protocol by Google) ───────────────────────────────
   ap2: Object.freeze({
     /**
