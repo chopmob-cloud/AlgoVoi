@@ -12,8 +12,8 @@ export default function MultiTenantSection() {
     },
     {
       icon: '⛓️',
-      title: 'Algorand & Voi native',
-      desc: 'Accept payments on Algorand or Voi mainnet. Multi-chain accepts[] are served automatically — one resource definition covers both networks.',
+      title: 'Algorand, VOI & Hedera',
+      desc: 'Accept payments on Algorand, VOI, or Hedera mainnet. Multi-chain checkout with chain picker — customers choose their preferred network.',
     },
     {
       icon: '🤖',
@@ -227,34 +227,36 @@ PAYMENT-SIGNATURE: base64({
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="text-center mt-4">
-          <p className="text-gray text-sm mb-4">Ready to start accepting x402 payments?</p>
+        {/* Trial CTA */}
+        <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-emerald-400/10 border border-algo/20 rounded-2xl p-8 text-center mt-4">
+          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start building in 30 seconds</h3>
+          <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
+            No email required. Just your Algorand or VOI wallet address.
+            Get instant API access with testnet + capped mainnet — 30-day free trial.
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href="https://api1.ilovechicken.co.uk/dashboard/signup"
+              href="https://api1.ilovechicken.co.uk/signup"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3 rounded-xl text-sm"
+              className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Request access
+              Start Free Trial →
             </a>
             <a
-              href="https://api1.ilovechicken.co.uk/dashboard/login"
+              href="https://api1.ilovechicken.co.uk/dashboard/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-surf1 border border-border text-text font-bold px-8 py-3 rounded-xl text-sm hover:bg-surf2 transition-colors"
+              className="inline-block bg-surf1 border border-border text-text font-bold px-8 py-3.5 rounded-xl text-sm hover:bg-surf2 transition-colors"
             >
-              Operator login
+              Sign in to Dashboard
             </a>
-            <a
-              href="https://x.com/AlgoVoi"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block bg-surf1 border border-border text-text font-bold px-8 py-3 rounded-xl text-sm hover:bg-surf2 transition-colors"
-            >
-              Get in touch on X
-            </a>
+          </div>
+          <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
+            <span>✓ No email needed</span>
+            <span>✓ Wallet-only signup</span>
+            <span>✓ API key in 30 seconds</span>
+            <span>✓ Testnet + mainnet (capped)</span>
           </div>
         </div>
       </div>
