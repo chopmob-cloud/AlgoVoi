@@ -1,0 +1,135 @@
+/**
+ * Aramid Bridge handler — builds, signs, and submits bridge transactions.
+ *
+ * No MCP round-trip needed: the bridge is a single payment/ASA transfer
+ * to the Aramid bridge address with a structured JSON note.
+ *
+ * Flow:
+ *   1. Validate params + wallet state
+ *   2. Build unsigned txn (payment or ASA transfer)
+ *   3. Sign with mnemonic sk
+ *   4. Submit to source-chain algod
+ *
+ * Fee: 0.1% deducted from amount; destinationAmount = amount - fee
+ */
+
+import algosdk from "algosdk";
+import { walletStore } from "./wallet-store";
+import { getAlgodClient } from "./chain-clients";
+import type { ChainId } from "@shared/types/chain";
+
+const BRIDGE_ADDRESS = "ARAMIDFJYV2TOFB5MRNZJIXBSAVZCVAUDAPFGKR5PNX4MTILGAZABBTXQQ";
+
+const DEST_CHAIN_IDS: Record<ChainId, number> = {
+  "algorand": 416101, // destination when bridging FROM algorand TO voi
+  "voi":      416001, // destination when bridging FROM voi TO algorand
+};
+
+// Known destination-chain token IDs for each source token.
+// Key: `${sourceChain}:${sourceTokenId}` → destination token ID (as string).
+export const BRIDGE_TOKEN_PAIRS: Record<string, { destToken: string; symbol: string; destSymbol: string }> = {
+  "voi:0":         { destToken: "2320775407", symbol: "VOI",   destSymbol: "aVOI"  },
+  "algorand:0":    { destToken: "0",          symbol: "ALGO",  destSymbol: "aALGO" },
+  "voi:302190":    { destToken: "31566704",   symbol: "aUSDC", destSymbol: "USDC"  },
+  "algorand:31566704": { destToken: "302190", symbol: "USDC",  destSymbol: "aUSDC" },
+};
+
+export interface BridgeParams {
+  sourceChain:        ChainId;
+  sourceToken:        number;   // 0 = native
+  amount:             string;   // human-readable decimal
+  decimals:           number;
+  destinationAddress: string;
+  senderAddress:      string;
+}
+
+export async function executeBridge(params: BridgeParams): Promise<{ txId: string }> {
+  if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
+  walletStore.resetAutoLock();
+
+  // Verify active account matches sender (defence in depth)
+  const meta = await walletStore.getMeta();
+  const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
+  if (!activeAccount) throw new Error("No active account");
+  if (activeAccount.type === "walletconnect") {
+    throw new Error("Bridge requires a mnemonic account — WalletConnect not yet supported");
+  }
+  if (activeAccount.address !== params.senderAddress) {
+    throw new Error("Bridge address mismatch — refresh and retry");
+  }
+
+  // Validate destination address
+  if (!algosdk.isValidAddress(params.destinationAddress)) {
+    throw new Error("Invalid destination address");
+  }
+
+  // Resolve token pair
+  const pairKey = `${params.sourceChain}:${params.sourceToken}`;
+  const pair = BRIDGE_TOKEN_PAIRS[pairKey];
+  if (!pair) throw new Error(`Unsupported bridge pair: ${pairKey}`);
+
+  // Parse amount to atomic
+  const amountAtomic = parseDecimal(params.amount, params.decimals);
+  if (amountAtomic <= 0n) throw new Error("Amount must be positive");
+
+  // Calculate fee (0.1% = amount / 1000, minimum 1 microunit)
+  const feeAmount    = amountAtomic / 1000n || 1n;
+  const destAmount   = amountAtomic - feeAmount;
+
+  // Build note
+  const destChain = params.sourceChain === "voi" ? "algorand" : "voi";
+  const noteObj = {
+    destinationNetwork:  DEST_CHAIN_IDS[destChain as ChainId],
+    destinationAddress:  params.destinationAddress,
+    destinationToken:    pair.destToken,
+    feeAmount:           Number(feeAmount),
+    destinationAmount:   Number(destAmount),
+    note:                "aramid",
+    sourceAmount:        Number(destAmount),
+  };
+  const noteBytes = new Uint8Array(
+    Buffer.from("aramid-transfer/v1:j" + JSON.stringify(noteObj))
+  );
+
+  const sk = await walletStore.getActiveSecretKey();
+  try {
+    const algod      = getAlgodClient(params.sourceChain);
+    const txnParams  = await algod.getTransactionParams().do();
+
+    let txn: algosdk.Transaction;
+    if (params.sourceToken === 0) {
+      txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender:           params.senderAddress,
+        receiver:         BRIDGE_ADDRESS,
+        amount:           amountAtomic,
+        suggestedParams:  txnParams,
+        note:             noteBytes,
+      });
+    } else {
+      txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender:           params.senderAddress,
+        receiver:         BRIDGE_ADDRESS,
+        amount:           amountAtomic,
+        assetIndex:       params.sourceToken,
+        suggestedParams:  txnParams,
+        note:             noteBytes,
+      });
+    }
+
+    const { blob } = algosdk.signTransaction(txn, sk);
+    const result   = await algod.sendRawTransaction(blob).do() as { txid: string };
+    await algosdk.waitForConfirmation(algod, result.txid, 6);
+
+    return { txId: result.txid };
+  } finally {
+    sk.fill(0);
+  }
+}
+
+function parseDecimal(amount: string, decimals: number): bigint {
+  const clean = amount.trim();
+  if (!/^\d+(\.\d+)?$/.test(clean)) throw new Error(`Invalid amount: ${amount}`);
+  const [intStr, fracStr = ""] = clean.split(".");
+  const fracPadded = fracStr.slice(0, decimals).padEnd(decimals, "0");
+  return BigInt(intStr) * BigInt(10 ** decimals) + BigInt(fracPadded);
+}
