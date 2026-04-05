@@ -19,7 +19,7 @@ import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
-type Tab = "assets" | "swap" | "bridge" | "history" | "apps" | "agents" | "vault";
+type Tab = "assets" | "swap" | "bridge" | "apps" | "agents" | "vault";
 type Modal = "send" | "receive" | "import_mnemonic" | "add_menu" | "confirm_remove" | null;
 
 /**
@@ -710,7 +710,7 @@ export default function AccountView() {
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
-        {(["assets", "swap", "bridge", "history", "apps", "agents", "vault"] as Tab[]).map((t) => (
+        {(["assets", "swap", "bridge", "apps", "agents", "vault"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t as Tab)}
@@ -755,11 +755,6 @@ export default function AccountView() {
             balance={chainState?.balance ?? 0n}
             assets={chainState?.assets ?? []}
           />
-        )}
-        {tab === "history" && (
-          <div className="text-xs text-gray-500 text-center py-6">
-            Transaction history coming in Phase 2
-          </div>
         )}
         {tab === "apps" && (
           <ConnectedAppsTab connectedSites={meta?.connectedSites ?? {}} onUpdate={loadState} activeChain={activeChain} />
