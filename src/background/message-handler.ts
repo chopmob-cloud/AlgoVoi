@@ -1298,6 +1298,14 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       if (sender.id !== chrome.runtime.id) {
         throw new Error("BRIDGE_EXECUTE is only available to internal extension pages");
       }
+      // XXI-4: validate decimals before forwarding (bridge-handler also validates)
+      if (!Number.isInteger(msg.decimals) || msg.decimals < 0 || msg.decimals > 19) {
+        throw new Error("Invalid decimals");
+      }
+      // XXI-3: validate sourceToken is a non-negative integer
+      if (!Number.isInteger(msg.sourceToken) || msg.sourceToken < 0) {
+        throw new Error("Invalid sourceToken");
+      }
       const { executeBridge } = await import("./bridge-handler");
       return executeBridge({
         sourceChain:        msg.sourceChain,

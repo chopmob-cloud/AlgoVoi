@@ -20,18 +20,26 @@ import type { ChainId } from "@shared/types/chain";
 
 const BRIDGE_ADDRESS = "ARAMIDFJYV2TOFB5MRNZJIXBSAVZCVAUDAPFGKR5PNX4MTILGAZABBTXQQ";
 
+const VALID_CHAINS: readonly ChainId[] = ["algorand", "voi"] as const;
+
 const DEST_CHAIN_IDS: Record<ChainId, number> = {
   "algorand": 416101, // destination when bridging FROM algorand TO voi
   "voi":      416001, // destination when bridging FROM voi TO algorand
 };
 
+// XXI-3: explicit whitelist of valid source tokens per chain
+const VALID_TOKENS: Record<ChainId, number[]> = {
+  voi:      [0, 302190],
+  algorand: [0, 31566704],
+};
+
 // Known destination-chain token IDs for each source token.
 // Key: `${sourceChain}:${sourceTokenId}` → destination token ID (as string).
 export const BRIDGE_TOKEN_PAIRS: Record<string, { destToken: string; symbol: string; destSymbol: string }> = {
-  "voi:0":         { destToken: "2320775407", symbol: "VOI",   destSymbol: "aVOI"  },
-  "algorand:0":    { destToken: "0",          symbol: "ALGO",  destSymbol: "aALGO" },
-  "voi:302190":    { destToken: "31566704",   symbol: "aUSDC", destSymbol: "USDC"  },
-  "algorand:31566704": { destToken: "302190", symbol: "USDC",  destSymbol: "aUSDC" },
+  "voi:0":             { destToken: "2320775407", symbol: "VOI",   destSymbol: "aVOI"  },
+  "algorand:0":        { destToken: "0",          symbol: "ALGO",  destSymbol: "aALGO" },
+  "voi:302190":        { destToken: "31566704",   symbol: "aUSDC", destSymbol: "USDC"  },
+  "algorand:31566704": { destToken: "302190",     symbol: "USDC",  destSymbol: "aUSDC" },
 };
 
 export interface BridgeParams {
@@ -44,6 +52,11 @@ export interface BridgeParams {
 }
 
 export async function executeBridge(params: BridgeParams): Promise<{ txId: string }> {
+  // XXI-3: validate sourceChain against known whitelist
+  if (!VALID_CHAINS.includes(params.sourceChain)) {
+    throw new Error(`Invalid source chain: ${params.sourceChain}`);
+  }
+
   if (walletStore.getLockState() !== "unlocked") throw new Error("Wallet is locked");
   walletStore.resetAutoLock();
 
@@ -63,6 +76,19 @@ export async function executeBridge(params: BridgeParams): Promise<{ txId: strin
     throw new Error("Invalid destination address");
   }
 
+  // XXI-3: validate sourceToken is a known token for this chain
+  if (!VALID_TOKENS[params.sourceChain].includes(params.sourceToken)) {
+    throw new Error(`Invalid token ${params.sourceToken} for chain ${params.sourceChain}`);
+  }
+
+  // XXI-4: validate decimals range before BigInt arithmetic
+  if (!Number.isInteger(params.decimals) || params.decimals < 0 || params.decimals > 19) {
+    throw new Error("Invalid decimals: must be 0–19");
+  }
+  if (params.amount.length > 40) {
+    throw new Error("Amount string too long");
+  }
+
   // Resolve token pair
   const pairKey = `${params.sourceChain}:${params.sourceToken}`;
   const pair = BRIDGE_TOKEN_PAIRS[pairKey];
@@ -71,10 +97,14 @@ export async function executeBridge(params: BridgeParams): Promise<{ txId: strin
   // Parse amount to atomic
   const amountAtomic = parseDecimal(params.amount, params.decimals);
   if (amountAtomic <= 0n) throw new Error("Amount must be positive");
+  // XXI-4: guard uint64 overflow
+  if (amountAtomic > 18_446_744_073_709_551_615n) {
+    throw new Error("Amount exceeds maximum (uint64 overflow)");
+  }
 
   // Calculate fee (0.1% = amount / 1000, minimum 1 microunit)
-  const feeAmount    = amountAtomic / 1000n || 1n;
-  const destAmount   = amountAtomic - feeAmount;
+  const feeAmount  = amountAtomic / 1000n || 1n;
+  const destAmount = amountAtomic - feeAmount;
 
   // Build note
   const destChain = params.sourceChain === "voi" ? "algorand" : "voi";
@@ -91,8 +121,10 @@ export async function executeBridge(params: BridgeParams): Promise<{ txId: strin
     Buffer.from("aramid-transfer/v1:j" + JSON.stringify(noteObj))
   );
 
-  const sk = await walletStore.getActiveSecretKey();
+  // XXI-2: sk retrieved inside try so finally always cleans up
+  let sk: Uint8Array | undefined;
   try {
+    sk = await walletStore.getActiveSecretKey();
     const algod      = getAlgodClient(params.sourceChain);
     const txnParams  = await algod.getTransactionParams().do();
 
@@ -122,7 +154,7 @@ export async function executeBridge(params: BridgeParams): Promise<{ txId: strin
 
     return { txId: result.txid };
   } finally {
-    sk.fill(0);
+    sk?.fill(0); // Always wipe secret key
   }
 }
 

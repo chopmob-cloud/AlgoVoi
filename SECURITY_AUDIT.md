@@ -8,6 +8,14 @@
 
 ```
 0 Critical   0 High   0 Medium   0 Low open   (4 accepted risks: XIV-2, XVI-7, XVI-8, XVI-9, XVI-10)
+XXI-B-1 (Critical) CLOSED — bridge-handler: sourceChain not validated against whitelist
+XXI-B-2 (Medium)   CLOSED — bridge-handler: sk retrieved outside try (now inside, sk?.fill(0))
+XXI-B-3 (High)     CLOSED — bridge-handler: sourceToken not validated against chain whitelist
+XXI-B-4 (High)     CLOSED — bridge-handler + message-handler: decimals/amount not validated for overflow
+XXI-B-5 (Medium)   CLOSED — BridgePanel: amount input accepted scientific notation (e.g. 1e6)
+XXI-B-6 (Medium)   CLOSED — BridgePanel: Max button set full balance with no algod fee reserve
+XXI-B-7 (False+)   N/A    — destinationAddress TOCTOU: JS single-threaded, no race possible
+XXI-B-8 (False+)   N/A    — senderAddress in message-handler: already validated in bridge-handler
 XVII-1 (High)   CLOSED — SIGN_TRANSACTIONS blind signing
 XVII-2 (Medium) CLOSED — Coinbase open redirect
 XVII-3 (Low)    CLOSED — AGENT_CHAT trusts msg.activeAddress
