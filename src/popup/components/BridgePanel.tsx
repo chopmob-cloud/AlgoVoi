@@ -55,11 +55,16 @@ export default function BridgePanel({
   const pairKey = `${activeChain}:${token.id}`;
   const pair = BRIDGE_TOKEN_PAIRS[pairKey];
 
-  // Available balance for selected token
-  const availableAtomic =
+  // Available balance for selected token.
+  // XXI-8: reserve 1000 µ (0.001 native) for algod tx fee when bridging native token.
+  const TX_FEE_RESERVE = 1000n;
+  const rawAvailable =
     token.id === 0
       ? balance
       : (assets.find((a) => a.assetId === token.id)?.amount ?? 0n);
+  const availableAtomic = token.id === 0
+    ? (rawAvailable > TX_FEE_RESERVE ? rawAvailable - TX_FEE_RESERVE : 0n)
+    : rawAvailable;
   const availableDisplay = formatAtomic(availableAtomic, token.decimals);
 
   // Fee preview (0.1%)
@@ -80,7 +85,8 @@ export default function BridgePanel({
   }
 
   async function handleBridge() {
-    if (!amount.trim() || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+    // XXI-7: reject scientific notation and non-standard decimal formats
+    if (!amount.trim() || !/^\d+(\.\d+)?$/.test(amount.trim()) || parseFloat(amount) <= 0) {
       setError("Enter a valid amount");
       return;
     }
