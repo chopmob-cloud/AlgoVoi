@@ -193,7 +193,7 @@ const KNOWN_TYPES = new Set([
   "W3W_GENERATE_URI","W3W_GET_SESSIONS","W3W_DISCONNECT",
   "W3W_AGENT_SIGN_GET_PENDING","W3W_AGENT_SIGN_APPROVE","W3W_AGENT_SIGN_REJECT",
   "VOI_RESOLVE_NAME","AGENT_CHAT","SIGN_TRANSACTIONS","SIGN_AGENT_TRANSACTIONS","SUBMIT_TRANSACTIONS",
-  "VOI_SWAP_QUOTE","VOI_SWAP_EXECUTE",
+  "VOI_SWAP_QUOTE","VOI_SWAP_EXECUTE","BRIDGE_EXECUTE",
   "APPROVAL_GET_PENDING","APPROVAL_APPROVE","APPROVAL_REJECT",
   "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
   "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
@@ -1289,6 +1289,23 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
         decimalsIn: msg.decimalsIn,
         slippage:   msg.slippage,
         address:    msg.address,
+      });
+    }
+
+    // ── Aramid Bridge ────────────────────────────────────────────────────────
+
+    case "BRIDGE_EXECUTE": {
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("BRIDGE_EXECUTE is only available to internal extension pages");
+      }
+      const { executeBridge } = await import("./bridge-handler");
+      return executeBridge({
+        sourceChain:        msg.sourceChain,
+        sourceToken:        msg.sourceToken,
+        amount:             msg.amount,
+        decimals:           msg.decimals,
+        destinationAddress: msg.destinationAddress,
+        senderAddress:      msg.senderAddress,
       });
     }
 
