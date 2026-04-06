@@ -173,31 +173,10 @@ export default function BridgePanel({
         />
       </div>
 
-      {/* Fee breakdown */}
-      {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && pair && (
-        <div className="bg-surface-2 rounded-xl p-2.5 text-xs flex flex-col gap-1">
-          <div className="flex justify-between text-gray-400">
-            <span>Fee (0.1%)</span>
-            <span className="text-white">{feeDisplay}</span>
-          </div>
-          <div className="flex justify-between text-gray-400">
-            <span>You receive</span>
-            <span className="text-algo font-semibold">{receiveDisplay}</span>
-          </div>
-        </div>
-      )}
-
       {/* Error */}
       {error && (
         <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-1.5">
           {error}
-        </div>
-      )}
-
-      {/* Success */}
-      {txId && (
-        <div className="text-xs text-green-400 bg-green-400/10 rounded-lg px-3 py-1.5 break-all">
-          Bridged! TX: {txId}
         </div>
       )}
 
@@ -209,6 +188,20 @@ export default function BridgePanel({
       >
         {executing ? "Bridging…" : `Bridge ${token.symbol} → ${pair?.destSymbol ?? "?"}`}
       </button>
+
+      {/* Fee summary + success below button */}
+      {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && pair && !txId && (
+        <div className="flex justify-between text-xs text-gray-500 px-1">
+          <span>Fee 0.1% · You receive</span>
+          <span className="text-algo">{receiveDisplay}</span>
+        </div>
+      )}
+
+      {txId && (
+        <div className="text-xs text-green-400 bg-green-400/10 rounded-lg px-3 py-1.5 break-all">
+          Bridged! TX: {txId}
+        </div>
+      )}
     </div>
   );
 }
