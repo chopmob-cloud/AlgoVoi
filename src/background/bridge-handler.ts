@@ -22,24 +22,24 @@ const BRIDGE_ADDRESS = "ARAMIDFJYV2TOFB5MRNZJIXBSAVZCVAUDAPFGKR5PNX4MTILGAZABBTX
 
 const VALID_CHAINS: readonly ChainId[] = ["algorand", "voi"] as const;
 
+// Aramid protocol chain IDs for the DESTINATION network
+// 416001 = Algorand mainnet, 416101 = Voi mainnet
 const DEST_CHAIN_IDS: Record<ChainId, number> = {
-  "algorand": 416101, // destination when bridging FROM algorand TO voi
-  "voi":      416001, // destination when bridging FROM voi TO algorand
+  "algorand": 416001, // Algorand mainnet chain ID (used when dest IS algorand)
+  "voi":      416101, // Voi mainnet chain ID     (used when dest IS voi)
 };
 
-// XXI-3: explicit whitelist of valid source tokens per chain
+// XXI-3: explicit whitelist of valid source tokens per chain — USDC/aUSDC only
 const VALID_TOKENS: Record<ChainId, number[]> = {
-  voi:      [0, 302190],
-  algorand: [0, 31566704],
+  voi:      [302190],
+  algorand: [31566704],
 };
 
 // Known destination-chain token IDs for each source token.
 // Key: `${sourceChain}:${sourceTokenId}` → destination token ID (as string).
 export const BRIDGE_TOKEN_PAIRS: Record<string, { destToken: string; symbol: string; destSymbol: string }> = {
-  "voi:0":             { destToken: "2320775407", symbol: "VOI",   destSymbol: "aVOI"  },
-  "algorand:0":        { destToken: "0",          symbol: "ALGO",  destSymbol: "aALGO" },
-  "voi:302190":        { destToken: "31566704",   symbol: "aUSDC", destSymbol: "USDC"  },
-  "algorand:31566704": { destToken: "302190",     symbol: "USDC",  destSymbol: "aUSDC" },
+  "voi:302190":        { destToken: "31566704", symbol: "aUSDC", destSymbol: "USDC"  },
+  "algorand:31566704": { destToken: "302190",   symbol: "USDC",  destSymbol: "aUSDC" },
 };
 
 export interface BridgeParams {
@@ -128,25 +128,14 @@ export async function executeBridge(params: BridgeParams): Promise<{ txId: strin
     const algod      = getAlgodClient(params.sourceChain);
     const txnParams  = await algod.getTransactionParams().do();
 
-    let txn: algosdk.Transaction;
-    if (params.sourceToken === 0) {
-      txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender:           params.senderAddress,
-        receiver:         BRIDGE_ADDRESS,
-        amount:           amountAtomic,
-        suggestedParams:  txnParams,
-        note:             noteBytes,
-      });
-    } else {
-      txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        sender:           params.senderAddress,
-        receiver:         BRIDGE_ADDRESS,
-        amount:           amountAtomic,
-        assetIndex:       params.sourceToken,
-        suggestedParams:  txnParams,
-        note:             noteBytes,
-      });
-    }
+    const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      sender:           params.senderAddress,
+      receiver:         BRIDGE_ADDRESS,
+      amount:           amountAtomic,
+      assetIndex:       params.sourceToken,
+      suggestedParams:  txnParams,
+      note:             noteBytes,
+    });
 
     const { blob } = algosdk.signTransaction(txn, sk);
     const result   = await algod.sendRawTransaction(blob).do() as { txid: string };
