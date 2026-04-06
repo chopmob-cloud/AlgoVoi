@@ -116,26 +116,21 @@ export default function BridgePanel({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
 
-      {/* Route indicator */}
-      <div className="bg-surface-2 rounded-xl p-3 flex items-center justify-between text-xs">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-gray-400">From</span>
-          <span className="font-semibold text-white">{CHAIN_LABEL[activeChain]}</span>
-        </div>
-        <div className="text-algo text-lg">→</div>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-gray-400">To</span>
-          <span className="font-semibold text-white">{CHAIN_LABEL[destChain]}</span>
-        </div>
+      {/* Route header */}
+      <div className="flex items-center justify-between text-xs px-1 pb-1">
+        <span className="font-semibold text-white">{CHAIN_LABEL[activeChain]}</span>
+        <span className="text-algo">→</span>
+        <span className="font-semibold text-white">{CHAIN_LABEL[destChain]}</span>
+        <span className="text-gray-500 ml-auto">via Aramid</span>
       </div>
 
       {/* Token + Amount */}
-      <div className="bg-surface-2 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-400">Token &amp; Amount</span>
-          <span className="text-xs text-gray-500">Balance: {availableDisplay}</span>
+      <div className="bg-surface-2 rounded-xl p-2.5">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs text-gray-400">Amount</span>
+          <span className="text-xs text-gray-500">Bal: {availableDisplay}</span>
         </div>
         <div className="flex gap-2">
           <select
@@ -166,48 +161,42 @@ export default function BridgePanel({
       </div>
 
       {/* Destination address */}
-      <div className="bg-surface-2 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-400">Destination address ({CHAIN_LABEL[destChain]})</span>
-        </div>
+      <div className="bg-surface-2 rounded-xl p-2.5">
+        <span className="text-xs text-gray-400 block mb-1.5">Destination ({CHAIN_LABEL[destChain]})</span>
         <input
           type="text"
           placeholder="Paste destination address…"
           value={destAddr}
           onChange={(e) => { setDestAddr(e.target.value); setTxId(null); setError(null); }}
-          className="w-full bg-surface-1 text-white text-xs rounded-lg px-3 py-2 outline-none font-mono"
+          className="w-full bg-surface-1 text-white text-xs rounded-lg px-3 py-1.5 outline-none font-mono"
           spellCheck={false}
         />
       </div>
 
       {/* Fee breakdown */}
       {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && pair && (
-        <div className="bg-surface-2 rounded-xl p-3 text-xs flex flex-col gap-1.5">
+        <div className="bg-surface-2 rounded-xl p-2.5 text-xs flex flex-col gap-1">
           <div className="flex justify-between text-gray-400">
-            <span>Bridge fee (0.1%)</span>
+            <span>Fee (0.1%)</span>
             <span className="text-white">{feeDisplay}</span>
           </div>
           <div className="flex justify-between text-gray-400">
-            <span>You receive ({pair.destSymbol})</span>
+            <span>You receive</span>
             <span className="text-algo font-semibold">{receiveDisplay}</span>
-          </div>
-          <div className="flex justify-between text-gray-500 pt-1 border-t border-surface-1">
-            <span>Powered by</span>
-            <span>Aramid Bridge</span>
           </div>
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+        <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-1.5">
           {error}
         </div>
       )}
 
       {/* Success */}
       {txId && (
-        <div className="text-xs text-green-400 bg-green-400/10 rounded-lg px-3 py-2 break-all">
+        <div className="text-xs text-green-400 bg-green-400/10 rounded-lg px-3 py-1.5 break-all">
           Bridged! TX: {txId}
         </div>
       )}
@@ -220,10 +209,6 @@ export default function BridgePanel({
       >
         {executing ? "Bridging…" : `Bridge ${token.symbol} → ${pair?.destSymbol ?? "?"}`}
       </button>
-
-      <p className="text-center text-xs text-gray-600">
-        Delivery is automatic. Allow 1–2 minutes after confirmation.
-      </p>
     </div>
   );
 }
