@@ -1,20 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { sendBg } from "../App";
 import type { Account } from "@shared/types/wallet";
 import type { AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
-import { BRIDGE_TOKEN_PAIRS } from "../../background/bridge-handler";
 
-// Supported tokens per chain — USDC/aUSDC only
-const CHAIN_TOKENS: Record<ChainId, { id: number; symbol: string; decimals: number }[]> = {
-  voi:      [{ id: 302190,   symbol: "aUSDC", decimals: 6 }],
-  algorand: [{ id: 31566704, symbol: "USDC",  decimals: 6 }],
-};
+// Allbridge destination chains for USDC from Algorand
+const DEST_CHAINS = [
+  { id: "ETH",  label: "Ethereum"  },
+  { id: "BSC",  label: "BNB Chain" },
+  { id: "SOL",  label: "Solana"    },
+  { id: "ARB",  label: "Arbitrum"  },
+  { id: "POL",  label: "Polygon"   },
+  { id: "AVA",  label: "Avalanche" },
+  { id: "OPT",  label: "Optimism"  },
+  { id: "BAS",  label: "Base"      },
+  { id: "SUI",  label: "SUI"       },
+];
 
-const CHAIN_LABEL: Record<ChainId, string> = {
-  voi:      "Voi",
-  algorand: "Algorand",
-};
+// Algorand USDC token address (ASA 31566704)
+const ALG_USDC_ADDRESS = "31566704";
+const ALG_USDC_ASSET_ID = 31566704;
 
 function formatAtomic(atomic: bigint, decimals: number): string {
   if (decimals === 0) return atomic.toString();
@@ -27,7 +32,6 @@ function formatAtomic(atomic: bigint, decimals: number): string {
 export default function BridgePanel({
   activeAccount,
   activeChain,
-  balance,
   assets,
 }: {
   activeAccount: Account;
@@ -35,44 +39,59 @@ export default function BridgePanel({
   balance:       bigint;
   assets:        AccountAsset[];
 }) {
-  const destChain = activeChain === "voi" ? "algorand" : "voi";
+  const [destChain,  setDestChain]  = useState("ETH");
+  const [amount,     setAmount]     = useState("");
+  const [destAddr,   setDestAddr]   = useState("");
+  const [estimated,  setEstimated]  = useState<string | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [executing,  setExecuting]  = useState(false);
+  const [txId,       setTxId]       = useState<string | null>(null);
+  const [error,      setError]      = useState<string | null>(null);
 
-  const tokens  = CHAIN_TOKENS[activeChain];
-  const [tokenIdx,  setTokenIdx]  = useState(0);
-  const [amount,    setAmount]    = useState("");
-  const [destAddr,  setDestAddr]  = useState("");
-  const [executing, setExecuting] = useState(false);
-  const [txId,      setTxId]      = useState<string | null>(null);
-  const [error,     setError]     = useState<string | null>(null);
+  // Only supported on Algorand
+  const unsupported = activeChain !== "algorand";
 
-  const token = tokens[tokenIdx];
-  const pairKey = `${activeChain}:${token.id}`;
-  const pair = BRIDGE_TOKEN_PAIRS[pairKey];
+  // Available USDC balance
+  const usdcAsset = assets.find((a) => a.assetId === ALG_USDC_ASSET_ID);
+  const usdcBalance = usdcAsset?.amount ?? 0n;
+  const usdcDisplay = formatAtomic(usdcBalance, 6);
 
-  // Available balance for selected token (ASA only — native tokens not supported)
-  const rawAvailable = assets.find((a) => a.assetId === token.id)?.amount ?? 0n;
-  const availableAtomic = rawAvailable;
-  const availableDisplay = formatAtomic(availableAtomic, token.decimals);
-
-  // Fee preview (0.1%)
-  let feeDisplay = "—";
-  let receiveDisplay = "—";
-  const amtNum = parseFloat(amount);
-  if (amount && !isNaN(amtNum) && amtNum > 0) {
-    const fee    = amtNum * 0.001;
-    const recv   = amtNum - fee;
-    feeDisplay   = fee.toFixed(token.decimals > 4 ? 4 : token.decimals) + " " + token.symbol;
-    receiveDisplay = recv.toFixed(token.decimals > 4 ? 4 : token.decimals) + " " + (pair?.destSymbol ?? "");
-  }
-
-  function reset() {
-    setAmount("");
-    setTxId(null);
-    setError(null);
-  }
+  // Fetch estimate when amount or dest chain changes
+  useEffect(() => {
+    if (!amount || parseFloat(amount) <= 0 || unsupported) {
+      setEstimated(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setEstimating(true);
+      try {
+        const res = await sendBg<{ result?: { estimatedReceive?: string }; error?: string }>({
+          type: "MCP_TOOL_CALL",
+          tool: "allbridge_bridge_txn",
+          params: {
+            fromAddress:          activeAccount.address,
+            toAddress:            activeAccount.address, // placeholder for estimate
+            sourceTokenAddress:   ALG_USDC_ADDRESS,
+            destinationChain:     destChain,
+            destinationTokenSymbol: "USDC",
+            amount:               amount.trim(),
+          },
+        });
+        if (res?.result?.estimatedReceive) {
+          setEstimated(res.result.estimatedReceive + " USDC");
+        } else {
+          setEstimated(null);
+        }
+      } catch {
+        setEstimated(null);
+      } finally {
+        setEstimating(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [amount, destChain, unsupported, activeAccount.address]);
 
   async function handleBridge() {
-    // XXI-7: reject scientific notation and non-standard decimal formats
     if (!amount.trim() || !/^\d+(\.\d+)?$/.test(amount.trim()) || parseFloat(amount) <= 0) {
       setError("Enter a valid amount");
       return;
@@ -82,11 +101,7 @@ export default function BridgePanel({
       return;
     }
     if (activeAccount.type === "walletconnect") {
-      setError("Bridge requires a mnemonic account — WalletConnect not yet supported");
-      return;
-    }
-    if (!pair) {
-      setError("This token pair is not supported for bridging");
+      setError("Bridge requires a mnemonic account");
       return;
     }
 
@@ -97,16 +112,17 @@ export default function BridgePanel({
     const keepAlive = setInterval(() => void sendBg({ type: "KEEP_ALIVE" }), 30_000);
     try {
       const result = await sendBg<{ txId: string }>({
-        type:               "BRIDGE_EXECUTE",
-        sourceChain:        activeChain,
-        sourceToken:        token.id,
-        amount:             amount.trim(),
-        decimals:           token.decimals,
-        destinationAddress: destAddr.trim(),
-        senderAddress:      activeAccount.address,
+        type:                 "ALLBRIDGE_EXECUTE",
+        fromAddress:          activeAccount.address,
+        toAddress:            destAddr.trim(),
+        sourceTokenAddress:   ALG_USDC_ADDRESS,
+        destinationChain:     destChain,
+        destinationTokenSymbol: "USDC",
+        amount:               amount.trim(),
       });
       setTxId(result.txId);
       setAmount("");
+      setEstimated(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bridge failed. Please try again.");
     } finally {
@@ -115,33 +131,42 @@ export default function BridgePanel({
     }
   }
 
+  if (unsupported) {
+    return (
+      <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
+        <span className="text-gray-400 text-xs">Allbridge is only available on Algorand.</span>
+        <span className="text-gray-500 text-xs">Switch to Algorand to bridge USDC.</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
 
       {/* Route header */}
-      <div className="flex items-center justify-between text-xs px-1 pb-1">
-        <span className="font-semibold text-white">{CHAIN_LABEL[activeChain]}</span>
+      <div className="flex items-center justify-between text-xs px-1">
+        <span className="font-semibold text-white">Algorand USDC</span>
         <span className="text-algo">→</span>
-        <span className="font-semibold text-white">{CHAIN_LABEL[destChain]}</span>
-        <span className="text-gray-500 ml-auto">via Aramid</span>
+        <select
+          className="bg-surface-1 text-white text-xs rounded-lg px-2 py-1 outline-none cursor-pointer"
+          value={destChain}
+          onChange={(e) => { setDestChain(e.target.value); setEstimated(null); }}
+        >
+          {DEST_CHAINS.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
+        <span className="text-gray-500 text-xs ml-1">via Allbridge</span>
       </div>
 
-      {/* Token + Amount */}
+      {/* Amount */}
       <div className="bg-surface-2 rounded-xl p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-gray-400">Amount</span>
-          <span className="text-xs text-gray-500">Bal: {availableDisplay}</span>
+          <span className="text-xs text-gray-400">USDC amount</span>
+          <span className="text-xs text-gray-500">Bal: {usdcDisplay}</span>
         </div>
         <div className="flex gap-2">
-          <select
-            className="bg-surface-1 text-xs rounded-lg px-2 py-1.5 outline-none cursor-pointer text-white"
-            value={tokenIdx}
-            onChange={(e) => { setTokenIdx(Number(e.target.value)); reset(); }}
-          >
-            {tokens.map((t, i) => (
-              <option key={t.id} value={i}>{t.symbol}</option>
-            ))}
-          </select>
+          <span className="bg-surface-1 text-xs rounded-lg px-2 py-1.5 text-gray-300">USDC</span>
           <input
             type="number"
             min="0"
@@ -152,7 +177,7 @@ export default function BridgePanel({
             className="flex-1 bg-surface-1 text-white text-sm rounded-lg px-3 py-1.5 outline-none [appearance:textfield]"
           />
           <button
-            onClick={() => { setAmount(availableDisplay); setTxId(null); setError(null); }}
+            onClick={() => { setAmount(usdcDisplay); setTxId(null); setError(null); }}
             className="text-xs text-algo hover:underline px-1"
           >
             Max
@@ -162,7 +187,9 @@ export default function BridgePanel({
 
       {/* Destination address */}
       <div className="bg-surface-2 rounded-xl p-2.5">
-        <span className="text-xs text-gray-400 block mb-1.5">Destination ({CHAIN_LABEL[destChain]})</span>
+        <span className="text-xs text-gray-400 block mb-1.5">
+          Destination ({DEST_CHAINS.find((c) => c.id === destChain)?.label})
+        </span>
         <input
           type="text"
           placeholder="Paste destination address…"
@@ -172,6 +199,14 @@ export default function BridgePanel({
           spellCheck={false}
         />
       </div>
+
+      {/* Estimate */}
+      {(estimating || estimated) && (
+        <div className="flex justify-between text-xs px-1 text-gray-400">
+          <span>You receive (~)</span>
+          <span className="text-algo">{estimating ? "…" : estimated}</span>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -186,17 +221,10 @@ export default function BridgePanel({
         disabled={executing || !amount || !destAddr}
         className="w-full py-2.5 rounded-xl bg-algo text-black text-sm font-bold hover:bg-algo/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {executing ? "Bridging…" : `Bridge ${token.symbol} → ${pair?.destSymbol ?? "?"}`}
+        {executing ? "Bridging…" : `Bridge USDC → ${DEST_CHAINS.find((c) => c.id === destChain)?.label}`}
       </button>
 
-      {/* Fee summary + success below button */}
-      {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && pair && !txId && (
-        <div className="flex justify-between text-xs text-gray-500 px-1">
-          <span>Fee 0.1% · You receive</span>
-          <span className="text-algo">{receiveDisplay}</span>
-        </div>
-      )}
-
+      {/* Success */}
       {txId && (
         <div className="text-xs text-green-400 bg-green-400/10 rounded-lg px-3 py-1.5 break-all">
           Bridged! TX: {txId}
