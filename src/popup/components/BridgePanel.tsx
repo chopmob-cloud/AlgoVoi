@@ -5,16 +5,10 @@ import type { AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 import { BRIDGE_TOKEN_PAIRS } from "../../background/bridge-handler";
 
-// Supported tokens per chain, in display order
+// Supported tokens per chain — USDC/aUSDC only
 const CHAIN_TOKENS: Record<ChainId, { id: number; symbol: string; decimals: number }[]> = {
-  voi:      [
-    { id: 0,      symbol: "VOI",   decimals: 6 },
-    { id: 302190, symbol: "aUSDC", decimals: 6 },
-  ],
-  algorand: [
-    { id: 0,        symbol: "ALGO", decimals: 6 },
-    { id: 31566704, symbol: "USDC", decimals: 6 },
-  ],
+  voi:      [{ id: 302190,   symbol: "aUSDC", decimals: 6 }],
+  algorand: [{ id: 31566704, symbol: "USDC",  decimals: 6 }],
 };
 
 const CHAIN_LABEL: Record<ChainId, string> = {
@@ -55,16 +49,9 @@ export default function BridgePanel({
   const pairKey = `${activeChain}:${token.id}`;
   const pair = BRIDGE_TOKEN_PAIRS[pairKey];
 
-  // Available balance for selected token.
-  // XXI-8: reserve 1000 µ (0.001 native) for algod tx fee when bridging native token.
-  const TX_FEE_RESERVE = 1000n;
-  const rawAvailable =
-    token.id === 0
-      ? balance
-      : (assets.find((a) => a.assetId === token.id)?.amount ?? 0n);
-  const availableAtomic = token.id === 0
-    ? (rawAvailable > TX_FEE_RESERVE ? rawAvailable - TX_FEE_RESERVE : 0n)
-    : rawAvailable;
+  // Available balance for selected token (ASA only — native tokens not supported)
+  const rawAvailable = assets.find((a) => a.assetId === token.id)?.amount ?? 0n;
+  const availableAtomic = rawAvailable;
   const availableDisplay = formatAtomic(availableAtomic, token.decimals);
 
   // Fee preview (0.1%)
