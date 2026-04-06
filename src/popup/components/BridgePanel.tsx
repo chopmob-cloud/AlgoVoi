@@ -184,7 +184,7 @@ export default function BridgePanel({
       <button
         onClick={handleBridge}
         disabled={executing || !amount || !destAddr}
-        className="w-full gradient-btn text-[#0D1117] text-sm font-bold py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 rounded-xl bg-algo text-black text-sm font-bold hover:bg-algo/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {executing ? "Bridging…" : `Bridge ${token.symbol} → ${pair?.destSymbol ?? "?"}`}
       </button>
