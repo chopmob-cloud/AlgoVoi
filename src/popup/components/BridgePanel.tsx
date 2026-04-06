@@ -40,7 +40,7 @@ export default function BridgePanel({
   const tokens  = CHAIN_TOKENS[activeChain];
   const [tokenIdx,  setTokenIdx]  = useState(0);
   const [amount,    setAmount]    = useState("");
-  const [destAddr,  setDestAddr]  = useState(activeAccount.address);
+  const [destAddr,  setDestAddr]  = useState("");
   const [executing, setExecuting] = useState(false);
   const [txId,      setTxId]      = useState<string | null>(null);
   const [error,     setError]     = useState<string | null>(null);
