@@ -17,6 +17,17 @@ const DEST_CHAINS = [
   { id: "SUI",  label: "SUI"       },
 ];
 
+// Allbridge chain IDs for deep-link fallback URL
+const ALLBRIDGE_CHAIN_ID: Record<string, string> = {
+  ETH: "ETH", BSC: "BSC", SOL: "SOL", ARB: "ARB",
+  POL: "POL", AVA: "AVA", OPT: "OPT", BAS: "BAS", SUI: "SUI",
+};
+
+function allbridgeFallbackUrl(destChain: string): string {
+  const t = ALLBRIDGE_CHAIN_ID[destChain] ?? destChain;
+  return `https://core.allbridge.io/?f=ALG&ft=USDC&t=${t}&tt=USDC`;
+}
+
 // Algorand USDC token address (ASA 31566704)
 const ALG_USDC_ADDRESS = "31566704";
 const ALG_USDC_ASSET_ID = 31566704;
@@ -47,6 +58,7 @@ export default function BridgePanel({
   const [executing,  setExecuting]  = useState(false);
   const [txId,       setTxId]       = useState<string | null>(null);
   const [error,      setError]      = useState<string | null>(null);
+  const [fallback,   setFallback]   = useState<string | null>(null);
 
   // Only supported on Algorand
   const unsupported = activeChain !== "algorand";
@@ -124,7 +136,10 @@ export default function BridgePanel({
       setAmount("");
       setEstimated(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bridge failed. Please try again.");
+      const msg = err instanceof Error ? err.message : "Bridge failed.";
+      // Show fallback link so user can complete on Allbridge website
+      setError(`${msg} Use the fallback link below to bridge on allbridge.io directly.`);
+      setFallback(allbridgeFallbackUrl(destChain));
     } finally {
       clearInterval(keepAlive);
       setExecuting(false);
@@ -173,11 +188,11 @@ export default function BridgePanel({
             step="any"
             placeholder="0.00"
             value={amount}
-            onChange={(e) => { setAmount(e.target.value); setTxId(null); setError(null); }}
+            onChange={(e) => { setAmount(e.target.value); setTxId(null); setError(null); setFallback(null); }}
             className="flex-1 bg-surface-1 text-white text-sm rounded-lg px-3 py-1.5 outline-none [appearance:textfield]"
           />
           <button
-            onClick={() => { setAmount(usdcDisplay); setTxId(null); setError(null); }}
+            onClick={() => { setAmount(usdcDisplay); setTxId(null); setError(null); setFallback(null); }}
             className="text-xs text-algo hover:underline px-1"
           >
             Max
@@ -194,7 +209,7 @@ export default function BridgePanel({
           type="text"
           placeholder="Paste destination address…"
           value={destAddr}
-          onChange={(e) => { setDestAddr(e.target.value); setTxId(null); setError(null); }}
+          onChange={(e) => { setDestAddr(e.target.value); setTxId(null); setError(null); setFallback(null); }}
           className="w-full bg-surface-1 text-white text-xs rounded-lg px-3 py-1.5 outline-none font-mono"
           spellCheck={false}
         />
@@ -208,11 +223,21 @@ export default function BridgePanel({
         </div>
       )}
 
-      {/* Error */}
+      {/* Error + fallback */}
       {error && (
         <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-1.5">
           {error}
         </div>
+      )}
+      {fallback && (
+        <a
+          href={fallback}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-xs text-algo underline py-1"
+        >
+          Open Allbridge.io to bridge manually →
+        </a>
       )}
 
       {/* Execute */}
