@@ -13,13 +13,13 @@ import ImportMnemonicModal from "./ImportMnemonicModal";
 import { checkClipboardHijack } from "@shared/utils/anti-phishing";
 import SwapPanel from "./SwapPanel";
 import VoiSwapPanel from "./VoiSwapPanel";
-import BridgePanel from "./BridgePanel";
+
 import AgentChat from "./AgentChat";
 import type { WalletMeta, Account } from "@shared/types/wallet";
 import type { AccountState, AccountAsset } from "@shared/types/chain";
 import type { ChainId } from "@shared/types/chain";
 
-type Tab = "assets" | "swap" | "bridge" | "apps" | "agents" | "vault";
+type Tab = "assets" | "swap" | "apps" | "agents" | "vault";
 type Modal = "send" | "receive" | "import_mnemonic" | "add_menu" | "confirm_remove" | null;
 
 /**
@@ -710,7 +710,7 @@ export default function AccountView() {
 
       {/* Tab bar */}
       <div className="flex px-4 pt-4 gap-1 border-b border-surface-2 mb-3">
-        {(["assets", "swap", "bridge", "apps", "agents", "vault"] as Tab[]).map((t) => (
+        {(["assets", "swap", "apps", "agents", "vault"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t as Tab)}
@@ -748,14 +748,7 @@ export default function AccountView() {
             assets={chainState?.assets ?? []}
           />
         )}
-        {tab === "bridge" && activeAccount && (
-          <BridgePanel
-            activeAccount={activeAccount}
-            activeChain={activeChain}
-            balance={chainState?.balance ?? 0n}
-            assets={chainState?.assets ?? []}
-          />
-        )}
+
         {tab === "apps" && (
           <ConnectedAppsTab connectedSites={meta?.connectedSites ?? {}} onUpdate={loadState} activeChain={activeChain} />
         )}
