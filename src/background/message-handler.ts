@@ -193,7 +193,7 @@ const KNOWN_TYPES = new Set([
   "W3W_GENERATE_URI","W3W_GET_SESSIONS","W3W_DISCONNECT",
   "W3W_AGENT_SIGN_GET_PENDING","W3W_AGENT_SIGN_APPROVE","W3W_AGENT_SIGN_REJECT",
   "VOI_RESOLVE_NAME","AGENT_CHAT","SIGN_TRANSACTIONS","SIGN_AGENT_TRANSACTIONS","SUBMIT_TRANSACTIONS",
-  "VOI_SWAP_QUOTE","VOI_SWAP_EXECUTE","BRIDGE_EXECUTE",
+  "VOI_SWAP_QUOTE","VOI_SWAP_EXECUTE","BRIDGE_EXECUTE","ALLBRIDGE_EXECUTE",
   "APPROVAL_GET_PENDING","APPROVAL_APPROVE","APPROVAL_REJECT",
   "VAULT_GET_STATE","VAULT_DEPLOY","VAULT_WC_SUBMIT_CREATE","VAULT_WC_SUBMIT_SETUP",
   "VAULT_WC_ACTION_SUBMIT","VAULT_ACTION","VAULT_GET_OPTED_ASSETS","VAULT_REMAP","VAULT_WC_REMAP_SUBMIT",
@@ -1292,7 +1292,28 @@ async function dispatch(msg: BgRequest, tabId: number, sender: chrome.runtime.Me
       });
     }
 
-    // ── Aramid Bridge ────────────────────────────────────────────────────────
+    // ── Allbridge ────────────────────────────────────────────────────────────
+
+    case "ALLBRIDGE_EXECUTE": {
+      if (sender.id !== chrome.runtime.id) {
+        throw new Error("ALLBRIDGE_EXECUTE is only available to internal extension pages");
+      }
+      if (!msg.fromAddress || !msg.toAddress || !msg.amount || !msg.destinationChain) {
+        throw new Error("Missing required bridge params");
+      }
+      const { executeAllbridge } = await import("./allbridge-handler");
+      return executeAllbridge({
+        fromAddress:            msg.fromAddress,
+        toAddress:              msg.toAddress,
+        sourceTokenAddress:     msg.sourceTokenAddress,
+        destinationChain:       msg.destinationChain,
+        destinationTokenSymbol: msg.destinationTokenSymbol,
+        amount:                 msg.amount,
+        senderAddress:          msg.senderAddress ?? msg.fromAddress,
+      });
+    }
+
+    // ── Aramid Bridge (legacy) ────────────────────────────────────────────────
 
     case "BRIDGE_EXECUTE": {
       if (sender.id !== chrome.runtime.id) {
