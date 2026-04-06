@@ -50,8 +50,9 @@
      Defined here (not as style="" in HTML) to avoid unsafe-inline in the CSP. */
   body.body-popup {
     width: 360px;
-    min-height: 560px;
-    overflow-x: hidden;
+    height: 600px;
+    max-height: 600px;
+    overflow: hidden;
   }
   body.body-approval {
     width: 400px;

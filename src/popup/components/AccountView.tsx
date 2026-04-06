@@ -398,7 +398,7 @@ export default function AccountView() {
   // ── Empty wallet (WC-only setup, no accounts yet) ─────────────────────────
   if (!meta?.accounts.length) {
     return (
-      <div className="flex flex-col min-h-[560px]">
+      <div className="flex flex-col h-full">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-2">
@@ -452,7 +452,7 @@ export default function AccountView() {
   const cfg = CHAINS[activeChain];
 
   return (
-    <div className="flex flex-col min-h-[560px]">
+    <div className="flex flex-col h-full">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
