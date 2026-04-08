@@ -49,7 +49,7 @@ export default function MultiTenantSection() {
     { arrow: true },
     { step: '2', label: 'Gateway returns 402', sub: 'PAYMENT-REQUIRED header' },
     { arrow: true },
-    { step: '3', label: 'Client pays on-chain', sub: 'Algorand or Voi' },
+    { step: '3', label: 'Client pays on-chain', sub: 'Algorand · VOI · Hedera · Stellar' },
     { arrow: true },
     { step: '4', label: 'Retry with proof', sub: 'PAYMENT-SIGNATURE header' },
     { arrow: true },
