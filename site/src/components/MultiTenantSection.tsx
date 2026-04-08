@@ -231,7 +231,7 @@ PAYMENT-SIGNATURE: base64({
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-emerald-400/10 border border-algo/20 rounded-2xl p-8 text-center mt-4">
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start building in 30 seconds</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            No email required. Just your Algorand or VOI wallet address.
+            No email required. Just your Algorand, VOI, Hedera or Stellar wallet address.
             Get instant API access with testnet + capped mainnet — 30-day free trial.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
