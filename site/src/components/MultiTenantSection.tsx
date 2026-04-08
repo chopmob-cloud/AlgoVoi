@@ -12,8 +12,8 @@ export default function MultiTenantSection() {
     },
     {
       icon: '⛓️',
-      title: 'Algorand, VOI & Hedera',
-      desc: 'Accept payments on Algorand, VOI, or Hedera mainnet. Multi-chain checkout with chain picker — customers choose their preferred network.',
+      title: 'Algorand, VOI, Hedera & Stellar',
+      desc: 'Accept payments on Algorand, VOI, Hedera, or Stellar mainnet. Multi-chain checkout with chain picker — customers choose their preferred network.',
     },
     {
       icon: '🤖',
