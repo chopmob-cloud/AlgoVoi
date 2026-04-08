@@ -23,7 +23,7 @@ export default function MultiTenantSection() {
     {
       icon: '🛡️',
       title: 'Security-first, fail-closed',
-      desc: 'Kill switch, amount caps, test/live network separation, KYB gate, and a 10-layer security model — enforced at the gateway, not just documented.',
+      desc: 'Kill switch, amount caps, test/live network separation, and a 10-layer security model — enforced at the gateway, not just documented.',
     },
     {
       icon: '📊',
@@ -35,11 +35,11 @@ export default function MultiTenantSection() {
   const onboarding = [
     { step: '1', label: 'Create tenant', sub: 'POST /tenants via control plane' },
     { arrow: true },
-    { step: '2', label: 'Complete KYB', sub: 'Submit company details' },
+    { step: '2', label: 'Verify identity', sub: 'Submit your details' },
     { arrow: true },
     { step: '3', label: 'Test on testnet', sub: 'Full x402 flow, no real money' },
     { arrow: true },
-    { step: '4', label: 'KYB approved', sub: 'Compliance review passes' },
+    { step: '4', label: 'Verified', sub: 'Compliance review passes' },
     { arrow: true },
     { step: '5', label: 'Activate live', sub: 'POST activate-live → mainnet' },
   ]
@@ -211,10 +211,10 @@ PAYMENT-SIGNATURE: base64({
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
             <div className="text-lg mb-2">✅</div>
-            <div className="text-sm font-bold text-text mb-1">KYB required for live</div>
+            <div className="text-sm font-bold text-text mb-1">Verification required for live</div>
             <div className="text-xs text-gray leading-relaxed">
-              UK-regulated B2B platform. Submit your company details; once KYB is approved,
-              an operator activates live mode — no shortcut.
+              Submit your details for a compliance review. Once verified,
+              live mode is activated — no shortcut.
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
