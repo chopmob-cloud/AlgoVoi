@@ -3,10 +3,10 @@ export default function EcommerceSection() {
     {
       name: 'WooCommerce',
       icon: '🟣',
-      url: 'https://woocommerce.ilovechicken.co.uk',
+      url: 'https://woo.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
       desc: 'WordPress + WooCommerce plugin with hosted checkout redirect and in-page browser extension payment.',
     },
     {
@@ -15,7 +15,7 @@ export default function EcommerceSection() {
       url: 'https://opencart.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
       desc: 'OpenCart 4 extension with AJAX-powered checkout, chain selector, and dark-themed storefront.',
     },
     {
@@ -24,7 +24,7 @@ export default function EcommerceSection() {
       url: 'https://prestashop.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
       desc: 'PrestaShop 8 module with custom payment options, cookie-secured sessions, and full dark theme.',
     },
     {
@@ -33,8 +33,62 @@ export default function EcommerceSection() {
       url: 'https://shopware.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
       desc: 'Shopware 6 plugin with Symfony payment handlers, Twig chain selector, and webhook verification.',
+    },
+    {
+      name: 'Native PHP',
+      icon: '🐘',
+      url: '',
+      hosted: true,
+      extension: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      desc: 'Framework-free PHP adapter. Single-file drop-in for any custom PHP application — no dependencies, no composer required.',
+    },
+    {
+      name: 'Native Python',
+      icon: '🐍',
+      url: '',
+      hosted: true,
+      extension: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      desc: 'Zero-dependency Python adapter using only the standard library. Works with Flask, Django, FastAPI, or plain WSGI.',
+    },
+    {
+      name: 'Native Go',
+      icon: '🔷',
+      url: '',
+      hosted: true,
+      extension: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      desc: 'Idiomatic Go package using only the standard library. Includes http.HandlerFunc helpers for webhooks and chain selectors.',
+    },
+    {
+      name: 'Native Rust',
+      icon: '🦀',
+      url: '',
+      hosted: true,
+      extension: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      desc: 'Zero-crate Rust library with pure-stdlib SHA-256, HMAC, and base64. Pluggable HttpClient trait for any TLS backend.',
+    },
+    {
+      name: 'MPP Server',
+      icon: '🤖',
+      url: '',
+      hosted: false,
+      extension: false,
+      chains: { hosted: ['Algorand', 'VOI'], extension: [] },
+      desc: 'Machine Payments Protocol middleware. Gate your APIs behind WWW-Authenticate: Payment challenges. Flask, Django, WSGI.',
+    },
+    {
+      name: 'AP2 Server',
+      icon: '🛒',
+      url: '',
+      hosted: false,
+      extension: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: [] },
+      desc: 'Google Agent Payments (AP2) middleware. Accept ed25519 signed mandates from AI agents. No on-chain tx at purchase time.',
     },
   ]
 
@@ -42,6 +96,7 @@ export default function EcommerceSection() {
     Algorand: 'text-algo',
     VOI: 'text-voi',
     Hedera: 'text-emerald-400',
+    Stellar: 'text-[#7C63D0]',
   }
 
   const securityFeatures = [
@@ -54,7 +109,7 @@ export default function EcommerceSection() {
   ]
 
   const flow = [
-    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera' },
+    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera · Stellar' },
     { step: '2', label: 'Plugin creates payment link', sub: 'POST /v1/payment-links' },
     { step: '3', label: 'Hosted: redirect to checkout', sub: 'Extension: pay in-page via wallet' },
     { step: '4', label: 'On-chain verification', sub: 'Webhook or API status check' },
@@ -82,7 +137,7 @@ export default function EcommerceSection() {
           </h2>
           <p className="text-gray max-w-2xl mx-auto leading-relaxed text-sm sm:text-base">
             Drop-in payment plugins for the world's most popular eCommerce platforms.
-            USDC on Algorand, aUSDC on VOI, and USDC on Hedera — with hosted checkout
+            USDC on Algorand, aUSDC on VOI, and USDC on Hedera & Stellar — with hosted checkout
             and browser extension payment flows.
           </p>
         </div>
@@ -99,12 +154,13 @@ export default function EcommerceSection() {
             </div>
             <p className="text-xs text-gray leading-relaxed mb-3">
               Customer is redirected to a secure AlgoVoi-hosted payment page.
-              Supports any wallet — no extension required. Payment confirmed via webhook.
+              Works with any wallet on four chains — Pera, Defly, Lute, HashPack, Freighter, LOBSTR. Payment confirmed via webhook + API status check.
             </p>
             <div className="flex flex-wrap gap-1.5">
               <span className="text-[10px] bg-algo/10 text-algo border border-algo/20 rounded-full px-2.5 py-0.5">Algorand</span>
               <span className="text-[10px] bg-voi/10 text-voi border border-voi/20 rounded-full px-2.5 py-0.5">VOI</span>
               <span className="text-[10px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 rounded-full px-2.5 py-0.5">Hedera</span>
+              <span className="text-[10px] bg-[#7C63D0]/10 text-[#7C63D0] border border-[#7C63D0]/20 rounded-full px-2.5 py-0.5">Stellar</span>
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5 sm:p-6">
@@ -156,32 +212,47 @@ export default function EcommerceSection() {
                   <div className="flex gap-1.5 mt-1">
                     {p.hosted && <span className="text-[10px] bg-surf2 border border-border rounded-full px-2 py-0.5 text-gray">Hosted</span>}
                     {p.extension && <span className="text-[10px] bg-surf2 border border-border rounded-full px-2 py-0.5 text-gray">Extension</span>}
+                    {!p.hosted && !p.extension && <span className="text-[10px] bg-voi/10 border border-voi/20 rounded-full px-2 py-0.5 text-voi">Agent Protocol</span>}
                   </div>
                 </div>
               </div>
               <p className="text-xs text-gray leading-relaxed mb-3">{p.desc}</p>
               <div className="mb-3">
-                <div className="text-[10px] text-muted uppercase tracking-wider mb-1">Hosted chains</div>
-                <div className="flex flex-wrap gap-1">
-                  {p.chains.hosted.map(c => (
-                    <span key={c} className={`text-[10px] font-medium ${chainColour[c]}`}>{c}</span>
-                  ))}
-                </div>
-                <div className="text-[10px] text-muted uppercase tracking-wider mb-1 mt-2">Extension chains</div>
-                <div className="flex flex-wrap gap-1">
-                  {p.chains.extension.map(c => (
-                    <span key={c} className={`text-[10px] font-medium ${chainColour[c]}`}>{c}</span>
-                  ))}
-                </div>
+                {p.chains.hosted.length > 0 && (
+                  <>
+                    <div className="text-[10px] text-muted uppercase tracking-wider mb-1">
+                      {p.hosted ? 'Hosted chains' : 'Supported chains'}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {p.chains.hosted.map(c => (
+                        <span key={c} className={`text-[10px] font-medium ${chainColour[c]}`}>{c}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {p.chains.extension.length > 0 && (
+                  <>
+                    <div className="text-[10px] text-muted uppercase tracking-wider mb-1 mt-2">Extension chains</div>
+                    <div className="flex flex-wrap gap-1">
+                      {p.chains.extension.map(c => (
+                        <span key={c} className={`text-[10px] font-medium ${chainColour[c]}`}>{c}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-              <a
-                href={p.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-algo hover:text-text transition-colors"
-              >
-                Visit demo store →
-              </a>
+              {p.url ? (
+                <a
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-algo hover:text-text transition-colors"
+                >
+                  Visit demo store →
+                </a>
+              ) : (
+                <span className="text-xs text-gray italic">Drop-in adapter — no platform required</span>
+              )}
             </div>
           ))}
         </div>
@@ -203,26 +274,41 @@ export default function EcommerceSection() {
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="text-center">
-          <p className="text-gray text-sm mb-4">Want AlgoVoi payments on your store?</p>
+        {/* Trial CTA */}
+        <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-[#7C63D0]/10 border border-algo/20 rounded-2xl p-6 sm:p-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            30-day free trial · No email · Wallet signup
+          </div>
+          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start accepting crypto payments in 30 seconds</h3>
+          <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
+            Drop an adapter into your store, sign up with your Algorand, VOI, Hedera or Stellar wallet, and you're live on testnet + capped mainnet.
+            Four chains, four flows, zero lock-in.
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
               href="https://api1.ilovechicken.co.uk/signup"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3 rounded-xl text-sm"
+              className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
               Start Free Trial →
             </a>
             <a
-              href="https://github.com/ArbiterFi/platform-adapters"
+              href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-surf1 border border-border text-text font-bold px-8 py-3 rounded-xl text-sm hover:bg-surf2 transition-colors"
+              className="inline-block bg-surf1 border border-border text-text font-bold px-8 py-3.5 rounded-xl text-sm hover:bg-surf2 transition-colors"
             >
               View on GitHub
             </a>
+          </div>
+          <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
+            <span>✓ No email needed</span>
+            <span>✓ Wallet-only signup</span>
+            <span>✓ API key in 30 seconds</span>
+            <span>✓ 4 chains supported</span>
+            <span>✓ Testnet + mainnet (capped)</span>
           </div>
         </div>
       </div>
