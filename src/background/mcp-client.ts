@@ -30,7 +30,13 @@ interface McpPaymentOption {
   scheme: string;
   network: string;
   asset: string;
-  amount: string;
+  /** Legacy field — kept for backward compat with older server builds */
+  amount?: string;
+  /** x402 spec field (preferred) — server sends both */
+  maxAmountRequired?: string;
+  resource?: string;
+  description?: string;
+  mimeType?: string;
   payTo: string;
   maxTimeoutSeconds: number;
   extra?: Record<string, unknown>;
@@ -134,19 +140,22 @@ async function payVoi(pr: McpPaymentOption): Promise<string> {
     throw new Error("WalletConnect accounts cannot auto-pay name resolution yet");
   }
 
-  // M1: Validate that pr.amount is a non-negative integer string before BigInt conversion.
+  // Prefer maxAmountRequired (x402 spec field); fall back to amount (legacy).
+  const rawAmount = pr.maxAmountRequired ?? pr.amount;
+
+  // M1: Validate that rawAmount is a non-negative integer string before BigInt conversion.
   // BigInt("1.5") and BigInt("abc") both throw SyntaxError; the MCP server response is
   // untrusted input and could contain a decimal or non-numeric string.
-  if (!/^\d+$/.test(String(pr.amount))) {
+  if (!/^\d+$/.test(String(rawAmount))) {
     throw new Error(
-      `Invalid payment amount from MCP server: "${pr.amount}" ` +
+      `Invalid payment amount from MCP server: "${rawAmount}" ` +
       `(expected a non-negative integer string)`
     );
   }
   // Reject non-positive amounts before any cap or transaction logic.
-  const amount = BigInt(pr.amount);
+  const amount = BigInt(rawAmount!);
   if (amount <= 0n) {
-    throw new Error(`Invalid payment amount: ${pr.amount} (must be positive)`);
+    throw new Error(`Invalid payment amount: ${rawAmount} (must be positive)`);
   }
 
   // Enforce spending cap — reuse user-configured cap or the 10 VOI default.
@@ -267,13 +276,16 @@ export async function callTool(
       throw new Error(`Invalid x402 payment recipient: ${pr.payTo}`);
     }
 
+    // Prefer maxAmountRequired (x402 spec field); fall back to amount (legacy).
+    const prAmount = pr.maxAmountRequired ?? pr.amount;
+
     // L7: Validate amount is a non-negative integer string BEFORE opening the
     // approval popup. The approval page renders BigInt(approval.amount) — a
     // decimal or non-numeric string would crash EnvoiPage with a SyntaxError,
     // locking the user out of resolution for the TTL window with no clear error.
-    if (!/^\d+$/.test(String(pr.amount))) {
+    if (!/^\d+$/.test(String(prAmount))) {
       throw new Error(
-        `UluMCP returned a non-integer amount: "${pr.amount}" — aborting`
+        `UluMCP returned a non-integer amount: "${prAmount}" — aborting`
       );
     }
 
@@ -287,7 +299,7 @@ export async function callTool(
       id: randomId(),
       name: resolvedName,
       payTo: pr.payTo,
-      amount: String(pr.amount),
+      amount: String(prAmount),
       chain: "voi",
       timestamp: Date.now(),
     });
