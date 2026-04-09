@@ -16,7 +16,7 @@ export default function Footer() {
             className="hover:text-text transition-colors">GitHub</a>
           <a href="https://x402.ilovechicken.co.uk" target="_blank" rel="noopener noreferrer"
             className="hover:text-text transition-colors">x402 Demo</a>
-          <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" target="_blank" rel="noopener noreferrer"
+          <a href="/AlgoVoi/privacy-policy.html"
             className="hover:text-text transition-colors">Privacy Policy</a>
           <a href="/AlgoVoi/compliance.html" className="hover:text-text transition-colors">Compliance</a>
           <a href="/AlgoVoi/terms.html" className="hover:text-text transition-colors">Terms</a>
