@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms &amp; Conditions — AlgoVoi</title>
+  <meta name="description" content="Terms and conditions governing the use of AlgoVoi and all ilovechicken.co.uk services." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0D1117;
+      color: #E6EDF3;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+    .logo-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 900; color: #0D1117;
+    }
+    .logo-name { font-weight: 700; font-size: 0.875rem; color: #E6EDF3; }
+    header a.cta {
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      color: #0D1117; font-size: 0.75rem; font-weight: 700;
+      padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    .hero { margin-bottom: 3rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8B5CF6;
+      border: 1px solid rgba(139,92,246,0.35);
+      background: rgba(139,92,246,0.08);
+      padding: 0.25rem 0.75rem; border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800; line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    h1 span { background: linear-gradient(135deg, #00C8FF, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .subtitle { color: #8B949E; font-size: 1rem; max-width: 640px; }
+    .last-updated { font-size: 0.75rem; color: #484F58; margin-top: 0.75rem; }
+
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.05rem; font-weight: 700;
+      color: #E6EDF3;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #30363D;
+    }
+    p { font-size: 0.875rem; color: #8B949E; margin-bottom: 0.75rem; }
+    p:last-child { margin-bottom: 0; }
+    p strong { color: #E6EDF3; }
+
+    ul.terms-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    ul.terms-list li {
+      font-size: 0.875rem;
+      color: #8B949E;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+    ul.terms-list li::before {
+      content: '–';
+      position: absolute;
+      left: 0;
+      color: #484F58;
+    }
+
+    /* Warning box */
+    .warning-box {
+      background: rgba(220,38,38,0.08);
+      border: 1px solid rgba(220,38,38,0.3);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .warning-box .warning-title {
+      font-size: 0.875rem; font-weight: 700;
+      color: #F87171;
+      margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .warning-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* Highlight box */
+    .highlight-box {
+      background: rgba(46,160,67,0.08);
+      border: 1px solid rgba(46,160,67,0.25);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .highlight-box .highlight-title {
+      font-size: 0.875rem; font-weight: 700;
+      color: #3FB950;
+      margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .highlight-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* Notice */
+    .notice {
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      font-size: 0.875rem;
+      color: #8B949E;
+    }
+    .notice strong { color: #E6EDF3; }
+
+    /* TOC */
+    .toc {
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .toc-title { font-size: 0.75rem; font-weight: 700; color: #8B949E; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .toc ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .toc ol li { font-size: 0.8rem; }
+    .toc ol li a { color: #8B5CF6; text-decoration: none; }
+    .toc ol li a:hover { color: #E6EDF3; }
+
+    footer {
+      border-top: 1px solid #30363D;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #484F58;
+    }
+    footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
+    footer a:hover { color: #E6EDF3; }
+    .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .footer-logo { display: flex; align-items: center; gap: 0.5rem; }
+    .footer-logo-mark {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 900; color: #0D1117;
+    }
+
+    @media (max-width: 600px) {
+      .toc ol { gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <div class="logo-mark">AV</div>
+    <span class="logo-name">AlgoVoi</span>
+  </a>
+  <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" class="cta">Add to Chrome</a>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="badge">Legal</div>
+    <h1>Terms &amp;<br><span>Conditions</span></h1>
+    <p class="subtitle">
+      These terms govern your use of the AlgoVoi browser extension and all services
+      operated under ilovechicken.co.uk, including payment gateway APIs, MCP servers,
+      and ecommerce platform adapters.
+    </p>
+    <p class="last-updated">Last updated: 9 April 2026 &nbsp;·&nbsp; Version 1.0</p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance of Terms</a></li>
+      <li><a href="#services">Services Covered</a></li>
+      <li><a href="#permitted">Permitted Use</a></li>
+      <li><a href="#prohibited">Prohibited Use</a></li>
+      <li><a href="#law-enforcement">Law Enforcement Cooperation</a></li>
+      <li><a href="#license">Software Licence</a></li>
+      <li><a href="#payments">Payment Services</a></li>
+      <li><a href="#custody">Non-Custodial Wallet</a></li>
+      <li><a href="#privacy">Privacy &amp; Data</a></li>
+      <li><a href="#liability">Disclaimers &amp; Liability</a></li>
+      <li><a href="#termination">Termination</a></li>
+      <li><a href="#governing-law">Governing Law</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. Acceptance -->
+  <section id="acceptance">
+    <h2>1. Acceptance of Terms</h2>
+    <p>By installing the AlgoVoi browser extension, accessing any ilovechicken.co.uk service, or integrating any AlgoVoi-Hand payment adapter, you agree to be bound by these Terms and Conditions in full.</p>
+    <p>If you do not agree to these terms, you must not use any AlgoVoi or ilovechicken.co.uk service. Continued use following any update to these terms constitutes acceptance of the revised terms.</p>
+    <p>These terms apply to all users including individuals, merchants, developers, and automated agents acting on behalf of a user.</p>
+  </section>
+
+  <!-- 2. Services -->
+  <section id="services">
+    <h2>2. Services Covered</h2>
+    <p>These terms apply to all of the following:</p>
+    <ul class="terms-list">
+      <li><strong>AlgoVoi Browser Extension</strong> — Chrome and Firefox wallet extension for Algorand and Voi networks</li>
+      <li><strong>AlgoVoi-Hand Payment Gateway</strong> — x402, MPP, and AP2 payment protocol infrastructure (api.ilovechicken.co.uk)</li>
+      <li><strong>Payment Gateway API</strong> — Ecommerce platform adapters and tenant management (api1.ilovechicken.co.uk)</li>
+      <li><strong>UluMCP Server</strong> — AI agent MCP tool server (mcp.ilovechicken.co.uk)</li>
+      <li><strong>ilovechicken.co.uk websites</strong> — All pages, documentation, and web properties</li>
+      <li><strong>Platform Adapters</strong> — WooCommerce, OpenCart, PrestaShop, Shopware, and native language adapters</li>
+    </ul>
+  </section>
+
+  <!-- 3. Permitted Use -->
+  <section id="permitted">
+    <h2>3. Permitted Use</h2>
+    <p>You may use AlgoVoi and ilovechicken.co.uk services for lawful purposes only, including:</p>
+    <ul class="terms-list">
+      <li>Managing and transacting with your own cryptocurrency wallets</li>
+      <li>Integrating payment functionality into legitimate ecommerce platforms</li>
+      <li>Building and operating lawful AI agent applications via the MCP server</li>
+      <li>Development and testing of payment protocol integrations</li>
+      <li>Personal, non-commercial use of the AlgoVoi extension under the BSL licence</li>
+    </ul>
+    <p>Commercial use of the AlgoVoi source code requires a separate commercial licence from the copyright holder. See Section 6.</p>
+  </section>
+
+  <!-- 4. Prohibited Use -->
+  <section id="prohibited">
+    <h2>4. Prohibited Use</h2>
+
+    <div class="warning-box">
+      <div class="warning-title">⛔ Strictly Prohibited</div>
+      <p>The following activities are strictly prohibited and will result in immediate termination of access, reporting to relevant authorities, and potential legal action.</p>
+    </div>
+
+    <p><strong>Illegal activity — zero tolerance:</strong></p>
+    <ul class="terms-list">
+      <li>Any use that violates applicable local, national, or international law</li>
+      <li>Money laundering, terrorist financing, or sanctions evasion</li>
+      <li>Fraud, theft, or unauthorised access to third-party accounts or funds</li>
+      <li>Drug trafficking, weapons dealing, or trade in illegal goods or services</li>
+      <li>Child sexual abuse material or any content that exploits or harms minors</li>
+      <li>Ransomware, malware distribution, or any form of cyberattack</li>
+      <li>Market manipulation, wash trading, or cryptocurrency fraud</li>
+      <li>Operating unlicensed financial services or unregistered securities offerings</li>
+      <li>Identity theft or impersonation of individuals or organisations</li>
+      <li>Human trafficking or exploitation</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Technical misuse:</strong></p>
+    <ul class="terms-list">
+      <li>Attempting to circumvent authentication, payment verification, or access controls</li>
+      <li>Reverse engineering, decompiling, or extracting proprietary server-side logic</li>
+      <li>Automated scraping, denial-of-service attacks, or abuse of rate limits</li>
+      <li>Injecting malicious instructions into AI agent sessions (prompt injection attacks)</li>
+      <li>Using the platform to relay, obscure, or launder proceeds of crime</li>
+      <li>Reselling or sublicensing API access without authorisation</li>
+    </ul>
+  </section>
+
+  <!-- 5. Law Enforcement -->
+  <section id="law-enforcement">
+    <h2>5. Law Enforcement Cooperation</h2>
+
+    <div class="highlight-box">
+      <div class="highlight-title">⚖️ Full Cooperation with Legal Authorities</div>
+      <p>AlgoVoi and ilovechicken.co.uk will cooperate fully and without reservation with any lawful request from law enforcement, regulatory authorities, or courts of competent jurisdiction.</p>
+    </div>
+
+    <p>This cooperation includes but is not limited to:</p>
+    <ul class="terms-list">
+      <li>Providing access logs, transaction records, IP addresses, and user data in response to valid legal process (court order, warrant, or equivalent)</li>
+      <li>Preserving data upon receipt of a lawful preservation request</li>
+      <li>Suspending or terminating accounts under investigation</li>
+      <li>Proactively reporting suspected illegal activity where required by law, including suspicious transaction reports under applicable AML regulations</li>
+      <li>Assisting with forensic investigations into fraud, cyberattacks, or financial crime involving our infrastructure</li>
+    </ul>
+
+    <p><strong>Blockchain transparency:</strong> All on-chain transactions processed via AlgoVoi and the payment gateway are permanently recorded on public blockchains (Algorand, Voi, Hedera, Stellar). These records are immutable, publicly auditable, and available to law enforcement without any request to us. There is no anonymity guarantee for on-chain activity.</p>
+
+    <p><strong>No safe harbour for illegal use:</strong> The non-custodial nature of the AlgoVoi wallet does not confer any protection against legal accountability. Users are solely responsible for the lawful use of their wallets and any transactions they execute.</p>
+  </section>
+
+  <!-- 6. Licence -->
+  <section id="license">
+    <h2>6. Software Licence</h2>
+    <p>The AlgoVoi browser extension source code is licensed under the <strong>Business Source Licence 1.1 (BSL 1.1)</strong>.</p>
+    <ul class="terms-list">
+      <li><strong>Copyright:</strong> © 2026 Christopher Hopley — ilovechicken.co.uk</li>
+      <li><strong>Personal non-commercial use:</strong> Freely permitted</li>
+      <li><strong>Commercial use:</strong> Requires a separate licence from the copyright holder</li>
+      <li><strong>Change Date:</strong> 7 April 2030 — on this date the licence converts to MIT</li>
+      <li><strong>Forks and derivatives:</strong> Must carry the same BSL licence and copyright notice</li>
+    </ul>
+    <p>The MCP server, payment gateway APIs, and platform adapters are proprietary. No licence is granted to copy, modify, or redistribute server-side code without explicit written permission from the copyright holder.</p>
+    <p>For commercial licensing enquiries contact: <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a></p>
+  </section>
+
+  <!-- 7. Payments -->
+  <section id="payments">
+    <h2>7. Payment Services</h2>
+    <p>AlgoVoi-Hand operates as a non-custodial on-chain payment gateway. The following conditions apply:</p>
+    <ul class="terms-list">
+      <li>All payments are executed on public blockchains and are <strong>irreversible</strong> once confirmed on-chain</li>
+      <li>AlgoVoi-Hand does not hold, pool, or custody any fiat or cryptocurrency funds</li>
+      <li>Merchants are responsible for verifying payment receipt via webhook or API status check</li>
+      <li>We are not liable for failed, delayed, or misdirected transactions resulting from incorrect wallet addresses or network congestion</li>
+      <li>Merchants using the payment gateway must comply with all applicable laws in their jurisdiction including tax obligations and consumer protection requirements</li>
+      <li>Test mode transactions use testnet only — no real funds are moved</li>
+    </ul>
+  </section>
+
+  <!-- 8. Non-Custodial -->
+  <section id="custody">
+    <h2>8. Non-Custodial Wallet</h2>
+    <p>AlgoVoi is a <strong>non-custodial</strong> wallet. This means:</p>
+    <ul class="terms-list">
+      <li>Your private keys and seed phrase are generated and stored exclusively on your device</li>
+      <li>We have no access to your private keys, seed phrase, or funds at any time</li>
+      <li>We cannot recover your wallet, reset your password, or reverse transactions on your behalf</li>
+      <li>You are solely responsible for safeguarding your seed phrase and private keys</li>
+      <li>Loss of your seed phrase means permanent, irrecoverable loss of access to your funds</li>
+    </ul>
+    <p>The 30-day local signing key feature stores an encrypted key with a time-limited TTL. This key is never transmitted to our servers.</p>
+  </section>
+
+  <!-- 9. Privacy -->
+  <section id="privacy">
+    <h2>9. Privacy &amp; Data</h2>
+    <p>Our full Privacy Policy is available at <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" style="color:#8B5CF6;">privacy-policy.html</a>. Key principles:</p>
+    <ul class="terms-list">
+      <li>The AlgoVoi extension does not collect or transmit personal data beyond what is necessary for wallet operation</li>
+      <li>Server logs are retained for security and fraud prevention purposes with a 90-day PII purge policy</li>
+      <li>No PII is included in audit log lines</li>
+      <li>We comply with UK GDPR. Data subjects may exercise their rights by contacting support@ilovechicken.co.uk</li>
+      <li>Data may be disclosed to law enforcement in accordance with Section 5 of these terms</li>
+    </ul>
+  </section>
+
+  <!-- 10. Liability -->
+  <section id="liability">
+    <h2>10. Disclaimers &amp; Limitation of Liability</h2>
+    <p>Services are provided <strong>"as is"</strong> without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.</p>
+    <ul class="terms-list">
+      <li>We do not guarantee uninterrupted availability of any service</li>
+      <li>We are not liable for losses arising from blockchain network failures, smart contract bugs, or third-party protocol issues</li>
+      <li>We are not liable for losses arising from user error, including sending funds to incorrect addresses</li>
+      <li>We are not liable for losses arising from compromise of a user's device, seed phrase, or private keys</li>
+      <li>Cryptocurrency values are volatile. Nothing in these services constitutes financial advice</li>
+      <li>To the maximum extent permitted by applicable law, our total liability shall not exceed the fees paid by you in the 30 days preceding the claim</li>
+    </ul>
+    <p>Nothing in these terms limits liability for death or personal injury caused by negligence, fraud, or fraudulent misrepresentation, or any other liability that cannot be excluded by law.</p>
+  </section>
+
+  <!-- 11. Termination -->
+  <section id="termination">
+    <h2>11. Termination</h2>
+    <p>We reserve the right to suspend or terminate access to any service, immediately and without notice, if we reasonably believe a user is:</p>
+    <ul class="terms-list">
+      <li>Engaged in any prohibited activity listed in Section 4</li>
+      <li>Under investigation by law enforcement</li>
+      <li>In breach of these terms in any material respect</li>
+      <li>Using the service in a manner that could expose us or other users to legal, regulatory, or reputational harm</li>
+    </ul>
+    <p>Termination of access does not affect our obligation to cooperate with law enforcement under Section 5, nor does it result in deletion of logs or records that may be subject to a preservation or disclosure request.</p>
+  </section>
+
+  <!-- 12. Governing Law -->
+  <section id="governing-law">
+    <h2>12. Governing Law</h2>
+    <p>These terms are governed by and construed in accordance with the laws of <strong>England and Wales</strong>. Any dispute arising from these terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
+    <p>If any provision of these terms is found to be unenforceable, the remaining provisions shall continue in full force and effect.</p>
+  </section>
+
+  <!-- 13. Contact -->
+  <section id="contact">
+    <h2>13. Contact</h2>
+    <div class="notice">
+      <strong>Legal enquiries, licensing, and law enforcement requests:</strong>
+      <br><br>
+      Christopher Hopley — ilovechicken.co.uk<br>
+      <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a>
+      <br><br>
+      <span style="color:#484F58;">Law enforcement and regulatory authorities may contact us at the above address. We will respond to all lawful requests promptly and without reservation.</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="footer-logo-mark">AV</div>
+      <span style="color:#8B949E; font-weight:600;">AlgoVoi</span>
+      <span style="color:#484F58;">— Web3 wallet for Algorand &amp; Voi</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;justify-content:center;">
+      <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" target="_blank" rel="noopener noreferrer">Chrome</a>
+      <a href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/" target="_blank" rel="noopener noreferrer">Firefox</a>
+      <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+      <a href="/compliance.html">Compliance</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
