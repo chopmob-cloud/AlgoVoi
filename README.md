@@ -1,12 +1,13 @@
 # AlgoVoi
 
-A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** networks with built-in payment protocol support for x402, MPP, and AP2.
+A Manifest V3 browser extension — Web3 wallet for **Algorand** and **Voi** networks with built-in payment protocol support for x402, MPP, and AP2.
 
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue?logo=googlechrome)
+![Firefox Extension](https://img.shields.io/badge/Firefox-Extension-orange?logo=firefox)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
-![Version](https://img.shields.io/badge/version-1.0.1-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.2-brightgreen)
 ![License](https://img.shields.io/badge/license-BSL%201.1-orange)
 
 ---
@@ -32,7 +33,8 @@ A Manifest V3 Chrome extension — Web3 wallet for **Algorand** and **Voi** netw
 - **AI Agent Chat (both chains)** — Ask questions about tokens, NFTs, swaps, lending, and names in natural language (Agents tab); structured commands (swap, send, balance, resolve, register, price) execute directly via MCP tools at zero AI cost; conversational queries fall back to Claude Sonnet 4 via the UluMCP server — API key stays server-side
   - **Voi**: HumbleSwap/Snowball DEX, enVoi (.voi) names, ARC-200 tokens, ARC-72 NFTs, DorkFi lending
   - **Algorand**: Haystack Router DEX (Tinyman/Pact/Folks aggregator), NFD (.algo) names, Pera asset verification
-- **Coinbase Onramp** — Buy ALGO directly from the wallet via a secure session-token flow; wallet address is sent via POST body to the AlgoVoi backend which fetches a one-time Coinbase session token — addresses are never exposed in URL parameters (feature-flagged; pending Coinbase UK approval)
+- **Allbridge USDC Bridge** — Bridge USDC from Algorand to 13 chains (Ethereum, Base, Arbitrum, Solana, Polygon, BNB Chain, Avalanche, Optimism, Stellar, Sui, Sonic, Tron, Stacks) via the Bridge tab; unsigned transactions built server-side (MCP), signed locally by the vault, submitted on-chain; transfer status trackable by txId
+- **Coinbase Onramp** — Buy ALGO directly from the wallet via a secure session-token flow; wallet address is sent via POST body to the AlgoVoi backend which fetches a one-time Coinbase session token — addresses are never exposed in URL parameters
 - **Auto-update notifications** — Extension checks for new releases via the MCP server on startup + daily; amber badge + banner when a newer version is available; server-side `/version` endpoint auto-syncs from GitHub releases every 30 minutes
 
 ---
@@ -156,6 +158,14 @@ The extension is built to `dist/`.
 3. Click **Load unpacked**
 4. Select the `dist/` folder
 
+### Load in Firefox
+
+1. Open Firefox and go to `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on**
+3. Select any file inside the `dist/` folder (e.g. `manifest.json`)
+
+> For a permanent install, submit `algovoi-1.0.2-firefox.zip` to [Mozilla AMO](https://addons.mozilla.org). The Firefox build has `sidePanel` removed and `background.scripts` fallback added. The side panel is Chrome-only; the popup works identically in Firefox.
+
 ---
 
 ## Security
@@ -168,12 +178,13 @@ The vault uses a session-key pattern:
 4. On **lock** or service-worker suspension — the key is wiped from memory
 
 See [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) for the full security audit report.
-**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XX complete, Comet CDP independently validated).
+**Status: 0 Critical · 0 High · 0 Medium · 0 Low open** (Hardening I–XXIV complete, Comet CDP independently validated).
 
 Recent hardening highlights:
-- **XVIII** — `executeSend` address validation (MCP-resolved addresses validated via `algosdk.isValidAddress` before signing)
-- **XIX** — Side panel keep-alive security (content script port guard, SW suspension watchdog alarm)
-- **XX** — `executeResolve` display validation (MCP-returned addresses validated before display)
+- **XXI-B** — Allbridge input validation: per-chain destination address regex, txId format check, amount bounds (positive, ≤ 1,000,000, plain decimal)
+- **XXII** — MCP server TLS 1.0/1.1 disabled; HSTS preload (`max-age=63072000`)
+- **XXIII** — All three servers (mcp, api, api1) independently audited and validated at 10/10 via Comet CDP
+- **XXIV** — x402 spec compliance: `maxAmountRequired`, `PAYMENT-RESPONSE` header, version aligned to v1
 
 ### 30-day local signing key
 
@@ -221,6 +232,8 @@ Supported payment assets:
 - **USDC** (ASA 31566704 on Algorand)
 - **VOI** (native)
 - **aUSDC** (ASA 302190 on Voi)
+
+AlgoVoi implements the [coinbase/x402](https://github.com/coinbase/x402) spec (`x402Version: 1`). The `PAYMENT-REQUIRED` response includes all required fields (`maxAmountRequired`, `resource`, `description`, `mimeType`); successful paid responses return a `PAYMENT-RESPONSE` settlement header. The client reads `maxAmountRequired` with fallback to `amount` for backward compatibility with older servers.
 
 ---
 
