@@ -62,5 +62,11 @@
       "resources": ["src/inpage/index.js"],
       "matches": ["https://*/*"]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "algovoi@ilovechicken.co.uk",
+      "strict_min_version": "128.0"
+    }
+  }
 }

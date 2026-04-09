@@ -19,10 +19,20 @@ export default function X402Screen() {
             AlgoVoi intercepts HTTP 402 responses and handles micropayments invisibly —
             no copy-paste, no manual steps. Just browse and pay.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-6">
             {['⚡ Sub-second payments', '🛡️ Spending caps', '🔁 Auto-retry fetch'].map(p => (
               <span key={p} className="bg-surf1 border border-border rounded-full px-3 py-1 text-xs text-gray">{p}</span>
             ))}
+          </div>
+          <div className="border-t border-border/50 pt-5">
+            <p className="text-xs text-gray mb-3">
+              Building a site that <em>charges</em> x402 payments? AlgoVoi is also a hosted
+              tenant platform — register your resource, get a payout address, and start accepting
+              payments without running your own chain nodes or verification servers.
+            </p>
+            <a href="#platform" className="inline-flex items-center gap-1.5 text-xs font-bold gradient-text-rev hover:opacity-80 transition-opacity">
+              View the x402 Tenant Platform →
+            </a>
           </div>
         </div>
 
