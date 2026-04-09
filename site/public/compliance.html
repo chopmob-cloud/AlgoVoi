@@ -258,6 +258,182 @@
     </div>
   </section>
 
+  <!-- Security Infrastructure -->
+  <section>
+    <h2>Security Infrastructure</h2>
+
+    <style>
+      .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+      .server-card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
+      .server-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+      .server-name { font-size: 0.8rem; font-weight: 700; color: #E6EDF3; }
+      .server-score { font-size: 1.1rem; font-weight: 800; color: #3FB950; }
+      .server-host { font-size: 0.7rem; color: #484F58; margin-bottom: 0.75rem; font-family: monospace; }
+      .check-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+      .check-list li { font-size: 0.75rem; color: #8B949E; display: flex; align-items: flex-start; gap: 0.4rem; }
+      .check-list li::before { content: '✓'; color: #3FB950; font-weight: 700; flex-shrink: 0; }
+      .check-list li.warn::before { content: '·'; color: #D29922; }
+      .audit-meta { font-size: 0.75rem; color: #484F58; margin-top: 1rem; }
+
+      .test-table-wrap { background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden; }
+      .test-label { font-size: 0.7rem; color: #8B949E; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    </style>
+
+    <div class="server-grid">
+
+      <!-- MCP Server -->
+      <div class="server-card">
+        <div class="server-header">
+          <div class="server-name">MCP Server</div>
+          <div class="server-score">9.5/10</div>
+        </div>
+        <div class="server-host">mcp.ilovechicken.co.uk</div>
+        <ul class="check-list">
+          <li>HSTS preload — max-age=63072000</li>
+          <li>X-Content-Type-Options: nosniff</li>
+          <li>X-Frame-Options: DENY</li>
+          <li>Evil CORS origin blocked</li>
+          <li>POST /mcp no body → 400 (JSON-RPC -32700)</li>
+          <li>GET /api/coinbase-session → 405</li>
+          <li>Path traversal → 404</li>
+          <li>SQL injection → 400</li>
+          <li>Internal suite: 24/24 PASS</li>
+          <li>Allbridge: per-chain address regex, txId + amount validation</li>
+          <li class="warn">CSP not set — N/A (pure JSON API)</li>
+        </ul>
+      </div>
+
+      <!-- API1 -->
+      <div class="server-card">
+        <div class="server-header">
+          <div class="server-name">Payment Gateway API</div>
+          <div class="server-score">9/10</div>
+        </div>
+        <div class="server-host">api1.ilovechicken.co.uk</div>
+        <ul class="check-list">
+          <li>HSTS preload — max-age=63072000</li>
+          <li>X-Content-Type-Options: nosniff</li>
+          <li>X-Frame-Options: DENY</li>
+          <li>CSP: default-src 'none'</li>
+          <li>Permissions-Policy enforced</li>
+          <li>All API endpoints → 401 without auth</li>
+          <li>Wrong methods → 405</li>
+          <li>Path traversal → 400</li>
+          <li>Evil CORS origin blocked</li>
+          <li>Injection attacks all rejected</li>
+          <li class="warn">FastAPI 422 error format — false positive (intentional, aids adapter debugging)</li>
+        </ul>
+      </div>
+
+      <!-- API -->
+      <div class="server-card">
+        <div class="server-header">
+          <div class="server-name">x402 / MPP / AP2 API</div>
+          <div class="server-score">9.8/10</div>
+        </div>
+        <div class="server-host">api.ilovechicken.co.uk</div>
+        <ul class="check-list">
+          <li>HSTS preload — max-age=63072000</li>
+          <li>X-Content-Type-Options: nosniff</li>
+          <li>X-Frame-Options: DENY</li>
+          <li>nginx version suppressed</li>
+          <li>GET / genericised — no internal info</li>
+          <li>Payment endpoints → 402 without valid sig</li>
+          <li>Fake PAYMENT-SIGNATURE → 402</li>
+          <li>Fake MPP Authorization → 402</li>
+          <li>Path traversal → 400</li>
+          <li>Evil CORS origin blocked</li>
+          <li>All invalid methods → 405</li>
+          <li class="warn">Duplicate HSTS header — cosmetic only</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Test results table -->
+    <div class="test-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Category</th>
+            <th>mcp.ilovechicken.co.uk</th>
+            <th>api1.ilovechicken.co.uk</th>
+            <th>api.ilovechicken.co.uk</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HSTS preload</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Security headers</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Authentication enforcement</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Payment bypass attempts</td>
+            <td><span class="pill pill-blue">N/A</span></td>
+            <td><span class="pill pill-blue">N/A</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>HTTP method restrictions</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Injection attacks</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Path traversal</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>CORS origin enforcement</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Info disclosure</td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+            <td><span class="pill pill-green">Pass</span></td>
+          </tr>
+          <tr>
+            <td>Internal test suite</td>
+            <td><span class="pill pill-green">24/24</span></td>
+            <td><span class="pill pill-blue">N/A</span></td>
+            <td><span class="pill pill-blue">N/A</span></td>
+          </tr>
+          <tr>
+            <td>Overall score</td>
+            <td><span class="pill pill-green">9.5 / 10</span></td>
+            <td><span class="pill pill-green">9.0 / 10</span></td>
+            <td><span class="pill pill-green">9.8 / 10</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="audit-meta">Independent validation by Comet CDP &nbsp;·&nbsp; 2026-04-09 &nbsp;·&nbsp; All servers production-ready</div>
+  </section>
+
   <!-- Notice -->
   <section>
     <div class="notice">
