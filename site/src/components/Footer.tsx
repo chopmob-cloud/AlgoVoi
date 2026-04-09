@@ -19,6 +19,7 @@ export default function Footer() {
           <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" target="_blank" rel="noopener noreferrer"
             className="hover:text-text transition-colors">Privacy Policy</a>
           <a href="/AlgoVoi/compliance.html" className="hover:text-text transition-colors">Compliance</a>
+          <a href="/AlgoVoi/terms.html" className="hover:text-text transition-colors">Terms</a>
         </div>
       </div>
     </footer>
