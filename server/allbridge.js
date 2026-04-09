@@ -9,6 +9,39 @@ import { z } from "zod";
 
 const ALG_NODE = "https://mainnet-api.algonode.cloud";
 
+// Per-chain destination address validation
+const TO_ADDRESS_PATTERNS = {
+  // EVM chains
+  ETH:  /^0x[0-9a-fA-F]{40}$/,
+  BSC:  /^0x[0-9a-fA-F]{40}$/,
+  POL:  /^0x[0-9a-fA-F]{40}$/,
+  ARB:  /^0x[0-9a-fA-F]{40}$/,
+  AVA:  /^0x[0-9a-fA-F]{40}$/,
+  CEL:  /^0x[0-9a-fA-F]{40}$/,
+  OPT:  /^0x[0-9a-fA-F]{40}$/,
+  BAS:  /^0x[0-9a-fA-F]{40}$/,
+  SRB:  /^0x[0-9a-fA-F]{40}$/,
+  SNC:  /^0x[0-9a-fA-F]{40}$/,
+  // Non-EVM
+  SOL:  /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+  TRX:  /^T[A-Za-z1-9]{33}$/,
+  SUI:  /^0x[0-9a-fA-F]{1,64}$/,
+  STLR: /^G[A-Z2-7]{55}$/,
+  STX:  /^S[A-Z0-9]{39,40}$/,
+};
+
+// Algorand TX ID: 52 base32 chars (uppercase + 2-7)
+const ALGO_TXID_RE = /^[A-Z2-7]{52}$/;
+
+// Amount: positive decimal, max 1,000,000
+function validateAmount(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return "amount must be a positive number";
+  if (n > 1_000_000) return "amount exceeds maximum allowed (1,000,000)";
+  if (!/^\d+(\.\d+)?$/.test(amount)) return "amount must be a plain decimal string";
+  return null;
+}
+
 function getSdk() {
   return new AllbridgeCoreSdk({
     ...nodeRpcUrlsDefault,
@@ -71,6 +104,12 @@ export function registerAllbridgeTools(server) {
       try {
         if (!algosdk.isValidAddress(fromAddress)) return failure("Invalid fromAddress");
 
+        const toPattern = TO_ADDRESS_PATTERNS[destinationChain];
+        if (!toPattern || !toPattern.test(toAddress)) return failure(`Invalid toAddress for chain ${destinationChain}`);
+
+        const amountErr = validateAmount(amount);
+        if (amountErr) return failure(amountErr);
+
         const sdk = getSdk();
         const chains = await sdk.chainDetailsMap();
 
@@ -122,6 +161,7 @@ export function registerAllbridgeTools(server) {
     },
     async ({ txId }) => {
       try {
+        if (!ALGO_TXID_RE.test(txId)) return failure("Invalid Algorand transaction ID");
         const sdk = getSdk();
         const status = await sdk.getTransferStatus(ChainSymbol.ALG, txId);
         return success(status);
