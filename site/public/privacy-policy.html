@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — AlgoVoi</title>
+  <meta name="description" content="AlgoVoi privacy policy — how we handle your data in the wallet extension and ilovechicken.co.uk services." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0D1117;
+      color: #E6EDF3;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+    }
+    .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+    .logo-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 900; color: #0D1117;
+    }
+    .logo-name { font-weight: 700; font-size: 0.875rem; color: #E6EDF3; }
+    header a.cta {
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      color: #0D1117; font-size: 0.75rem; font-weight: 700;
+      padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    .hero { margin-bottom: 3rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8B5CF6;
+      border: 1px solid rgba(139,92,246,0.35);
+      background: rgba(139,92,246,0.08);
+      padding: 0.25rem 0.75rem; border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800; line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    h1 span { background: linear-gradient(135deg, #00C8FF, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .subtitle { color: #8B949E; font-size: 1rem; max-width: 640px; }
+    .last-updated { font-size: 0.75rem; color: #484F58; margin-top: 0.75rem; }
+
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.05rem; font-weight: 700;
+      color: #E6EDF3;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #30363D;
+    }
+    p { font-size: 0.875rem; color: #8B949E; margin-bottom: 0.75rem; }
+    p:last-child { margin-bottom: 0; }
+    p strong { color: #E6EDF3; }
+    code {
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 4px;
+      padding: 0.1rem 0.35rem;
+      color: #00C8FF;
+    }
+
+    ul.terms-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    ul.terms-list li {
+      font-size: 0.875rem;
+      color: #8B949E;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+    ul.terms-list li::before {
+      content: '–';
+      position: absolute;
+      left: 0;
+      color: #484F58;
+    }
+
+    /* Callout box */
+    .callout {
+      background: rgba(0,200,255,0.06);
+      border: 1px solid rgba(0,200,255,0.2);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .callout p { color: #8B949E; font-size: 0.875rem; margin: 0; }
+    .callout strong { color: #00C8FF; }
+
+    /* Notice */
+    .notice {
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      font-size: 0.875rem;
+      color: #8B949E;
+    }
+    .notice strong { color: #E6EDF3; }
+
+    /* TOC */
+    .toc {
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .toc-title { font-size: 0.75rem; font-weight: 700; color: #8B949E; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .toc ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .toc ol li { font-size: 0.8rem; }
+    .toc ol li a { color: #8B5CF6; text-decoration: none; }
+    .toc ol li a:hover { color: #E6EDF3; }
+
+    a { color: #8B5CF6; text-decoration: none; }
+    a:hover { color: #E6EDF3; }
+
+    footer {
+      border-top: 1px solid #30363D;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #484F58;
+    }
+    footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
+    footer a:hover { color: #E6EDF3; }
+    .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .footer-logo { display: flex; align-items: center; gap: 0.5rem; }
+    .footer-logo-mark {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px; font-weight: 900; color: #0D1117;
+    }
+
+    @media (max-width: 600px) {
+      .toc ol { gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <div class="logo-mark">AV</div>
+    <span class="logo-name">AlgoVoi</span>
+  </a>
+  <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" class="cta">Add to Chrome</a>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="badge">Legal</div>
+    <h1>Privacy<br><span>Policy</span></h1>
+    <p class="subtitle">
+      How AlgoVoi and ilovechicken.co.uk handle your data — what we collect, what we don't,
+      and how your wallet keys stay on your device.
+    </p>
+    <p class="last-updated">Last updated: 9 April 2026 &nbsp;·&nbsp; Version 1.0</p>
+  </div>
+
+  <!-- Callout -->
+  <div class="callout">
+    <p><strong>Short version:</strong> AlgoVoi stores your encrypted wallet data only on your own device.
+    We do not collect, transmit, or sell any personal information. Private keys never leave your device.</p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#who-we-are">Who We Are</a></li>
+      <li><a href="#not-collected">Data We Do Not Collect</a></li>
+      <li><a href="#local-data">Data Stored Locally on Your Device</a></li>
+      <li><a href="#network">Network Requests Made by the Extension</a></li>
+      <li><a href="#fetch-interceptor">Fetch Interceptor (x402 and MPP Detection)</a></li>
+      <li><a href="#ai-agent">AI Agent Signing</a></li>
+      <li><a href="#permissions">Permissions Used and Why</a></li>
+      <li><a href="#server-data">Server-Side Data (ilovechicken.co.uk Services)</a></li>
+      <li><a href="#childrens">Children's Privacy</a></li>
+      <li><a href="#your-rights">Your Rights</a></li>
+      <li><a href="#changes">Changes to This Policy</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <section id="who-we-are">
+    <h2>1. Who We Are</h2>
+    <p>AlgoVoi is a browser extension developed by <strong>Christopher Hopley — ilovechicken.co.uk</strong>. It provides a non-custodial Web3 wallet for the Algorand and Voi blockchain networks, along with native support for the x402, MPP (Machine Payments Protocol), and AP2 (Agent Payments Protocol) HTTP payment standards.</p>
+    <p>The source code is publicly available at <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener">github.com/chopmob-cloud/AlgoVoi</a> under the Business Source Licence 1.1.</p>
+    <p>For the purposes of UK GDPR, the data controller is Christopher Hopley, ilovechicken.co.uk. Contact: <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a></p>
+  </section>
+
+  <!-- 2 -->
+  <section id="not-collected">
+    <h2>2. Data We Do Not Collect</h2>
+    <p>AlgoVoi does <strong>not</strong>:</p>
+    <ul class="terms-list">
+      <li>Collect, transmit, or store any personally identifiable information on external servers</li>
+      <li>Track your browsing activity, visited URLs, or transaction history on any server we control</li>
+      <li>Sell, share, or license any user data to third parties</li>
+      <li>Use analytics, advertising, or crash-reporting services</li>
+      <li>Require account registration or email address</li>
+    </ul>
+  </section>
+
+  <!-- 3 -->
+  <section id="local-data">
+    <h2>3. Data Stored Locally on Your Device</h2>
+    <p>All sensitive data is stored exclusively in your browser's <code>chrome.storage.local</code>, which is private to the extension and never accessible to websites you visit.</p>
+    <ul class="terms-list">
+      <li><strong>Encrypted wallet vault</strong> — Your private keys and seed phrases are encrypted using PBKDF2 (600,000 iterations) key derivation followed by AES-GCM 256-bit encryption before being written to local storage. The plaintext is never written to disk.</li>
+      <li><strong>Wallet preferences</strong> — Active account index, selected network (Algorand / Voi), and connected site list are stored in local storage. The connected site list is stored inside the encrypted vault.</li>
+      <li><strong>Session state</strong> — WalletConnect pairing topics and pending transaction queues are held in memory during your browser session and are not persisted after the extension service worker is unloaded.</li>
+      <li><strong>Unlock rate-limiting</strong> — A failed-attempt counter is held in <code>chrome.storage.session</code> (cleared when the browser closes) to prevent brute-force password attempts.</li>
+      <li><strong>AI agent sessions</strong> — Active WalletConnect agent session topics are stored locally so sessions can be restored if the service worker is restarted. No agent transaction data is persisted.</li>
+    </ul>
+  </section>
+
+  <!-- 4 -->
+  <section id="network">
+    <h2>4. Network Requests Made by the Extension</h2>
+    <p>AlgoVoi communicates only with the following external services, solely to fulfil wallet functionality. No personal data accompanies these requests beyond what is inherent to blockchain transactions (e.g. your public wallet address).</p>
+    <ul class="terms-list">
+      <li><strong>Algorand node &amp; indexer</strong> (<code>mainnet-api.algonode.cloud</code>, <code>mainnet-idx.algonode.cloud</code>) — to query balances, submit signed transactions, and retrieve on-chain data. Your public wallet address is transmitted as part of standard blockchain queries.</li>
+      <li><strong>Voi node &amp; indexer</strong> (<code>mainnet-api.voi.nodely.dev</code>, <code>mainnet-idx.voi.nodely.dev</code>) — same purpose for the Voi network.</li>
+      <li><strong>WalletConnect relay</strong> (<code>*.walletconnect.com</code>, <code>*.walletconnect.org</code>) — to enable QR-code wallet pairing with dApps and AI agents via the WalletConnect v2 protocol. Session payloads are end-to-end encrypted; WalletConnect's relay infrastructure sees only encrypted metadata (session topic, timing). Your private keys are never transmitted. See <a href="https://walletconnect.com/privacy" target="_blank" rel="noopener">WalletConnect's privacy policy</a>.</li>
+      <li><strong>enVoi name resolution</strong> (<code>mcp.ilovechicken.co.uk</code>) — when you resolve a <code>.voi</code> human-readable name, the name is sent to the MCP endpoint to retrieve the corresponding address. A small VOI payment accompanies this request. Your private key is never transmitted; only the signed payment transaction (containing your public address) and the name to resolve are sent.</li>
+      <li><strong>x402 / MPP payment endpoints</strong> — when you approve an x402 or MPP payment, the extension constructs and submits a signed transaction directly to the blockchain node, then presents proof of payment to the merchant's server. Only the signed transaction (containing your public address) and on-chain transaction ID are transmitted to the merchant. Your private key never leaves your device.</li>
+      <li><strong>AP2 (Agent Payments Protocol) merchants</strong> — when you approve an AP2 payment credential request, the extension signs a PaymentMandate using your private key and returns the signed credential to the requesting page. The credential contains your public wallet address and a cryptographic signature. Your private key never leaves your device.</li>
+      <li><strong>Allbridge bridge</strong> (<code>mcp.ilovechicken.co.uk</code>) — when you use the bridge tab to transfer USDC cross-chain, unsigned transactions are built server-side and returned to the extension for local signing. Your public address is transmitted to construct the transaction; your private key never leaves your device.</li>
+      <li><strong>Wallet icon CDNs</strong> (<code>https://static.defly.app</code>, <code>https://*.walletconnect.com</code>) — wallet application icons may be loaded from these CDNs to display in the pairing and approval UI.</li>
+    </ul>
+  </section>
+
+  <!-- 5 -->
+  <section id="fetch-interceptor">
+    <h2>5. Fetch Interceptor (x402 and MPP Payment Detection)</h2>
+    <p>AlgoVoi injects a lightweight script into HTTPS pages that intercepts fetch responses to detect HTTP 402 (Payment Required) status codes. This interceptor:</p>
+    <ul class="terms-list">
+      <li>Reads only the HTTP status code and specific payment-related response headers (<code>PAYMENT-REQUIRED</code>, <code>WWW-Authenticate: Payment</code>)</li>
+      <li>Does <strong>not</strong> read, store, or transmit the body of any web page or any other response header</li>
+      <li>Does <strong>not</strong> collect your browsing history or visited URLs</li>
+      <li>Only activates when a website explicitly returns a 402 payment challenge</li>
+    </ul>
+    <p>When a 402 response is detected, the URL of the payment-gated resource is displayed in the approval popup so you can confirm what you are paying for. This URL is used only for display purposes and is not transmitted to any external server.</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="ai-agent">
+    <h2>6. AI Agent Signing</h2>
+    <p>AlgoVoi supports WalletConnect Web3Wallet integration, allowing AI agents to connect to your wallet via a QR code or pairing URI. When an AI agent requests a transaction signature:</p>
+    <ul class="terms-list">
+      <li>A confirmation popup is <strong>always shown</strong> — no transaction is signed without your explicit approval</li>
+      <li>The agent's name, URL, and the full transaction details (type, amount, recipient) are displayed before you approve</li>
+      <li>Signed transactions are returned to the agent via the WalletConnect relay (end-to-end encrypted). Your private key is never exposed to the agent</li>
+      <li>You can disconnect any agent session at any time from the Agents tab in the popup</li>
+    </ul>
+  </section>
+
+  <!-- 7 -->
+  <section id="permissions">
+    <h2>7. Permissions Used and Why</h2>
+    <ul class="terms-list">
+      <li><strong>storage</strong> — to persist the encrypted vault and preferences locally</li>
+      <li><strong>alarms</strong> — to maintain active AI agent signing sessions: a periodic alarm fires while an agent is connected and is cleared automatically when you disconnect all agents</li>
+      <li><strong>tabs</strong> — to route payment results back to the correct browser tab and to broadcast chain-change events to open pages</li>
+      <li><strong>windows</strong> — to open payment and signing approval popup windows</li>
+      <li><strong>Host permissions</strong> (Algorand, Voi, WalletConnect, enVoi domains) — to make API calls to the blockchain nodes, WalletConnect relay, and name resolution service listed above. Each host is used only for its stated purpose</li>
+      <li><strong>Content script on <code>https://*/*</code></strong> — to inject the <code>window.algorand</code> ARC-0027 provider and payment protocol fetch interceptor into web pages, enabling dApps to request transaction signing and websites to offer x402/MPP payment flows. The content script does not read or modify page content; it only passes explicitly typed messages to the extension background</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section id="server-data">
+    <h2>8. Server-Side Data (ilovechicken.co.uk Services)</h2>
+    <p>When you use ilovechicken.co.uk services (MCP server, payment gateway APIs, ecommerce adapters), the following applies:</p>
+    <ul class="terms-list">
+      <li><strong>Access logs</strong> — standard nginx/server access logs are retained for security and fraud prevention. Logs contain IP addresses, timestamps, and request paths. PII is purged after 90 days</li>
+      <li><strong>No PII in audit logs</strong> — structured audit event logs (payment challenges, verifications, key events) contain no personally identifiable information</li>
+      <li><strong>Public wallet addresses</strong> — your public Algorand/Voi address is used to construct and verify on-chain transactions. It is not considered private data as it is publicly visible on the blockchain</li>
+      <li><strong>Law enforcement disclosure</strong> — data may be disclosed to law enforcement authorities to the extent required or permitted by applicable law. See our <a href="/AlgoVoi/terms.html">Terms &amp; Conditions</a> Section 5</li>
+      <li><strong>Merchant data processors</strong> — where we act as a data processor on behalf of merchants using the payment gateway, a Data Processing Agreement (DPA) is available on request</li>
+    </ul>
+  </section>
+
+  <!-- 9 -->
+  <section id="childrens">
+    <h2>9. Children's Privacy</h2>
+    <p>AlgoVoi is not directed at children under 18 years of age. Use by persons under 18 is prohibited under our <a href="/AlgoVoi/terms.html">Terms &amp; Conditions</a>. We do not knowingly collect any information from children.</p>
+  </section>
+
+  <!-- 10 -->
+  <section id="your-rights">
+    <h2>10. Your Rights</h2>
+    <p>Under UK GDPR you have the following rights regarding any personal data we hold:</p>
+    <ul class="terms-list">
+      <li><strong>Access</strong> — request a copy of the data we hold about you</li>
+      <li><strong>Rectification</strong> — request correction of inaccurate data</li>
+      <li><strong>Erasure</strong> — request deletion of your data ("right to be forgotten")</li>
+      <li><strong>Portability</strong> — request your data in a machine-readable format</li>
+      <li><strong>Objection</strong> — object to processing of your data</li>
+      <li><strong>Restriction</strong> — request that we restrict processing of your data</li>
+    </ul>
+    <p>To exercise any of these rights, contact us at <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>. We will respond within 30 days. You also have the right to lodge a complaint with the <a href="https://ico.org.uk" target="_blank" rel="noopener">Information Commissioner's Office (ICO)</a>.</p>
+  </section>
+
+  <!-- 11 -->
+  <section id="changes">
+    <h2>11. Changes to This Policy</h2>
+    <p>If we make material changes to this policy, we will update the "Last updated" date above and publish the updated policy at this URL. Continued use of the extension after changes constitutes acceptance of the revised policy.</p>
+  </section>
+
+  <!-- 12 -->
+  <section id="contact">
+    <h2>12. Contact</h2>
+    <div class="notice">
+      <strong>Data controller &amp; privacy enquiries:</strong>
+      <br><br>
+      Christopher Hopley — ilovechicken.co.uk<br>
+      <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>
+      <br><br>
+      <span style="color:#484F58;">For data subject access requests, erasure requests, or DPA enquiries please use the email above. We will respond within 30 days. You may also raise a complaint with the <a href="https://ico.org.uk" target="_blank" rel="noopener" style="color:#8B5CF6;">ICO</a>.</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="footer-logo-mark">AV</div>
+      <span style="color:#8B949E; font-weight:600;">AlgoVoi</span>
+      <span style="color:#484F58;">— Web3 wallet for Algorand &amp; Voi</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.25rem 1.5rem;justify-content:center;">
+      <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" target="_blank" rel="noopener noreferrer">Chrome</a>
+      <a href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/" target="_blank" rel="noopener noreferrer">Firefox</a>
+      <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://x402.ilovechicken.co.uk" target="_blank" rel="noopener noreferrer">x402 Demo</a>
+      <a href="/AlgoVoi/compliance.html">Compliance</a>
+      <a href="/AlgoVoi/terms.html">Terms</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
