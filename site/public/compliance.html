@@ -285,13 +285,16 @@
       <div class="server-card">
         <div class="server-header">
           <div class="server-name">MCP Server</div>
-          <div class="server-score">9.5/10</div>
+          <div class="server-score">10/10</div>
         </div>
         <div class="server-host">mcp.ilovechicken.co.uk</div>
         <ul class="check-list">
           <li>HSTS preload — max-age=63072000</li>
           <li>X-Content-Type-Options: nosniff</li>
           <li>X-Frame-Options: DENY</li>
+          <li>Content-Security-Policy: default-src 'none'</li>
+          <li>Permissions-Policy enforced</li>
+          <li>Server header suppressed</li>
           <li>Evil CORS origin blocked</li>
           <li>POST /mcp no body → 400 (JSON-RPC -32700)</li>
           <li>GET /api/coinbase-session → 405</li>
@@ -299,7 +302,6 @@
           <li>SQL injection → 400</li>
           <li>Internal suite: 24/24 PASS</li>
           <li>Allbridge: per-chain address regex, txId + amount validation</li>
-          <li class="warn">CSP not set — N/A (pure JSON API)</li>
         </ul>
       </div>
 
@@ -307,7 +309,7 @@
       <div class="server-card">
         <div class="server-header">
           <div class="server-name">Payment Gateway API</div>
-          <div class="server-score">9/10</div>
+          <div class="server-score">10/10</div>
         </div>
         <div class="server-host">api1.ilovechicken.co.uk</div>
         <ul class="check-list">
@@ -316,12 +318,13 @@
           <li>X-Frame-Options: DENY</li>
           <li>CSP: default-src 'none'</li>
           <li>Permissions-Policy enforced</li>
+          <li>Server header — no version exposed</li>
           <li>All API endpoints → 401 without auth</li>
           <li>Wrong methods → 405</li>
           <li>Path traversal → 400</li>
           <li>Evil CORS origin blocked</li>
           <li>Injection attacks all rejected</li>
-          <li class="warn">FastAPI 422 error format — false positive (intentional, aids adapter debugging)</li>
+          <li>Validation errors genericised — no framework fingerprinting</li>
         </ul>
       </div>
 
@@ -329,14 +332,16 @@
       <div class="server-card">
         <div class="server-header">
           <div class="server-name">x402 / MPP / AP2 API</div>
-          <div class="server-score">9.8/10</div>
+          <div class="server-score">10/10</div>
         </div>
         <div class="server-host">api.ilovechicken.co.uk</div>
         <ul class="check-list">
           <li>HSTS preload — max-age=63072000</li>
           <li>X-Content-Type-Options: nosniff</li>
           <li>X-Frame-Options: DENY</li>
+          <li>Permissions-Policy enforced</li>
           <li>nginx version suppressed</li>
+          <li>Duplicate HSTS header removed</li>
           <li>GET / genericised — no internal info</li>
           <li>Payment endpoints → 402 without valid sig</li>
           <li>Fake PAYMENT-SIGNATURE → 402</li>
@@ -344,7 +349,6 @@
           <li>Path traversal → 400</li>
           <li>Evil CORS origin blocked</li>
           <li>All invalid methods → 405</li>
-          <li class="warn">Duplicate HSTS header — cosmetic only</li>
         </ul>
       </div>
 
@@ -424,14 +428,14 @@
           </tr>
           <tr>
             <td>Overall score</td>
-            <td><span class="pill pill-green">9.5 / 10</span></td>
-            <td><span class="pill pill-green">9.0 / 10</span></td>
-            <td><span class="pill pill-green">9.8 / 10</span></td>
+            <td><span class="pill pill-green">10 / 10</span></td>
+            <td><span class="pill pill-green">10 / 10</span></td>
+            <td><span class="pill pill-green">10 / 10</span></td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="audit-meta">Independent validation by Comet CDP &nbsp;·&nbsp; 2026-04-09 &nbsp;·&nbsp; All servers production-ready</div>
+    <div class="audit-meta">Independent validation by Comet CDP &nbsp;·&nbsp; 2026-04-09 &nbsp;·&nbsp; All servers 10/10 — production-ready</div>
   </section>
 
   <!-- Notice -->
