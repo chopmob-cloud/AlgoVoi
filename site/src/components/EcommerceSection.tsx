@@ -267,12 +267,12 @@ export default function EcommerceSection() {
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-[#7C63D0]/10 border border-algo/20 rounded-2xl p-6 sm:p-8 text-center">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            60-day free trial · KYB reviewed in 2–5 days
+            60-day free trial · Testnet instant · Mainnet with business details
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start accepting crypto payments today</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            Apply for a free trial, drop an adapter into your store, and you're live on testnet + capped mainnet.
-            Four chains, four flows, zero lock-in. Full KYB required before live mode.
+            Sign up with your wallet — testnet is live instantly. Add your business name, country,
+            and contact to unlock capped mainnet. Drop an adapter into your store. Full KYB for live mode.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -281,7 +281,7 @@ export default function EcommerceSection() {
               rel="noopener noreferrer"
               className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Apply for Free Trial →
+              Start Free Trial →
             </a>
             <a
               href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters"
@@ -295,9 +295,9 @@ export default function EcommerceSection() {
           <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
             <span>✓ 60-day free trial</span>
             <span>✓ No platform fees in trial</span>
-            <span>✓ Reviewed in 2–5 days</span>
+            <span>✓ Testnet instant</span>
             <span>✓ 4 chains supported</span>
-            <span>✓ Testnet + mainnet (capped)</span>
+            <span>✓ Mainnet with business details</span>
           </div>
         </div>
 

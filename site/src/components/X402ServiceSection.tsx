@@ -3,7 +3,7 @@ export default function X402ServiceSection() {
     {
       n: '1',
       title: 'Register your resource',
-      desc: 'Apply as a tenant, pass a short compliance review, and configure your resource URL, price, and payout address.',
+      desc: 'Sign up with your wallet — testnet access is instant. Add your business details to unlock mainnet, then configure your resource URL, price, and payout address.',
     },
     {
       n: '2',
@@ -140,13 +140,14 @@ def premium_data():
         <div className="bg-gradient-to-r from-voi/10 via-algo/10 to-voi/10 border border-voi/20 rounded-2xl p-6 sm:p-8 text-center">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-voi animate-pulse" />
-            60-day free trial · Reviewed in 2–5 days
+            60-day free trial · Testnet instant · Mainnet with business details
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">
             Start charging for your API today
           </h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            Apply as a tenant, drop in the middleware, and you're live. AlgoVoi users pay automatically — no wallets to integrate, no SDKs to ship.
+            Sign up with your wallet, drop in the middleware, and you're live on testnet instantly.
+            Add your business details to unlock mainnet. AlgoVoi users pay automatically.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -155,7 +156,7 @@ def premium_data():
               rel="noopener noreferrer"
               className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Apply for Free Trial →
+              Start Free Trial →
             </a>
             <a
               href="https://github.com/coinbase/x402"
