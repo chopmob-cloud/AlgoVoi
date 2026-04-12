@@ -57,6 +57,10 @@ vi.mock("../src/background/chain-clients", () => ({
   getAccountState: vi.fn(),
   getSuggestedParams: vi.fn(),
   submitTransaction: vi.fn(),
+  submitTransactionGroup: vi.fn(),
+  waitForConfirmation: vi.fn(),
+  waitForIndexed: vi.fn(),
+  hasOptedIn: vi.fn(),
 }));
 
 vi.mock("../src/background/x402-handler", () => ({

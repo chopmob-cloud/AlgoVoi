@@ -55,6 +55,9 @@ vi.mock("../src/background/chain-clients", () => ({
   })),
   hasOptedIn: vi.fn(async () => true),
   submitTransaction: vi.fn(async () => "SUBMITTED_TXID_XYZ"),
+  submitTransactionGroup: vi.fn(async () => "SUBMITTED_GROUP_XYZ"),
+  waitForConfirmation: vi.fn(async () => ({})),
+  waitForIndexed: vi.fn(async () => true),
   getAccountState: vi.fn(async () => ({
     balance: 100_000_000n,
     minBalance: 100_000n,
