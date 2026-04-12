@@ -188,7 +188,7 @@
       operated under ilovechicken.co.uk, including payment gateway APIs, MCP servers,
       and ecommerce platform adapters.
     </p>
-    <p class="last-updated">Last updated: 12 April 2026 &nbsp;·&nbsp; Version 1.2</p>
+    <p class="last-updated">Last updated: 12 April 2026 &nbsp;·&nbsp; Version 1.3</p>
   </div>
 
   <!-- TOC -->
@@ -200,6 +200,7 @@
       <li><a href="#permitted">Permitted Use</a></li>
       <li><a href="#prohibited">Prohibited Use</a></li>
       <li><a href="#law-enforcement">Law Enforcement Cooperation</a></li>
+      <li><a href="#aml-kyb">AML / KYB Requirements for Merchants</a></li>
       <li><a href="#license">Software Licence</a></li>
       <li><a href="#payments">Payment Services</a></li>
       <li><a href="#fees">Fees &amp; Pricing</a></li>
@@ -246,9 +247,9 @@
       <li>Development and testing of payment protocol integrations</li>
       <li>Personal, non-commercial use of the AlgoVoi extension under the BSL licence</li>
     </ul>
-    <p>Commercial use of the AlgoVoi source code requires a separate commercial licence from the copyright holder. See Section 6.</p>
+    <p>Commercial use of the AlgoVoi source code requires a separate commercial licence from the copyright holder. See Section 7.</p>
     <p><strong>Age and capacity:</strong> By using these services you confirm that you are at least 18 years of age and have full legal capacity to enter into a binding agreement. Use by persons under 18 is strictly prohibited.</p>
-    <p><strong>Sanctions representation:</strong> By using these services you represent and warrant that you are not (i) located in, or a resident of, any country subject to UK, EU, or US sanctions; (ii) listed on any sanctions list maintained by HM Treasury, OFAC, or the EU; and (iii) acting on behalf of any sanctioned person or entity. Access from sanctioned jurisdictions is prohibited.</p>
+    <p><strong>Sanctions representation:</strong> By using these services you represent and warrant that you are not (i) located in, or a resident of, any country subject to UK, EU, or US sanctions; (ii) listed on any sanctions list maintained by HM Treasury (OFSI), OFAC, or the EU; and (iii) acting on behalf of any sanctioned person or entity. Access from sanctioned jurisdictions is prohibited. Wallet addresses are screened against live sanctions databases on every transaction — access will be denied automatically and without explanation in the event of a match.</p>
   </section>
 
   <!-- 4. Prohibited Use -->
@@ -276,7 +277,7 @@
 
     <p style="margin-top:1rem;"><strong>Technical misuse:</strong></p>
     <ul class="terms-list">
-      <li>Attempting to circumvent authentication, payment verification, or access controls</li>
+      <li>Attempting to circumvent authentication, payment verification, sanctions screening, or access controls</li>
       <li>Reverse engineering, decompiling, or extracting proprietary server-side logic</li>
       <li>Automated scraping, denial-of-service attacks, or abuse of rate limits</li>
       <li>Injecting malicious instructions into AI agent sessions (prompt injection attacks)</li>
@@ -299,18 +300,69 @@
       <li>Providing access logs, transaction records, IP addresses, and user data in response to valid legal process (court order, warrant, or equivalent)</li>
       <li>Preserving data upon receipt of a lawful preservation request</li>
       <li>Suspending or terminating accounts under investigation</li>
-      <li>Proactively reporting suspected illegal activity where required by law, including suspicious transaction reports under applicable AML regulations</li>
+      <li>Proactively filing Suspicious Activity Reports (SARs) with the UK Financial Intelligence Unit (UKFIU) via SARs Online where required under the Proceeds of Crime Act 2002 s.330 and UK Money Laundering Regulations 2017</li>
       <li>Assisting with forensic investigations into fraud, cyberattacks, or financial crime involving our infrastructure</li>
+      <li>Responding to requests from the Financial Conduct Authority, HM Treasury, OFSI, and other UK regulatory bodies</li>
     </ul>
+
+    <p><strong>Money Laundering Reporting Officer (MLRO):</strong> We have designated a Money Laundering Reporting Officer responsible for overseeing our AML/CTF programme, reviewing escalated compliance events, and making SAR filing decisions. See Section 16 for MLRO contact details.</p>
+
+    <p><strong>Tipping-off prohibition:</strong> Under SAMLA 2018 s.20 and PoCA 2002, we are legally prohibited from disclosing to any person that a SAR has been filed or that a sanctions investigation is under way. Generic error responses are returned in place of specific explanations in such circumstances.</p>
 
     <p><strong>Blockchain transparency:</strong> All on-chain transactions processed via AlgoVoi and the payment gateway are permanently recorded on public blockchains (Algorand, Voi, Hedera, Stellar). These records are immutable, publicly auditable, and available to law enforcement without any request to us. There is no anonymity guarantee for on-chain activity.</p>
 
     <p><strong>No safe harbour for illegal use:</strong> The non-custodial nature of the AlgoVoi wallet does not confer any protection against legal accountability. Users are solely responsible for the lawful use of their wallets and any transactions they execute.</p>
   </section>
 
-  <!-- 6. Licence -->
+  <!-- 6. AML / KYB -->
+  <section id="aml-kyb">
+    <h2>6. AML / KYB Requirements for Merchants</h2>
+
+    <p>Merchants accessing the AlgoVoi-Hand payment gateway in live mode are subject to the following obligations under the UK Money Laundering Regulations 2017 (MLRs), SAMLA 2018, and related legislation.</p>
+
+    <p><strong>Know Your Business (KYB):</strong></p>
+    <ul class="terms-list">
+      <li><strong>Simplified CDD (trial accounts):</strong> Before processing any mainnet payment during the trial period, merchants must provide their business name, country of incorporation, and primary contact name. This is required under UK MLRs 2017 Reg 37 and is enforced automatically at the payment gateway</li>
+      <li><strong>Full KYB (live mode):</strong> All merchants must complete full KYB document verification before accessing live mode. KYB requires submission of business identity documents appropriate to the merchant's legal entity type</li>
+      <li>Required documents for UK limited companies include: Certificate of Incorporation, Proof of Business Address, PSC / UBO Register, Director Passport or equivalent ID, and Source of Funds declaration</li>
+      <li>Documents are reviewed by our compliance team. KYB approval is at our sole discretion</li>
+      <li>We reserve the right to request additional documents, conduct enhanced due diligence, or decline onboarding without providing a reason, in accordance with our risk-based approach under MLRs Reg 18</li>
+      <li>Merchant identity documents are retained for a minimum of 5 years after the business relationship ends, as required by MLRs Reg 40</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Risk tiers:</strong></p>
+    <ul class="terms-list">
+      <li>Each merchant account is assigned a risk tier (<code>low</code>, <code>medium</code>, <code>high</code>, or <code>restricted</code>) based on our ongoing risk assessment</li>
+      <li>Risk tier affects daily transaction volume caps. High-risk accounts are subject to reduced caps; restricted accounts cannot process live payments</li>
+      <li>Risk tier may be adjusted at any time without notice if our assessment changes</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Sanctions screening:</strong></p>
+    <ul class="terms-list">
+      <li>All payer wallet addresses are screened against live sanctions databases (OFSI, OFAC SDN, EU Consolidated) on every payment in real time</li>
+      <li>Merchant wallet addresses are screened at KYB approval and following any material change to the account</li>
+      <li>Payments from sanctioned wallet addresses will be blocked automatically. Merchants will not be notified of the specific reason for a payment failure in order to comply with tipping-off provisions</li>
+      <li>Sanctions data is refreshed daily from official public feeds</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Transaction monitoring:</strong></p>
+    <ul class="terms-list">
+      <li>All payment activity is subject to automated transaction monitoring rules designed to detect money laundering, terrorist financing, and fraud indicators</li>
+      <li>Unusual activity may result in: an alert to our compliance team, an AML hold placed on the payment record, escalation to the MLRO, or temporary suspension of the merchant account pending review</li>
+      <li>Merchants are obligated to maintain their own AML/CTF compliance programme appropriate to their business and jurisdiction</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Ongoing monitoring:</strong></p>
+    <ul class="terms-list">
+      <li>We conduct ongoing due diligence on merchant accounts as required by MLRs Reg 28(12)</li>
+      <li>Merchants must promptly notify us of any material change to their business, beneficial ownership, or legal structure</li>
+      <li>We reserve the right to conduct enhanced due diligence reviews at any time without notice</li>
+    </ul>
+  </section>
+
+  <!-- 7. Licence -->
   <section id="license">
-    <h2>6. Software Licence</h2>
+    <h2>7. Software Licence</h2>
     <p>The AlgoVoi browser extension source code is licensed under the <strong>Business Source Licence 1.1 (BSL 1.1)</strong>.</p>
     <ul class="terms-list">
       <li><strong>Copyright:</strong> © 2026 Christopher Hopley — ilovechicken.co.uk</li>
@@ -323,9 +375,9 @@
     <p>For commercial licensing enquiries contact: <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a></p>
   </section>
 
-  <!-- 7. Payments -->
+  <!-- 8. Payments -->
   <section id="payments">
-    <h2>7. Payment Services</h2>
+    <h2>8. Payment Services</h2>
     <p>AlgoVoi-Hand operates as a non-custodial on-chain payment gateway. The following conditions apply:</p>
     <ul class="terms-list">
       <li>All payments are executed on public blockchains and are <strong>irreversible</strong> once confirmed on-chain</li>
@@ -334,12 +386,13 @@
       <li>We are not liable for failed, delayed, or misdirected transactions resulting from incorrect wallet addresses or network congestion</li>
       <li>Merchants using the payment gateway must comply with all applicable laws in their jurisdiction including tax obligations and consumer protection requirements</li>
       <li>Test mode transactions use testnet only — no real funds are moved</li>
+      <li>Payments may be declined or blocked at any time without notice where required by our AML/CTF obligations, sanctions screening results, or risk management policies. No reason will be provided where disclosure would breach tipping-off provisions</li>
     </ul>
   </section>
 
-  <!-- 8. Fees & Pricing -->
+  <!-- 9. Fees & Pricing -->
   <section id="fees">
-    <h2>8. Fees &amp; Pricing</h2>
+    <h2>9. Fees &amp; Pricing</h2>
 
     <div class="callout">
       <p><strong>Simple, transparent pricing.</strong> No monthly subscription, no hidden charges. You only pay when you earn — a single percentage fee on verified payments.</p>
@@ -347,7 +400,8 @@
 
     <p><strong>Trial period:</strong></p>
     <ul class="terms-list">
-      <li>New merchants receive a <strong>60-day free trial</strong> with full mainnet access on all supported chains (Algorand, Voi, Hedera, Stellar)</li>
+      <li>New merchants receive a <strong>60-day free trial</strong> with mainnet access on all supported chains (Algorand, Voi, Hedera, Stellar)</li>
+      <li>Before processing any mainnet payment, trial accounts must complete a brief business profile: <strong>business name, country of incorporation, and primary contact name</strong>. This satisfies simplified customer due diligence under UK MLRs 2017 Reg 37 and is required regardless of volume. Full KYB document verification is required before upgrading to live mode</li>
       <li>Trial accounts are subject to volume caps: <strong>$1,000/day</strong> and <strong>$5,000/week</strong> (USD equivalent at current market price)</li>
       <li>No platform fees are charged during the trial period</li>
       <li>At the end of the trial period, the account is frozen until upgraded to a paid plan</li>
@@ -372,9 +426,9 @@
     <p style="margin-top:1rem;"><strong>Fee changes:</strong> We reserve the right to adjust the platform fee rate with 30 days' written notice. Existing verified payments are unaffected by rate changes — the fee rate is locked at the time of each payment challenge.</p>
   </section>
 
-  <!-- 9. Non-Custodial -->
+  <!-- 10. Non-Custodial -->
   <section id="custody">
-    <h2>9. Non-Custodial Wallet</h2>
+    <h2>10. Non-Custodial Wallet</h2>
     <p>AlgoVoi is a <strong>non-custodial</strong> wallet. This means:</p>
     <ul class="terms-list">
       <li>Your private keys and seed phrase are generated and stored exclusively on your device</li>
@@ -386,29 +440,32 @@
     <p>The 30-day local signing key feature stores an encrypted key with a time-limited TTL. This key is never transmitted to our servers.</p>
   </section>
 
-  <!-- 10. Privacy -->
+  <!-- 11. Privacy -->
   <section id="privacy">
-    <h2>10. Privacy &amp; Data</h2>
+    <h2>11. Privacy &amp; Data</h2>
     <p>Our full Privacy Policy is available at <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" style="color:#8B5CF6;">privacy-policy.html</a>. Key principles:</p>
     <ul class="terms-list">
       <li>The AlgoVoi extension does not collect or transmit personal data beyond what is necessary for wallet operation</li>
-      <li>Server logs are retained for security and fraud prevention purposes with a 90-day PII purge policy</li>
+      <li>Server logs are retained for security and fraud prevention purposes with a <strong>90-day PII purge</strong> policy under UK GDPR</li>
       <li>No PII is included in audit log lines</li>
-      <li>We comply with UK GDPR. Data subjects may exercise their rights (access, rectification, erasure, portability, objection) by contacting support@ilovechicken.co.uk — we will respond within 30 days</li>
+      <li><strong>AML retention override:</strong> Where a payment record is subject to an AML hold — due to a sanctions hit, a transaction monitoring escalation, or a manual compliance hold — that record and its associated data are retained for a minimum of <strong>5 years</strong> from the date of the transaction, as required by UK MLRs 2017 Reg 40(1)(b). This retention overrides the standard 90-day purge. The legal basis for this extended retention is our obligation to comply with anti-money laundering legislation, which takes precedence over erasure requests under UK GDPR (ICO guidance 2020)</li>
+      <li>KYB documents are retained for a minimum of 5 years after the business relationship ends, as required by MLRs Reg 40(2)</li>
+      <li>We comply with UK GDPR. Data subjects may exercise their rights (access, rectification, erasure, portability, objection) by contacting support@ilovechicken.co.uk — we will respond within 30 days. Note that erasure requests may be refused or deferred where retention is required by AML legislation</li>
       <li>Data may be disclosed to law enforcement to the extent required or permitted by applicable law, in accordance with Section 5 of these terms</li>
       <li>Where we act as a data processor on behalf of merchants, a Data Processing Agreement (DPA) is available on request</li>
     </ul>
   </section>
 
-  <!-- 11. Liability -->
+  <!-- 12. Liability -->
   <section id="liability">
-    <h2>11. Disclaimers &amp; Limitation of Liability</h2>
+    <h2>12. Disclaimers &amp; Limitation of Liability</h2>
     <p>Services are provided <strong>"as is"</strong> without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.</p>
     <ul class="terms-list">
       <li>We do not guarantee uninterrupted availability of any service</li>
       <li>We are not liable for losses arising from blockchain network failures, smart contract bugs, or third-party protocol issues</li>
       <li>We are not liable for losses arising from user error, including sending funds to incorrect addresses</li>
       <li>We are not liable for losses arising from compromise of a user's device, seed phrase, or private keys</li>
+      <li>We are not liable for losses arising from payment delays or blocks resulting from sanctions screening, AML holds, or risk management controls applied in good faith</li>
       <li>Cryptocurrency values are volatile. Nothing in these services constitutes financial advice</li>
       <li>To the maximum extent permitted by applicable law, our total liability shall not exceed the fees paid by you in the 30 days preceding the claim</li>
     </ul>
@@ -417,22 +474,24 @@
     <p>Nothing in these terms limits liability for death or personal injury caused by negligence, fraud, or fraudulent misrepresentation, or any other liability that cannot be excluded by law.</p>
   </section>
 
-  <!-- 12. Termination -->
+  <!-- 13. Termination -->
   <section id="termination">
-    <h2>12. Termination</h2>
+    <h2>13. Termination</h2>
     <p>We reserve the right to suspend or terminate access to any service, immediately and without notice, if we reasonably believe a user is:</p>
     <ul class="terms-list">
       <li>Engaged in any prohibited activity listed in Section 4</li>
-      <li>Under investigation by law enforcement</li>
+      <li>Under investigation by law enforcement or a regulatory authority</li>
+      <li>Listed on, or associated with a party listed on, a sanctions list</li>
+      <li>In breach of their AML/KYB obligations under Section 6</li>
       <li>In breach of these terms in any material respect</li>
       <li>Using the service in a manner that could expose us or other users to legal, regulatory, or reputational harm</li>
     </ul>
-    <p>Termination of access does not affect our obligation to cooperate with law enforcement under Section 5, nor does it result in deletion of logs or records that may be subject to a preservation or disclosure request.</p>
+    <p>Termination of access does not affect our obligation to cooperate with law enforcement under Section 5, nor does it result in deletion of logs or records that may be subject to a preservation, disclosure, or AML retention obligation.</p>
   </section>
 
-  <!-- 13. General Provisions -->
+  <!-- 14. General Provisions -->
   <section id="general">
-    <h2>13. General Provisions</h2>
+    <h2>14. General Provisions</h2>
     <p><strong>Severability:</strong> If any provision of these terms is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, that provision shall be modified to the minimum extent necessary to make it enforceable, or severed if modification is not possible. The remaining provisions shall continue in full force and effect.</p>
     <p><strong>Entire Agreement:</strong> These terms, together with our Privacy Policy, constitute the entire agreement between you and us relating to your use of the services and supersede all prior agreements, representations, and understandings, whether written or oral.</p>
     <p><strong>Force Majeure:</strong> We shall not be liable for any failure or delay in performance arising from circumstances beyond our reasonable control, including but not limited to blockchain network failures, third-party protocol outages, acts of God, government action, internet service disruptions, or cyberattacks on infrastructure we do not operate.</p>
@@ -441,23 +500,28 @@
     <p><strong>Amendments:</strong> We reserve the right to update these terms at any time. Continued use of the services following notice of updated terms constitutes acceptance. Material changes will be communicated via the extension or website.</p>
   </section>
 
-  <!-- 14. Governing Law -->
+  <!-- 15. Governing Law -->
   <section id="governing-law">
-    <h2>14. Governing Law</h2>
+    <h2>15. Governing Law</h2>
     <p>These terms are governed by and construed in accordance with the laws of <strong>England and Wales</strong>. Any dispute arising from these terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
     <p>If any provision of these terms is found to be unenforceable, the remaining provisions shall continue in full force and effect.</p>
   </section>
 
-  <!-- 15. Contact -->
+  <!-- 16. Contact -->
   <section id="contact">
-    <h2>15. Contact</h2>
+    <h2>16. Contact</h2>
     <div class="notice">
-      <strong>Legal enquiries, licensing, and law enforcement requests:</strong>
+      <strong>General enquiries, licensing, and data protection:</strong>
       <br><br>
       Christopher Hopley — ilovechicken.co.uk<br>
       <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a>
       <br><br>
-      <span style="color:#484F58;">Law enforcement and regulatory authorities may contact us at the above address. We will respond to all lawful requests promptly and without reservation.</span>
+      <strong>Money Laundering Reporting Officer (MLRO):</strong>
+      <br>
+      Christopher Hopley — designated MLRO<br>
+      <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a>
+      <br><br>
+      <span style="color:#484F58;">Law enforcement and regulatory authorities (including FCA, OFSI, UKFIU, and NCA) may contact us at the above address. We will respond to all lawful requests promptly and without reservation. For SAR-related matters, please mark correspondence <strong style="color:#8B949E;">Private &amp; Confidential — MLRO</strong>.</span>
     </div>
   </section>
 
