@@ -185,6 +185,16 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
   });
   const totalFees = feeLegsDefs.reduce((sum, f) => sum + BigInt(f.amount), 0n);
 
+  // Merchant-absorbs model: customer pays maxAmountRequired total, split
+  // between merchant (amount - totalFees) and operator (totalFees).
+  // Customer's total outflow = amount (unchanged from pre-billing behavior).
+  const merchantAmount = feeLegsDefs.length > 0 ? amount - totalFees : amount;
+  if (merchantAmount <= 0n) {
+    throw new Error(
+      `Fee (${totalFees}) exceeds or equals payment amount (${amount}). Cannot proceed.`
+    );
+  }
+
   // Respect per-user configurable spending caps from wallet settings.
   function safeCap(stored: number | undefined, defaultCap: bigint): bigint {
     if (stored === undefined || stored <= 0 || !Number.isFinite(stored)) return defaultCap;
@@ -194,22 +204,23 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
     ? safeCap(meta.spendingCaps?.asaMicrounits, SPENDING_CAP_ASA)
     : safeCap(meta.spendingCaps?.nativeMicrounits, SPENDING_CAP_NATIVE);
 
-  // Spending cap covers total outflow (merchant + all fee legs).
-  const totalOutflow = amount + totalFees;
-  if (totalOutflow > cap) {
+  // Spending cap covers the customer's total outflow = maxAmountRequired.
+  if (amount > cap) {
     throw new Error(
-      `Total payment ${totalOutflow} microunits (${amount} + ${totalFees} fees) exceeds safety cap of ${cap}. ` +
+      `Payment amount ${amount} microunits exceeds safety cap of ${cap}. ` +
       `Adjust the cap in settings or reject this payment.`
     );
   }
 
   // Pre-flight balance check — account for all legs + per-txn network fees.
+  // Customer's total value outflow = amount (merchant gets amount-fees,
+  // operator gets fees, total = amount). Network fees are additional.
   const groupSize = 1 + feeLegsDefs.length;
   const perTxnFee = BigInt((params as { minFee?: number }).minFee ?? 1000);
   const totalNetworkFees = perTxnFee * BigInt(groupSize);
   const accountState = await getAccountState(senderAddress, chain);
   const spendable = accountState.balance - accountState.minBalance;
-  const needed = asaId !== 0 ? totalNetworkFees : totalOutflow + totalNetworkFees;
+  const needed = asaId !== 0 ? totalNetworkFees : amount + totalNetworkFees;
   if (spendable < needed) {
     const ticker = CHAINS[chain].ticker;
     throw new Error(
@@ -231,16 +242,16 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
         `Open AlgoVoi, find the asset, and opt-in before paying.`
       );
     }
-    // Merchant leg (ASA)
+    // Merchant leg (ASA): receives amount - fees
     txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
       assetIndex: asaId,
-      amount,
+      amount: merchantAmount,
       note,
       suggestedParams: params,
     }));
-    // Fee legs (same ASA)
+    // Fee legs (same ASA): operator receives fee portion
     for (const feeDef of feeLegsDefs) {
       txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
         sender: senderAddress,
@@ -251,15 +262,15 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
       }));
     }
   } else {
-    // Merchant leg (native ALGO/VOI)
+    // Merchant leg (native ALGO/VOI): receives amount - fees
     txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
-      amount,
+      amount: merchantAmount,
       note,
       suggestedParams: params,
     }));
-    // Fee legs (native)
+    // Fee legs (native): operator receives fee portion
     for (const feeDef of feeLegsDefs) {
       txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: senderAddress,
