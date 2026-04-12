@@ -16,13 +16,10 @@
       min-height: 100vh;
     }
 
+    /* ─── Header ─── */
     header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
       padding: 1rem 1.5rem;
       border-bottom: 1px solid rgba(48,54,61,0.5);
       background: rgba(13,17,23,0.85);
@@ -42,128 +39,116 @@
       padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;
     }
 
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 4rem 1.5rem 6rem;
-    }
+    /* ─── Layout ─── */
+    main { max-width: 860px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
 
+    /* ─── Hero ─── */
     .hero { margin-bottom: 3rem; }
     .badge {
       display: inline-block;
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #8B5CF6;
-      border: 1px solid rgba(139,92,246,0.35);
-      background: rgba(139,92,246,0.08);
-      padding: 0.25rem 0.75rem; border-radius: 999px;
-      margin-bottom: 1rem;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #8B5CF6; border: 1px solid rgba(139,92,246,0.35); background: rgba(139,92,246,0.08);
+      padding: 0.25rem 0.75rem; border-radius: 999px; margin-bottom: 1rem;
     }
-    h1 {
-      font-size: clamp(1.75rem, 4vw, 2.5rem);
-      font-weight: 800; line-height: 1.15;
-      margin-bottom: 1rem;
-    }
+    h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
     h1 span { background: linear-gradient(135deg, #00C8FF, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .subtitle { color: #8B949E; font-size: 1rem; max-width: 640px; }
     .last-updated { font-size: 0.75rem; color: #484F58; margin-top: 0.75rem; }
 
+    /* ─── Sections & headings ─── */
     section { margin-bottom: 2.5rem; }
     h2 {
-      font-size: 1.05rem; font-weight: 700;
-      color: #E6EDF3;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #30363D;
+      font-size: 1.05rem; font-weight: 700; color: #E6EDF3;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #30363D;
     }
     p { font-size: 0.875rem; color: #8B949E; margin-bottom: 0.75rem; }
     p:last-child { margin-bottom: 0; }
     p strong { color: #E6EDF3; }
 
-    ul.terms-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-    ul.terms-list li {
-      font-size: 0.875rem;
-      color: #8B949E;
-      padding-left: 1.25rem;
-      position: relative;
-    }
-    ul.terms-list li::before {
-      content: '–';
-      position: absolute;
-      left: 0;
-      color: #484F58;
+    /* ─── Global links ─── */
+    a { color: #8B5CF6; text-decoration: none; }
+    a:hover { color: #E6EDF3; }
+
+    /* ─── Inline code ─── */
+    code {
+      font-family: ui-monospace, monospace; font-size: 0.8rem;
+      background: #161B22; border: 1px solid #30363D; border-radius: 4px;
+      padding: 0.1rem 0.35rem; color: #00C8FF;
     }
 
-    /* Warning box */
-    .warning-box {
-      background: rgba(220,38,38,0.08);
-      border: 1px solid rgba(220,38,38,0.3);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .warning-box .warning-title {
-      font-size: 0.875rem; font-weight: 700;
-      color: #F87171;
-      margin-bottom: 0.5rem;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .warning-box p { color: #8B949E; font-size: 0.85rem; }
-
-    /* Highlight box */
-    .highlight-box {
-      background: rgba(46,160,67,0.08);
-      border: 1px solid rgba(46,160,67,0.25);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .highlight-box .highlight-title {
-      font-size: 0.875rem; font-weight: 700;
-      color: #3FB950;
-      margin-bottom: 0.5rem;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .highlight-box p { color: #8B949E; font-size: 0.85rem; }
-
-    /* Notice */
-    .notice {
-      background: rgba(139,92,246,0.08);
-      border: 1px solid rgba(139,92,246,0.25);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      font-size: 0.875rem;
-      color: #8B949E;
-    }
-    .notice strong { color: #E6EDF3; }
-
-    /* TOC */
-    .toc {
-      background: #161B22;
-      border: 1px solid #30363D;
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 3rem;
-    }
+    /* ─── TOC ─── */
+    .toc { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 3rem; }
     .toc-title { font-size: 0.75rem; font-weight: 700; color: #8B949E; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
     .toc ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
     .toc ol li { font-size: 0.8rem; }
     .toc ol li a { color: #8B5CF6; text-decoration: none; }
     .toc ol li a:hover { color: #E6EDF3; }
 
-    footer {
-      border-top: 1px solid #30363D;
-      padding: 2rem 1.5rem;
-      text-align: center;
-      font-size: 0.75rem;
-      color: #484F58;
+    /* ─── Terms list ─── */
+    ul.terms-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; }
+    ul.terms-list li { font-size: 0.875rem; color: #8B949E; padding-left: 1.25rem; position: relative; }
+    ul.terms-list li::before { content: '–'; position: absolute; left: 0; color: #484F58; }
+
+    /* ─── Cards grid ─── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
+    .card-icon { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .card-title { font-size: 0.875rem; font-weight: 700; color: #E6EDF3; margin-bottom: 0.3rem; }
+    .card-desc { font-size: 0.8rem; color: #8B949E; line-height: 1.5; }
+
+    /* ─── Table ─── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th {
+      text-align: left; padding: 0.6rem 1rem; background: #161B22; color: #8B949E;
+      font-weight: 600; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;
+      border-bottom: 1px solid #30363D;
     }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(48,54,61,0.5); color: #E6EDF3; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(22,27,34,0.6); }
+
+    /* ─── Pills ─── */
+    .pill { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.6rem; border-radius: 999px; }
+    .pill-green  { background: rgba(46,160,67,0.15);  color: #3FB950; border: 1px solid rgba(46,160,67,0.3); }
+    .pill-yellow { background: rgba(210,153,34,0.15); color: #D29922; border: 1px solid rgba(210,153,34,0.3); }
+    .pill-blue   { background: rgba(0,200,255,0.1);   color: #00C8FF; border: 1px solid rgba(0,200,255,0.25); }
+
+    /* ─── Server grid (security infrastructure) ─── */
+    .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .server-card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
+    .server-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .server-name { font-size: 0.8rem; font-weight: 700; color: #E6EDF3; }
+    .server-score { font-size: 1.1rem; font-weight: 800; color: #3FB950; }
+    .server-host { font-size: 0.7rem; color: #484F58; margin-bottom: 0.75rem; font-family: monospace; }
+    .check-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+    .check-list li { font-size: 0.75rem; color: #8B949E; display: flex; align-items: flex-start; gap: 0.4rem; }
+    .check-list li::before { content: '✓'; color: #3FB950; font-weight: 700; flex-shrink: 0; }
+    .check-list li.warn::before { content: '·'; color: #D29922; }
+    .audit-meta { font-size: 0.75rem; color: #484F58; margin-top: 1rem; }
+    .test-table-wrap { background: #161B22; border: 1px solid #30363D; border-radius: 12px; overflow: hidden; }
+    .test-label { font-size: 0.7rem; color: #8B949E; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* ─── Callout box ─── */
+    .callout { background: rgba(0,200,255,0.06); border: 1px solid rgba(0,200,255,0.2); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+    .callout p { color: #8B949E; font-size: 0.875rem; margin: 0; }
+    .callout strong { color: #00C8FF; }
+
+    /* ─── Warning box ─── */
+    .warning-box { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .warning-box .warning-title { font-size: 0.875rem; font-weight: 700; color: #F87171; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .warning-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* ─── Highlight box ─── */
+    .highlight-box { background: rgba(46,160,67,0.08); border: 1px solid rgba(46,160,67,0.25); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .highlight-box .highlight-title { font-size: 0.875rem; font-weight: 700; color: #3FB950; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .highlight-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* ─── Notice ─── */
+    .notice { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 1.25rem 1.5rem; font-size: 0.875rem; color: #8B949E; }
+    .notice strong { color: #E6EDF3; }
+
+    /* ─── Footer ─── */
+    footer { border-top: 1px solid #30363D; padding: 2rem 1.5rem; text-align: center; font-size: 0.75rem; color: #484F58; }
     footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
     footer a:hover { color: #E6EDF3; }
     .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
@@ -175,7 +160,10 @@
       font-size: 8px; font-weight: 900; color: #0D1117;
     }
 
+    /* ─── Responsive ─── */
     @media (max-width: 600px) {
+      .cards, .server-grid { grid-template-columns: 1fr; }
+      th, td { padding: 0.6rem 0.75rem; }
       .toc ol { gap: 0.5rem; }
     }
   </style>
@@ -200,7 +188,7 @@
       operated under ilovechicken.co.uk, including payment gateway APIs, MCP servers,
       and ecommerce platform adapters.
     </p>
-    <p class="last-updated">Last updated: 9 April 2026 &nbsp;·&nbsp; Version 1.1</p>
+    <p class="last-updated">Last updated: 12 April 2026 &nbsp;·&nbsp; Version 1.2</p>
   </div>
 
   <!-- TOC -->
@@ -214,12 +202,12 @@
       <li><a href="#law-enforcement">Law Enforcement Cooperation</a></li>
       <li><a href="#license">Software Licence</a></li>
       <li><a href="#payments">Payment Services</a></li>
+      <li><a href="#fees">Fees &amp; Pricing</a></li>
       <li><a href="#custody">Non-Custodial Wallet</a></li>
       <li><a href="#privacy">Privacy &amp; Data</a></li>
       <li><a href="#liability">Disclaimers &amp; Liability</a></li>
       <li><a href="#termination">Termination</a></li>
       <li><a href="#general">General Provisions</a></li>
-      <li><a href="#governing-law">Governing Law</a></li>
       <li><a href="#governing-law">Governing Law</a></li>
       <li><a href="#contact">Contact</a></li>
     </ol>
@@ -349,9 +337,44 @@
     </ul>
   </section>
 
-  <!-- 8. Non-Custodial -->
+  <!-- 8. Fees & Pricing -->
+  <section id="fees">
+    <h2>8. Fees &amp; Pricing</h2>
+
+    <div class="callout">
+      <p><strong>Simple, transparent pricing.</strong> No monthly subscription, no hidden charges. You only pay when you earn — a single percentage fee on verified payments.</p>
+    </div>
+
+    <p><strong>Trial period:</strong></p>
+    <ul class="terms-list">
+      <li>New merchants receive a <strong>60-day free trial</strong> with full mainnet access on all supported chains (Algorand, Voi, Hedera, Stellar)</li>
+      <li>Trial accounts are subject to volume caps: <strong>$1,000/day</strong> and <strong>$5,000/week</strong> (USD equivalent at current market price)</li>
+      <li>No platform fees are charged during the trial period</li>
+      <li>At the end of the trial period, the account is frozen until upgraded to a paid plan</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Paid plan:</strong></p>
+    <ul class="terms-list">
+      <li>Platform fee: <strong>0.5%</strong> (50 basis points) per verified payment</li>
+      <li>The fee is deducted from the merchant's settlement — customers pay the listed price with no surcharge</li>
+      <li>Fees are collected atomically at settlement via an on-chain multi-output transaction (atomic group on Algorand/Voi, multi-party CryptoTransfer on Hedera, multi-operation transaction on Stellar)</li>
+      <li>No monthly minimums, no setup fees, no cancellation fees</li>
+      <li>Volume caps are removed on the paid plan</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Fee transparency:</strong></p>
+    <ul class="terms-list">
+      <li>The current fee rate is included in every 402 payment challenge (<code>extra.feeBps</code>)</li>
+      <li>All fee transactions are recorded in a tamper-proof on-chain audit trail alongside the merchant payment</li>
+      <li>Merchants can view fee history and totals via the billing API and operator dashboard</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Fee changes:</strong> We reserve the right to adjust the platform fee rate with 30 days' written notice. Existing verified payments are unaffected by rate changes — the fee rate is locked at the time of each payment challenge.</p>
+  </section>
+
+  <!-- 9. Non-Custodial -->
   <section id="custody">
-    <h2>8. Non-Custodial Wallet</h2>
+    <h2>9. Non-Custodial Wallet</h2>
     <p>AlgoVoi is a <strong>non-custodial</strong> wallet. This means:</p>
     <ul class="terms-list">
       <li>Your private keys and seed phrase are generated and stored exclusively on your device</li>
@@ -363,9 +386,9 @@
     <p>The 30-day local signing key feature stores an encrypted key with a time-limited TTL. This key is never transmitted to our servers.</p>
   </section>
 
-  <!-- 9. Privacy -->
+  <!-- 10. Privacy -->
   <section id="privacy">
-    <h2>9. Privacy &amp; Data</h2>
+    <h2>10. Privacy &amp; Data</h2>
     <p>Our full Privacy Policy is available at <a href="https://chopmob-cloud.github.io/AlgoVoi/privacy-policy.html" style="color:#8B5CF6;">privacy-policy.html</a>. Key principles:</p>
     <ul class="terms-list">
       <li>The AlgoVoi extension does not collect or transmit personal data beyond what is necessary for wallet operation</li>
@@ -377,9 +400,9 @@
     </ul>
   </section>
 
-  <!-- 10. Liability -->
+  <!-- 11. Liability -->
   <section id="liability">
-    <h2>10. Disclaimers &amp; Limitation of Liability</h2>
+    <h2>11. Disclaimers &amp; Limitation of Liability</h2>
     <p>Services are provided <strong>"as is"</strong> without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.</p>
     <ul class="terms-list">
       <li>We do not guarantee uninterrupted availability of any service</li>
@@ -394,9 +417,9 @@
     <p>Nothing in these terms limits liability for death or personal injury caused by negligence, fraud, or fraudulent misrepresentation, or any other liability that cannot be excluded by law.</p>
   </section>
 
-  <!-- 11. Termination -->
+  <!-- 12. Termination -->
   <section id="termination">
-    <h2>11. Termination</h2>
+    <h2>12. Termination</h2>
     <p>We reserve the right to suspend or terminate access to any service, immediately and without notice, if we reasonably believe a user is:</p>
     <ul class="terms-list">
       <li>Engaged in any prohibited activity listed in Section 4</li>
@@ -407,9 +430,9 @@
     <p>Termination of access does not affect our obligation to cooperate with law enforcement under Section 5, nor does it result in deletion of logs or records that may be subject to a preservation or disclosure request.</p>
   </section>
 
-  <!-- 12. General Provisions -->
+  <!-- 13. General Provisions -->
   <section id="general">
-    <h2>12. General Provisions</h2>
+    <h2>13. General Provisions</h2>
     <p><strong>Severability:</strong> If any provision of these terms is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, that provision shall be modified to the minimum extent necessary to make it enforceable, or severed if modification is not possible. The remaining provisions shall continue in full force and effect.</p>
     <p><strong>Entire Agreement:</strong> These terms, together with our Privacy Policy, constitute the entire agreement between you and us relating to your use of the services and supersede all prior agreements, representations, and understandings, whether written or oral.</p>
     <p><strong>Force Majeure:</strong> We shall not be liable for any failure or delay in performance arising from circumstances beyond our reasonable control, including but not limited to blockchain network failures, third-party protocol outages, acts of God, government action, internet service disruptions, or cyberattacks on infrastructure we do not operate.</p>
@@ -418,16 +441,16 @@
     <p><strong>Amendments:</strong> We reserve the right to update these terms at any time. Continued use of the services following notice of updated terms constitutes acceptance. Material changes will be communicated via the extension or website.</p>
   </section>
 
-  <!-- 13. Governing Law -->
+  <!-- 14. Governing Law -->
   <section id="governing-law">
-    <h2>13. Governing Law</h2>
+    <h2>14. Governing Law</h2>
     <p>These terms are governed by and construed in accordance with the laws of <strong>England and Wales</strong>. Any dispute arising from these terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
     <p>If any provision of these terms is found to be unenforceable, the remaining provisions shall continue in full force and effect.</p>
   </section>
 
-  <!-- 14. Contact -->
+  <!-- 15. Contact -->
   <section id="contact">
-    <h2>14. Contact</h2>
+    <h2>15. Contact</h2>
     <div class="notice">
       <strong>Legal enquiries, licensing, and law enforcement requests:</strong>
       <br><br>
