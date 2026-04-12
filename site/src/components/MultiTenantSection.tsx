@@ -33,15 +33,15 @@ export default function MultiTenantSection() {
   ]
 
   const onboarding = [
-    { step: '1', label: 'Apply', sub: 'Business details + KYB application' },
+    { step: '1', label: 'Wallet signup', sub: 'Instant testnet access' },
     { arrow: true },
-    { step: '2', label: 'Reviewed', sub: 'Compliance check · 2–5 days' },
+    { step: '2', label: 'Add business details', sub: 'Name · country · contact' },
     { arrow: true },
-    { step: '3', label: 'Test + trial', sub: 'Testnet & capped mainnet · 60 days' },
+    { step: '3', label: 'Mainnet unlocked', sub: 'Capped mainnet · 60-day trial' },
     { arrow: true },
     { step: '4', label: 'KYB docs', sub: 'Submit required documents' },
     { arrow: true },
-    { step: '5', label: 'Activate live', sub: 'POST activate-live → no caps' },
+    { step: '5', label: 'Activate live', sub: 'No caps · full production' },
   ]
 
   return (
@@ -168,10 +168,11 @@ POST /tenants/{id}/apikeys
 
         {/* Trial CTA */}
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-emerald-400/10 border border-algo/20 rounded-2xl p-8 text-center mt-4">
-          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Apply for your free trial</h3>
+          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start your free trial</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            Submit a short business application. Our team reviews all requests within 2–5 business days
-            — you'll get 60 days of testnet access and capped mainnet with zero platform fees.
+            Sign up with your wallet — testnet access is instant, no review needed.
+            Add your business name, country, and contact to unlock capped mainnet payments.
+            60 days, zero platform fees.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -180,7 +181,7 @@ POST /tenants/{id}/apikeys
               rel="noopener noreferrer"
               className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Apply for Free Trial →
+              Start Free Trial →
             </a>
             <a
               href="https://api1.ilovechicken.co.uk/dashboard/"
@@ -194,9 +195,9 @@ POST /tenants/{id}/apikeys
           <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
             <span>✓ 60-day free trial</span>
             <span>✓ No platform fees in trial</span>
-            <span>✓ Reviewed in 2–5 days</span>
+            <span>✓ Testnet instant</span>
+            <span>✓ Mainnet with business details</span>
             <span>✓ UK-regulated · MLRs 2017</span>
-            <span>✓ Testnet + mainnet (capped)</span>
           </div>
         </div>
       </div>
