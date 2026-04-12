@@ -33,15 +33,15 @@ export default function MultiTenantSection() {
   ]
 
   const onboarding = [
-    { step: '1', label: 'Create tenant', sub: 'POST /tenants via control plane' },
+    { step: '1', label: 'Apply', sub: 'Business details + KYB application' },
     { arrow: true },
-    { step: '2', label: 'Verify identity', sub: 'Submit your details' },
+    { step: '2', label: 'Reviewed', sub: 'Compliance check · 2–5 days' },
     { arrow: true },
-    { step: '3', label: 'Test on testnet', sub: 'Full x402 flow, no real money' },
+    { step: '3', label: 'Test + trial', sub: 'Testnet & capped mainnet · 60 days' },
     { arrow: true },
-    { step: '4', label: 'Verified', sub: 'Compliance review passes' },
+    { step: '4', label: 'KYB docs', sub: 'Submit required documents' },
     { arrow: true },
-    { step: '5', label: 'Activate live', sub: 'POST activate-live → mainnet' },
+    { step: '5', label: 'Activate live', sub: 'POST activate-live → no caps' },
   ]
 
   return (
@@ -111,7 +111,7 @@ export default function MultiTenantSection() {
               <span className="text-[11px] text-gray ml-2">Register your tenant — control plane API</span>
             </div>
             <pre className="text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono">
-{`# Control plane — create tenant
+{`# Control plane — create tenant (after KYB application approved)
 POST https://cp.ilovechicken.co.uk/tenants
 Authorization: Bearer <admin-key>
 
@@ -121,7 +121,11 @@ Authorization: Bearer <admin-key>
   "payout_addresses": {
     "algorand_mainnet": "AAAA…ZZZZ",
     "voi_mainnet":      "BBBB…YYYY"
-  }
+  },
+  # Simplified CDD — required before first mainnet payment
+  "legal_entity_name": "Acme Payments Ltd",
+  "jurisdiction":       "GB",
+  "contact_name":       "Jane Smith"
 }
 
 # → 201  { "id": "uuid", "short_id": "acme-x4f2",
@@ -138,18 +142,18 @@ POST /tenants/{id}/apikeys
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14">
           <div className="bg-surf1 border border-border rounded-2xl p-5">
             <div className="text-lg mb-2">🧪</div>
-            <div className="text-sm font-bold text-text mb-1">Test mode first</div>
+            <div className="text-sm font-bold text-text mb-1">60-day free trial</div>
             <div className="text-xs text-gray leading-relaxed">
-              All tenants start in test mode on testnet — full x402 flow, no real money.
-              Identical API surface, zero code change when you go live.
+              Full testnet access plus capped mainnet ($1k/day) during your trial.
+              Identical API surface, zero code change when you go live. No platform fees.
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
             <div className="text-lg mb-2">✅</div>
-            <div className="text-sm font-bold text-text mb-1">Verification required for live</div>
+            <div className="text-sm font-bold text-text mb-1">KYB required for live</div>
             <div className="text-xs text-gray leading-relaxed">
-              Submit your details for a compliance review. Once verified,
-              live mode is activated — no shortcut.
+              Submit KYB documents for a compliance review before live mode.
+              UK-regulated under MLRs 2017 and SAMLA 2018 — no shortcuts.
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
@@ -164,10 +168,10 @@ POST /tenants/{id}/apikeys
 
         {/* Trial CTA */}
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-emerald-400/10 border border-algo/20 rounded-2xl p-8 text-center mt-4">
-          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start building in 30 seconds</h3>
+          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Apply for your free trial</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            No email required. Just your Algorand, VOI, Hedera or Stellar wallet address.
-            Get instant API access with testnet + capped mainnet — 60-day free trial.
+            Submit a short business application. Our team reviews all requests within 2–5 business days
+            — you'll get 60 days of testnet access and capped mainnet with zero platform fees.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -176,7 +180,7 @@ POST /tenants/{id}/apikeys
               rel="noopener noreferrer"
               className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Start Free Trial →
+              Apply for Free Trial →
             </a>
             <a
               href="https://api1.ilovechicken.co.uk/dashboard/"
@@ -188,9 +192,10 @@ POST /tenants/{id}/apikeys
             </a>
           </div>
           <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
-            <span>✓ No email needed</span>
-            <span>✓ Wallet-only signup</span>
-            <span>✓ API key in 30 seconds</span>
+            <span>✓ 60-day free trial</span>
+            <span>✓ No platform fees in trial</span>
+            <span>✓ Reviewed in 2–5 days</span>
+            <span>✓ UK-regulated · MLRs 2017</span>
             <span>✓ Testnet + mainnet (capped)</span>
           </div>
         </div>

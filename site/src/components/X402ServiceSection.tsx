@@ -3,7 +3,7 @@ export default function X402ServiceSection() {
     {
       n: '1',
       title: 'Register your resource',
-      desc: 'Sign up with your Algorand or Voi wallet. Set a price, payout address, and resource URL. No email needed.',
+      desc: 'Apply as a tenant, pass a short compliance review, and configure your resource URL, price, and payout address.',
     },
     {
       n: '2',
@@ -25,7 +25,7 @@ export default function X402ServiceSection() {
   const features = [
     { icon: '🌐', title: 'Hosted facilitator', desc: 'No chain nodes, no indexer — we verify on-chain settlement and call your webhook.' },
     { icon: '⚡', title: 'Sub-second settlement', desc: 'Transaction confirmed on Algorand or Voi, indexed, and webhook fired in under 5 seconds.' },
-    { icon: '🔑', title: 'Wallet-only auth', desc: 'Register and manage resources with your crypto wallet. No passwords, no OAuth.' },
+    { icon: '🔑', title: 'API key auth', desc: 'Manage resources and check payment status with your tenant API key. KYB-gated, no shared secrets.' },
     { icon: '🛡️', title: 'Spending cap enforcement', desc: 'Per-user caps enforced client-side by AlgoVoi. Users can never be overcharged.' },
     { icon: '📦', title: 'Drop-in middleware', desc: 'Python, Go, PHP, Rust, and Node.js helpers. Add to any framework in under 10 lines.' },
     { icon: '💸', title: 'Any price, any asset', desc: 'Charge fractions of a cent for AI inference, $1 for articles, or $100 for data exports.' },
@@ -140,13 +140,13 @@ def premium_data():
         <div className="bg-gradient-to-r from-voi/10 via-algo/10 to-voi/10 border border-voi/20 rounded-2xl p-6 sm:p-8 text-center">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-voi animate-pulse" />
-            Free 60-day trial · 0.5% fee after
+            60-day free trial · Reviewed in 2–5 days
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">
-            Start charging for your API in 30 seconds
+            Start charging for your API today
           </h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            Register a resource, drop in the middleware, and you're live. AlgoVoi users pay automatically — no wallets to integrate, no SDKs to ship.
+            Apply as a tenant, drop in the middleware, and you're live. AlgoVoi users pay automatically — no wallets to integrate, no SDKs to ship.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -155,7 +155,7 @@ def premium_data():
               rel="noopener noreferrer"
               className="inline-block gradient-btn text-[#0D1117] font-bold px-8 py-3.5 rounded-xl text-sm"
             >
-              Register a Resource →
+              Apply for Free Trial →
             </a>
             <a
               href="https://github.com/coinbase/x402"

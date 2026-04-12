@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Compliance — AlgoVoi</title>
-  <meta name="description" content="AlgoVoi-Hand compliance summary — PSR 2017/PSD2 alignment for the x402 payment gateway." />
+  <meta name="description" content="AlgoVoi-Hand compliance summary — PSR 2017/PSD2, UK MLRs 2017, SAMLA 2018, PoCA 2002 alignment for the x402 payment gateway." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -12,18 +12,14 @@
       font-family: system-ui, -apple-system, sans-serif;
       background: #0D1117;
       color: #E6EDF3;
-      line-height: 1.6;
+      line-height: 1.7;
       min-height: 100vh;
     }
 
-    /* Header */
+    /* ─── Header ─── */
     header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
       padding: 1rem 1.5rem;
       border-bottom: 1px solid rgba(48,54,61,0.5);
       background: rgba(13,17,23,0.85);
@@ -43,112 +39,124 @@
       padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none;
     }
 
-    /* Layout */
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 4rem 1.5rem 6rem;
-    }
+    /* ─── Layout ─── */
+    main { max-width: 860px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
 
-    /* Hero */
+    /* ─── Hero ─── */
     .hero { margin-bottom: 3rem; }
     .badge {
       display: inline-block;
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #8B5CF6;
-      border: 1px solid rgba(139,92,246,0.35);
-      background: rgba(139,92,246,0.08);
-      padding: 0.25rem 0.75rem; border-radius: 999px;
-      margin-bottom: 1rem;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #8B5CF6; border: 1px solid rgba(139,92,246,0.35); background: rgba(139,92,246,0.08);
+      padding: 0.25rem 0.75rem; border-radius: 999px; margin-bottom: 1rem;
     }
-    h1 {
-      font-size: clamp(1.75rem, 4vw, 2.5rem);
-      font-weight: 800; line-height: 1.15;
-      margin-bottom: 1rem;
-    }
+    h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
     h1 span { background: linear-gradient(135deg, #00C8FF, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .subtitle { color: #8B949E; font-size: 1rem; max-width: 600px; }
+    .subtitle { color: #8B949E; font-size: 1rem; max-width: 640px; }
+    .last-updated { font-size: 0.75rem; color: #484F58; margin-top: 0.75rem; }
 
-    /* Section */
+    /* ─── Sections & headings ─── */
     section { margin-bottom: 2.5rem; }
     h2 {
-      font-size: 1.1rem; font-weight: 700;
-      color: #E6EDF3;
-      margin-bottom: 1.25rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #30363D;
+      font-size: 1.05rem; font-weight: 700; color: #E6EDF3;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #30363D;
+    }
+    h3 { font-size: 0.875rem; font-weight: 700; color: #E6EDF3; margin-bottom: 0.5rem; margin-top: 1.25rem; }
+    p { font-size: 0.875rem; color: #8B949E; margin-bottom: 0.75rem; }
+    p:last-child { margin-bottom: 0; }
+    p strong { color: #E6EDF3; }
+
+    /* ─── Global links ─── */
+    a { color: #8B5CF6; text-decoration: none; }
+    a:hover { color: #E6EDF3; }
+
+    /* ─── Inline code ─── */
+    code {
+      font-family: ui-monospace, monospace; font-size: 0.8rem;
+      background: #161B22; border: 1px solid #30363D; border-radius: 4px;
+      padding: 0.1rem 0.35rem; color: #00C8FF;
     }
 
-    /* Cards grid */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1rem;
-    }
-    .card {
-      background: #161B22;
-      border: 1px solid #30363D;
-      border-radius: 12px;
-      padding: 1.25rem;
-    }
+    /* ─── TOC ─── */
+    .toc { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 3rem; }
+    .toc-title { font-size: 0.75rem; font-weight: 700; color: #8B949E; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .toc ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .toc ol li { font-size: 0.8rem; }
+    .toc ol li a { color: #8B5CF6; text-decoration: none; }
+    .toc ol li a:hover { color: #E6EDF3; }
+
+    /* ─── Terms list ─── */
+    ul.terms-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; }
+    ul.terms-list li { font-size: 0.875rem; color: #8B949E; padding-left: 1.25rem; position: relative; }
+    ul.terms-list li::before { content: '–'; position: absolute; left: 0; color: #484F58; }
+
+    /* ─── Cards grid ─── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
     .card-icon { font-size: 1.25rem; margin-bottom: 0.5rem; }
     .card-title { font-size: 0.875rem; font-weight: 700; color: #E6EDF3; margin-bottom: 0.3rem; }
     .card-desc { font-size: 0.8rem; color: #8B949E; line-height: 1.5; }
 
-    /* Frameworks table */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
+    /* ─── Table ─── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th {
-      text-align: left;
-      padding: 0.6rem 1rem;
-      background: #161B22;
-      color: #8B949E;
-      font-weight: 600;
-      font-size: 0.75rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      text-align: left; padding: 0.6rem 1rem; background: #161B22; color: #8B949E;
+      font-weight: 600; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;
       border-bottom: 1px solid #30363D;
     }
-    td {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid rgba(48,54,61,0.5);
-      color: #E6EDF3;
-      vertical-align: top;
-    }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(48,54,61,0.5); color: #E6EDF3; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: rgba(22,27,34,0.6); }
-    .pill {
-      display: inline-block;
-      font-size: 0.7rem; font-weight: 600;
-      padding: 0.15rem 0.6rem; border-radius: 999px;
-    }
+
+    /* ─── Pills ─── */
+    .pill { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.6rem; border-radius: 999px; }
     .pill-green  { background: rgba(46,160,67,0.15);  color: #3FB950; border: 1px solid rgba(46,160,67,0.3); }
     .pill-yellow { background: rgba(210,153,34,0.15); color: #D29922; border: 1px solid rgba(210,153,34,0.3); }
     .pill-blue   { background: rgba(0,200,255,0.1);   color: #00C8FF; border: 1px solid rgba(0,200,255,0.25); }
+    .pill-purple { background: rgba(139,92,246,0.12); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3); }
 
-    /* Notice box */
-    .notice {
-      background: rgba(139,92,246,0.08);
-      border: 1px solid rgba(139,92,246,0.25);
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      font-size: 0.875rem;
-      color: #8B949E;
-    }
+    /* ─── Server grid (security infrastructure) ─── */
+    .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .server-card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
+    .server-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .server-name { font-size: 0.8rem; font-weight: 700; color: #E6EDF3; }
+    .server-score { font-size: 1.1rem; font-weight: 800; color: #3FB950; }
+    .server-host { font-size: 0.7rem; color: #484F58; margin-bottom: 0.75rem; font-family: monospace; }
+    .check-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+    .check-list li { font-size: 0.75rem; color: #8B949E; display: flex; align-items: flex-start; gap: 0.4rem; }
+    .check-list li::before { content: '✓'; color: #3FB950; font-weight: 700; flex-shrink: 0; }
+    .check-list li.warn::before { content: '·'; color: #D29922; }
+    .audit-meta { font-size: 0.75rem; color: #484F58; margin-top: 1rem; }
+    .test-table-wrap { background: #161B22; border: 1px solid #30363D; border-radius: 12px; overflow: hidden; }
+    .test-label { font-size: 0.7rem; color: #8B949E; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* ─── Callout box ─── */
+    .callout { background: rgba(0,200,255,0.06); border: 1px solid rgba(0,200,255,0.2); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+    .callout p { color: #8B949E; font-size: 0.875rem; margin: 0; }
+    .callout strong { color: #00C8FF; }
+
+    /* ─── Warning box ─── */
+    .warning-box { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .warning-box .warning-title { font-size: 0.875rem; font-weight: 700; color: #F87171; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .warning-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* ─── Highlight box ─── */
+    .highlight-box { background: rgba(46,160,67,0.08); border: 1px solid rgba(46,160,67,0.25); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+    .highlight-box .highlight-title { font-size: 0.875rem; font-weight: 700; color: #3FB950; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .highlight-box p { color: #8B949E; font-size: 0.85rem; }
+
+    /* ─── AML stat grid ─── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+    .stat-card { background: #161B22; border: 1px solid #30363D; border-radius: 10px; padding: 1rem; text-align: center; }
+    .stat-value { font-size: 1.4rem; font-weight: 800; color: #3FB950; line-height: 1.2; }
+    .stat-label { font-size: 0.7rem; color: #8B949E; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ─── Notice ─── */
+    .notice { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 1.25rem 1.5rem; font-size: 0.875rem; color: #8B949E; }
     .notice strong { color: #E6EDF3; }
 
-    /* Footer */
-    footer {
-      border-top: 1px solid #30363D;
-      padding: 2rem 1.5rem;
-      text-align: center;
-      font-size: 0.75rem;
-      color: #484F58;
-    }
+    /* ─── Footer ─── */
+    footer { border-top: 1px solid #30363D; padding: 2rem 1.5rem; text-align: center; font-size: 0.75rem; color: #484F58; }
     footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
     footer a:hover { color: #E6EDF3; }
     .footer-inner { max-width: 860px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
@@ -160,9 +168,11 @@
       font-size: 8px; font-weight: 900; color: #0D1117;
     }
 
+    /* ─── Responsive ─── */
     @media (max-width: 600px) {
-      .cards { grid-template-columns: 1fr; }
+      .cards, .server-grid, .stat-grid { grid-template-columns: 1fr; }
       th, td { padding: 0.6rem 0.75rem; }
+      .toc ol { gap: 0.5rem; }
     }
   </style>
 </head>
@@ -182,14 +192,15 @@
     <div class="badge">Compliance</div>
     <h1>AlgoVoi-Hand<br><span>Compliance Summary</span></h1>
     <p class="subtitle">
-      AlgoVoi-Hand operates as an x402 payment gateway. This page summarises
-      its alignment with UK PSR&nbsp;2017/PSD2 and related frameworks.
+      AlgoVoi-Hand operates as an x402 payment gateway. This page summarises its alignment with
+      UK PSR&nbsp;2017/PSD2, UK MLRs&nbsp;2017, SAMLA&nbsp;2018, PoCA&nbsp;2002, and related frameworks.
       Full audit documentation is available on request under NDA.
     </p>
+    <p class="last-updated">Last updated: 2026-04-12</p>
   </div>
 
   <!-- Key Alignments -->
-  <section>
+  <section id="alignments">
     <h2>Key Alignments</h2>
     <div class="cards">
       <div class="card">
@@ -214,26 +225,26 @@
       </div>
       <div class="card">
         <div class="card-icon">🪪</div>
-        <div class="card-title">AML</div>
-        <div class="card-desc">Structured onboarding with identity verification. No anonymous merchant access.</div>
+        <div class="card-title">AML / CTF</div>
+        <div class="card-desc">Live OFAC + OFSI sanctions screening on every payment. KYB document workflow. Transaction monitoring rules engine. Designated MLRO. SAR filing tools. 5-year AML data retention.</div>
       </div>
       <div class="card">
         <div class="card-icon">📋</div>
         <div class="card-title">Audit Trail</div>
-        <div class="card-desc">Every challenge, verification, limit change, and key event is logged per tenant with typed event codes and no PII in log lines.</div>
+        <div class="card-desc">Every challenge, verification, limit change, and key event is logged per tenant with typed event codes. Write-once Postgres RULE on compliance records prevents tampering.</div>
       </div>
     </div>
   </section>
 
-  <!-- Frameworks -->
-  <section>
+  <!-- Regulatory Frameworks -->
+  <section id="frameworks">
     <h2>Regulatory Frameworks</h2>
     <div style="background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden;">
       <table>
         <thead>
           <tr>
             <th>Framework</th>
-            <th>Scope</th>
+            <th>Scope / Implementation</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -250,34 +261,134 @@
           </tr>
           <tr>
             <td><strong>UK GDPR</strong></td>
-            <td style="color:#8B949E;">90-day PII purge policy; no PII in audit log lines</td>
+            <td style="color:#8B949E;">90-day PII purge policy; no PII in audit log lines; AML hold overrides GDPR erasure per ICO guidance 2020</td>
             <td><span class="pill pill-green">Aligned</span></td>
+          </tr>
+          <tr>
+            <td><strong>UK MLRs 2017</strong><br><span style="font-size:0.75rem;color:#484F58;">Regs 18–21, 28(2), 28(12), 40</span></td>
+            <td style="color:#8B949E;">Risk-tiered CDD; KYB document workflow; ongoing transaction monitoring; 5-year AML data retention enforced</td>
+            <td><span class="pill pill-green">Implemented</span></td>
+          </tr>
+          <tr>
+            <td><strong>SAMLA 2018 / OFSI</strong><br><span style="font-size:0.75rem;color:#484F58;">s.20 tipping-off</span></td>
+            <td style="color:#8B949E;">Live OFSI + OFAC SDN wallet screening on every payment; generic 402/403 on match (tipping-off compliant); daily feed refresh</td>
+            <td><span class="pill pill-green">Active</span></td>
+          </tr>
+          <tr>
+            <td><strong>PoCA 2002</strong><br><span style="font-size:0.75rem;color:#484F58;">s.330 — failure to disclose</span></td>
+            <td style="color:#8B949E;">Designated MLRO; internal SAR draft/submit workflow; escalation auto-alerts to MLRO; write-once SAR records</td>
+            <td><span class="pill pill-green">Implemented</span></td>
           </tr>
         </tbody>
       </table>
     </div>
   </section>
 
+  <!-- AML / CTF Programme -->
+  <section id="aml">
+    <h2>AML / CTF Programme</h2>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value">3</div>
+        <div class="stat-label">Sanctions feeds</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">773+</div>
+        <div class="stat-label">OFAC SDN entries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">&lt;3ms</div>
+        <div class="stat-label">Screening latency</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">24h</div>
+        <div class="stat-label">Feed refresh cadence</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">6</div>
+        <div class="stat-label">Monitoring rules</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">5yr</div>
+        <div class="stat-label">AML data retention</div>
+      </div>
+    </div>
+
+    <h3>Sanctions Screening (C1)</h3>
+    <p>
+      Every payment is screened against a locally cached, indexed database of sanctions entries before
+      the transaction is persisted. Feeds are refreshed daily from three public sources:
+      <strong>OFSI</strong> (HM Treasury — UK SAMLA 2018 designations),
+      <strong>OFAC SDN</strong> (US Treasury), and
+      <strong>EU Consolidated</strong> sanctions list.
+      Wallet addresses are normalised and matched in a single indexed lookup. Hits result in an
+      automatic <code>ScreeningHit</code> record with action taken (<code>blocked</code> or <code>escalated</code>)
+      and MLRO notification. Generic error responses prevent tipping-off (SAMLA 2018 s.20).
+    </p>
+    <p>
+      Tenant wallet addresses are also screened on KYB approval and on risk tier changes.
+      Risk tier enforcement gates all payments: <strong>restricted</strong> tenants receive a
+      generic 403 with no disclosure; <strong>high-risk</strong> tenants have daily volume caps
+      reduced by 50%.
+    </p>
+
+    <h3>Transaction Monitoring (C2)</h3>
+    <p>
+      A configurable rules engine evaluates each payment post-confirmation against six seeded rules:
+      large single transaction (≥ $10k), high 24h volume (≥ $50k), high frequency per hour (≥ 100 tx),
+      high payer frequency (structuring signal — ≥ 20 tx/hour), plus two additional configurable thresholds.
+      Rule matches produce <code>ComplianceEvent</code> records with action <code>alert</code>,
+      <code>block</code>, or <code>escalate</code>. Escalations automatically notify the MLRO and
+      set <code>aml_hold=TRUE</code> on the linked payment. Monitoring is post-commit and wrapped
+      in a try/except — it never crashes the payment path.
+    </p>
+
+    <h3>AML Data Retention (C3)</h3>
+    <p>
+      Payment records linked to a <code>ScreeningHit</code> or an escalation <code>ComplianceEvent</code>
+      are flagged <code>aml_hold=TRUE</code> via a Postgres trigger and application-layer enforcement.
+      These records are excluded from the 90-day GDPR purge reaper. <code>aml_retention_until</code>
+      is set to <code>verified_at + 5 years</code>, satisfying UK MLRs Reg 40(1)(b). High-risk tenant
+      payments are also held by default per <code>AML_AUTO_HOLD_HIGH_RISK_TENANTS</code>.
+    </p>
+
+    <h3>KYB Document Workflow (C4)</h3>
+    <p>
+      Merchants onboard via a structured KYB document checklist tailored to their legal entity type.
+      Required documents for UK limited companies include: Certificate of Incorporation, Proof of Address,
+      PSC / UBO Register, Director Passport, and Source of Funds declaration. Documents are uploaded
+      directly to Cloudflare R2 (zero-egress, UK/EU data residency) via presigned PUT URLs with
+      15-minute TTL — file bytes never transit the application server.
+    </p>
+    <p>
+      An approval gate (<code>KYB_ENFORCE_DOCUMENT_GATE</code>) prevents <code>kyb_status=approved</code>
+      unless all required documents have been accepted. All KYB documents are retained under
+      <code>aml_hold=TRUE</code> until the business relationship ends + 5 years (MLRs Reg 40(2)).
+    </p>
+
+    <h3>MLRO &amp; SAR Workflow (C5)</h3>
+    <p>
+      A designated Money Laundering Reporting Officer (MLRO) is assigned at the platform level.
+      Escalation events and sanctions hits trigger immediate MLRO notification by email and webhook.
+      Internal SAR draft/submit/acknowledge records are maintained with full audit trail and
+      <code>restricted=TRUE</code> flag — SAR existence is never exposed to tenants or payers,
+      satisfying PoCA 2002 s.330 non-disclosure requirements. Actual submission is via UKFIU
+      SARs Online (no public API available).
+    </p>
+
+    <div class="highlight-box" style="margin-top:1.25rem;">
+      <div class="highlight-title">✓ Designated MLRO</div>
+      <p>
+        <strong>Christopher Hopley</strong> — Money Laundering Reporting Officer<br>
+        Contact: <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>
+      </p>
+    </div>
+  </section>
+
   <!-- Security Infrastructure -->
-  <section>
+  <section id="security">
     <h2>Security Infrastructure</h2>
-
-    <style>
-      .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-      .server-card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem; }
-      .server-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-      .server-name { font-size: 0.8rem; font-weight: 700; color: #E6EDF3; }
-      .server-score { font-size: 1.1rem; font-weight: 800; color: #3FB950; }
-      .server-host { font-size: 0.7rem; color: #484F58; margin-bottom: 0.75rem; font-family: monospace; }
-      .check-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
-      .check-list li { font-size: 0.75rem; color: #8B949E; display: flex; align-items: flex-start; gap: 0.4rem; }
-      .check-list li::before { content: '✓'; color: #3FB950; font-weight: 700; flex-shrink: 0; }
-      .check-list li.warn::before { content: '·'; color: #D29922; }
-      .audit-meta { font-size: 0.75rem; color: #484F58; margin-top: 1rem; }
-
-      .test-table-wrap { background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden; }
-      .test-label { font-size: 0.7rem; color: #8B949E; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
-    </style>
 
     <div class="server-grid">
 
@@ -443,10 +554,10 @@
     <div class="notice">
       <strong>Full audit available under NDA.</strong> This summary is provided for
       prospective partners during initial due diligence. Detailed technical
-      security documentation, penetration test reports, and the complete compliance
-      framework are available on request.
+      security documentation, penetration test reports, KYB document checklists, and the complete
+      AML/CTF compliance framework are available on request.
       <br><br>
-      <span style="color:#484F58;">Audit v1.0 &nbsp;·&nbsp; Q2 2026 &nbsp;·&nbsp;
+      <span style="color:#484F58;">Audit v2.0 &nbsp;·&nbsp; Q2 2026 &nbsp;·&nbsp;
       Contact: <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a></span>
     </div>
   </section>
