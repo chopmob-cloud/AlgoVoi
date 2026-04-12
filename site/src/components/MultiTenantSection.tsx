@@ -44,18 +44,6 @@ export default function MultiTenantSection() {
     { step: '5', label: 'Activate live', sub: 'POST activate-live → mainnet' },
   ]
 
-  const paymentFlow = [
-    { step: '1', label: 'Request resource', sub: 'with tenant API key' },
-    { arrow: true },
-    { step: '2', label: 'Gateway returns 402', sub: 'PAYMENT-REQUIRED header' },
-    { arrow: true },
-    { step: '3', label: 'Client pays on-chain', sub: 'Algorand · VOI · Hedera · Stellar' },
-    { arrow: true },
-    { step: '4', label: 'Retry with proof', sub: 'PAYMENT-SIGNATURE header' },
-    { arrow: true },
-    { step: '5', label: 'Receipt issued', sub: 'payment lands at payout addr' },
-  ]
-
   return (
     <section id="platform" className="py-24 px-6 relative overflow-hidden">
       {/* Background glows */}
@@ -69,16 +57,16 @@ export default function MultiTenantSection() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-4 py-1.5 text-xs text-gray mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            Live — x402 Tenant Platform
+            Live — Multi-Tenant Payment Platform
           </div>
           <h2 className="text-4xl md:text-5xl font-black leading-tight mb-4">
-            x402 payments<br />
-            <span className="gradient-text">as a service</span>
+            Hosted payment infrastructure<br />
+            <span className="gradient-text">for businesses</span>
           </h2>
           <p className="text-gray max-w-xl mx-auto leading-relaxed">
-            AlgoVoi is a hosted multi-tenant x402 paywall platform.
-            Your business gets private, isolated payment infrastructure without running
-            your own chain nodes, servers, or verification facilitators.
+            AlgoVoi-Hand is a managed, compliance-ready crypto payment gateway.
+            Register as a tenant, pass a compliance review, and accept payments on
+            four chains — without running nodes, facilitators, or verification servers.
           </p>
         </div>
 
@@ -102,26 +90,6 @@ export default function MultiTenantSection() {
           </div>
         </div>
 
-        {/* Payment flow */}
-        <div className="mb-16">
-          <div className="text-xs text-gray text-center mb-4 uppercase tracking-widest">Payment flow</div>
-          <div className="grid grid-cols-1 sm:grid-cols-9 gap-2 items-center max-w-4xl mx-auto">
-            {paymentFlow.map((item, i) =>
-              'arrow' in item ? (
-                <div key={i} className="hidden sm:flex justify-center text-muted text-xl">→</div>
-              ) : (
-                <div key={i} className="bg-surf1/60 border border-border/60 rounded-xl p-3 text-center">
-                  <div className="w-7 h-7 rounded-full border border-algo/40 flex items-center justify-center text-xs font-black text-algo mx-auto mb-2">
-                    {item.step}
-                  </div>
-                  <div className="text-xs font-semibold text-text leading-tight">{item.label}</div>
-                  <div className="text-[10px] text-gray mt-0.5">{item.sub}</div>
-                </div>
-              )
-            )}
-          </div>
-        </div>
-
         {/* Feature grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
           {features.map(f => (
@@ -133,15 +101,14 @@ export default function MultiTenantSection() {
           ))}
         </div>
 
-        {/* Two-panel code snippet: onboarding + payment */}
-        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 mb-14">
-          {/* Tenant setup */}
+        {/* Tenant registration code */}
+        <div className="max-w-4xl mx-auto mb-14">
           <div className="bg-surf1 border border-border rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surf2">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
               <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-              <span className="text-[11px] text-gray ml-2">1. Register your tenant</span>
+              <span className="text-[11px] text-gray ml-2">Register your tenant — control plane API</span>
             </div>
             <pre className="text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono">
 {`# Control plane — create tenant
@@ -150,51 +117,19 @@ Authorization: Bearer <admin-key>
 
 {
   "display_name": "Acme Payments Ltd",
-  "networks": ["algorand_mainnet"],
+  "networks": ["algorand_mainnet", "voi_mainnet"],
   "payout_addresses": {
-    "algorand_mainnet": "AAAA…ZZZZ"
+    "algorand_mainnet": "AAAA…ZZZZ",
+    "voi_mainnet":      "BBBB…YYYY"
   }
 }
 
 # → 201  { "id": "uuid", "short_id": "acme-x4f2",
 #           "mode": "test", "kyb_status": "pending" }
 
-# Issue a tenant API key
+# Issue a tenant API key (shown once only)
 POST /tenants/{id}/apikeys
-# → { "key": "ak_live_…" }  ← shown once only`}
-            </pre>
-          </div>
-
-          {/* Payment flow */}
-          <div className="bg-surf1 border border-border rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surf2">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-              <span className="text-[11px] text-gray ml-2">2. Start accepting x402 payments</span>
-            </div>
-            <pre className="text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono">
-{`# Gateway — request a protected resource
-GET https://api1.ilovechicken.co.uk/x402/challenge
-Authorization: Bearer <tenant-api-key>
-
-# → 402  PAYMENT-REQUIRED: base64({
-#   "accepts": [{
-#     "network": "algorand_mainnet",
-#     "payTo": "AAAA…ZZZZ",
-#     "maxAmountRequired": "1000000",
-#     "asset": "0"
-#   }]
-# })
-
-# Pay on-chain, retry with signed proof
-PAYMENT-SIGNATURE: base64({
-  "scheme": "exact",
-  "network": "algorand_mainnet",
-  "payload": { "txId": "ABC…", "payer": "XYZ…" }
-})
-# → 200  { "receipt": { … } }
-# Payment lands instantly at payout_address`}
+# → { "key": "ak_live_…" }`}
             </pre>
           </div>
         </div>
@@ -232,7 +167,7 @@ PAYMENT-SIGNATURE: base64({
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start building in 30 seconds</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
             No email required. Just your Algorand, VOI, Hedera or Stellar wallet address.
-            Get instant API access with testnet + capped mainnet — 30-day free trial.
+            Get instant API access with testnet + capped mainnet — 60-day free trial.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a

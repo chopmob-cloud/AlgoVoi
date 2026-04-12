@@ -132,13 +132,19 @@ export default function EcommerceSection() {
             Live — eCommerce Payment Adapters
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black leading-tight mb-4">
-            Accept crypto on<br />
-            <span className="gradient-text">any eCommerce platform</span>
+            Accept crypto on any platform<br />
+            <span className="text-algo">Algorand</span>
+            <span className="text-text"> · </span>
+            <span className="text-voi">Voi</span>
+            <span className="text-text"> · </span>
+            <span className="text-emerald-400">Hedera</span>
+            <span className="text-text"> · </span>
+            <span className="text-[#7C63D0]">Stellar</span>
           </h2>
           <p className="text-gray max-w-2xl mx-auto leading-relaxed text-sm sm:text-base">
-            Drop-in payment plugins for the world's most popular eCommerce platforms.
-            USDC on Algorand, aUSDC on VOI, and USDC on Hedera & Stellar — with hosted checkout
-            and browser extension payment flows.
+            Drop-in payment plugins for WooCommerce, OpenCart, PrestaShop, Shopware and more.
+            Hosted checkout supports all four chains — Algorand, Voi, Hedera &amp; Stellar.
+            Browser extension payments available on Algorand and Voi.
           </p>
         </div>
 
@@ -257,28 +263,11 @@ export default function EcommerceSection() {
           ))}
         </div>
 
-        {/* Security */}
-        <div className="mb-14">
-          <div className="text-center mb-8">
-            <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Security-first architecture</h3>
-            <p className="text-xs sm:text-sm text-gray">Every adapter is hardened against real-world payment attack vectors.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {securityFeatures.map(f => (
-              <div key={f.title} className="bg-surf1 border border-border rounded-2xl p-4 sm:p-5">
-                <div className="text-xl mb-2">{f.icon}</div>
-                <div className="text-xs font-bold text-text mb-1">{f.title}</div>
-                <div className="text-[11px] text-gray leading-relaxed">{f.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Trial CTA */}
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-[#7C63D0]/10 border border-algo/20 rounded-2xl p-6 sm:p-8 text-center">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            30-day free trial · No email · Wallet signup
+            60-day free trial · No email · Wallet signup
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start accepting crypto payments in 30 seconds</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
@@ -309,6 +298,23 @@ export default function EcommerceSection() {
             <span>✓ API key in 30 seconds</span>
             <span>✓ 4 chains supported</span>
             <span>✓ Testnet + mainnet (capped)</span>
+          </div>
+        </div>
+
+        {/* Security */}
+        <div className="mt-14">
+          <div className="text-center mb-8">
+            <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Security-first architecture</h3>
+            <p className="text-xs sm:text-sm text-gray">Every adapter is hardened against real-world payment attack vectors.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {securityFeatures.map(f => (
+              <div key={f.title} className="bg-surf1 border border-border rounded-2xl p-4 sm:p-5">
+                <div className="text-xl mb-2">{f.icon}</div>
+                <div className="text-xs font-bold text-text mb-1">{f.title}</div>
+                <div className="text-[11px] text-gray leading-relaxed">{f.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
