@@ -34,8 +34,24 @@ export interface PaymentRequirements {
    * EVM: token contract address (0x...).
    */
   asset: string;
+  /**
+   * URL of the x402 facilitator service.
+   * When present, the client MUST POST the payment proof to `{facilitator}/settle`
+   * after the payment is confirmed on-chain (spec §4.3).
+   */
+  facilitator?: string;
   outputSchema?: unknown;
   extra?: Record<string, unknown>;
+  /**
+   * Platform fee legs to include in an atomic group alongside the merchant
+   * payment (Billing V1). When present, the client MUST build a multi-txn
+   * atomic group: txn[0] = merchant payment, txn[1..N] = fee leg(s).
+   * The facilitator verifies the group on-chain before settling.
+   *
+   * Each entry: `to` = operator wallet address, `amount` = microunits (string).
+   * Asset is always the same as the main payment (same ASA or native coin).
+   */
+  fees?: Array<{ to: string; amount: string }>;
 }
 
 /**

@@ -55,6 +55,10 @@ vi.mock("../src/background/chain-clients", () => ({
     minFee: 1000n,
   })),
   submitTransaction: vi.fn(async () => "FAKETXID1234567890ABCD"),
+  submitTransactionGroup: vi.fn(async () => "FAKETXID_GROUP"),
+  waitForConfirmation: vi.fn(async () => ({})),
+  waitForIndexed: vi.fn(async () => true),
+  hasOptedIn: vi.fn(async () => true),
   // Pre-flight balance check (payVoi) calls getAccountState — provide enough
   // balance (100 VOI spendable) so cap/balance checks pass in payment tests.
   getAccountState: vi.fn(async () => ({

@@ -21,7 +21,7 @@
 
 import algosdk from "algosdk";
 import { walletStore } from "./wallet-store";
-import { getSuggestedParams, hasOptedIn, submitTransaction, waitForConfirmation, waitForIndexed, getAccountState } from "./chain-clients";
+import { getSuggestedParams, hasOptedIn, submitTransaction, submitTransactionGroup, waitForConfirmation, waitForIndexed, getAccountState } from "./chain-clients";
 import { X402_VERSION, APPROVAL_POPUP_WIDTH, APPROVAL_POPUP_HEIGHT, CHAINS } from "@shared/constants";
 import { randomId } from "@shared/utils/crypto";
 import type {
@@ -139,9 +139,15 @@ const SPENDING_CAP_ASA    = 10_000_000n;
 /**
  * Shared validation + unsigned transaction builder.
  * Called by both vault signing and WalletConnect signing paths.
+ *
+ * Billing V1: when `pr.fees` is present and non-empty, builds an atomic
+ * group of N+1 transactions: txns[0] = merchant payment, txns[1..N] = fee
+ * leg(s) to operator wallets. The group is assigned a common group ID via
+ * algosdk.assignGroupID(). When fees is absent/empty, returns a single-tx
+ * array for backwards compatibility.
  */
 async function buildPaymentTransaction(req: PendingX402Request): Promise<{
-  txn: algosdk.Transaction;
+  txns: algosdk.Transaction[];
   chain: ChainId;
   senderAddress: string;
 }> {
@@ -168,9 +174,18 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
 
   const asaId = pr.asset === "0" || !pr.asset ? 0 : parseInt(pr.asset, 10);
 
+  // Parse fee legs (Billing V1).
+  const feeLegsDefs = (pr.fees ?? []).filter((f) => {
+    if (!f.to || !f.amount) return false;
+    if (!algosdk.isValidAddress(f.to)) return false;
+    const feeAmt = BigInt(f.amount);
+    // Defensive: reject fee >= gross (belt-and-braces, same as gateway)
+    if (feeAmt <= 0n || feeAmt >= amount) return false;
+    return true;
+  });
+  const totalFees = feeLegsDefs.reduce((sum, f) => sum + BigInt(f.amount), 0n);
+
   // Respect per-user configurable spending caps from wallet settings.
-  // Validate cap values defensively: if stored value is missing, zero, or non-positive
-  // fall back to the hardcoded default rather than allowing unbounded spending.
   function safeCap(stored: number | undefined, defaultCap: bigint): bigint {
     if (stored === undefined || stored <= 0 || !Number.isFinite(stored)) return defaultCap;
     try { const v = BigInt(Math.floor(stored)); return v > 0n ? v : defaultCap; } catch { return defaultCap; }
@@ -179,19 +194,22 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
     ? safeCap(meta.spendingCaps?.asaMicrounits, SPENDING_CAP_ASA)
     : safeCap(meta.spendingCaps?.nativeMicrounits, SPENDING_CAP_NATIVE);
 
-  if (amount > cap) {
+  // Spending cap covers total outflow (merchant + all fee legs).
+  const totalOutflow = amount + totalFees;
+  if (totalOutflow > cap) {
     throw new Error(
-      `Payment amount ${amount} microunits exceeds safety cap of ${cap}. ` +
+      `Total payment ${totalOutflow} microunits (${amount} + ${totalFees} fees) exceeds safety cap of ${cap}. ` +
       `Adjust the cap in settings or reject this payment.`
     );
   }
 
-  // Pre-flight balance check — surface a clear error before the node rejects.
-  // Fee is typically 1000 µ for a simple txn; use minFee from params if available.
-  const fee = BigInt((params as { minFee?: number }).minFee ?? 1000);
+  // Pre-flight balance check — account for all legs + per-txn network fees.
+  const groupSize = 1 + feeLegsDefs.length;
+  const perTxnFee = BigInt((params as { minFee?: number }).minFee ?? 1000);
+  const totalNetworkFees = perTxnFee * BigInt(groupSize);
   const accountState = await getAccountState(senderAddress, chain);
   const spendable = accountState.balance - accountState.minBalance;
-  const needed = asaId !== 0 ? fee : amount + fee;
+  const needed = asaId !== 0 ? totalNetworkFees : totalOutflow + totalNetworkFees;
   if (spendable < needed) {
     const ticker = CHAINS[chain].ticker;
     throw new Error(
@@ -201,7 +219,9 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
     );
   }
 
-  let txn: algosdk.Transaction;
+  // ── Build transaction array ─────────────────────────────────────────────
+  const txns: algosdk.Transaction[] = [];
+  const note = new TextEncoder().encode(`x402:${req.url}`).slice(0, 1000);
 
   if (asaId !== 0) {
     const optedIn = await hasOptedIn(chain, senderAddress, asaId);
@@ -211,28 +231,51 @@ async function buildPaymentTransaction(req: PendingX402Request): Promise<{
         `Open AlgoVoi, find the asset, and opt-in before paying.`
       );
     }
-    // Encode to UTF-8 bytes first, then slice — prevents splitting multi-byte characters.
-    const note = new TextEncoder().encode(`x402:${req.url}`).slice(0, 1000);
-    txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+    // Merchant leg (ASA)
+    txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
       assetIndex: asaId,
       amount,
       note,
       suggestedParams: params,
-    });
+    }));
+    // Fee legs (same ASA)
+    for (const feeDef of feeLegsDefs) {
+      txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        sender: senderAddress,
+        receiver: feeDef.to,
+        assetIndex: asaId,
+        amount: BigInt(feeDef.amount),
+        suggestedParams: params,
+      }));
+    }
   } else {
-    const note = new TextEncoder().encode(`x402:${req.url}`).slice(0, 1000);
-    txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    // Merchant leg (native ALGO/VOI)
+    txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       sender: senderAddress,
       receiver: pr.payTo,
       amount,
       note,
       suggestedParams: params,
-    });
+    }));
+    // Fee legs (native)
+    for (const feeDef of feeLegsDefs) {
+      txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: senderAddress,
+        receiver: feeDef.to,
+        amount: BigInt(feeDef.amount),
+        suggestedParams: params,
+      }));
+    }
   }
 
-  return { txn, chain, senderAddress };
+  // Assign atomic group ID when there are multiple legs.
+  if (txns.length > 1) {
+    algosdk.assignGroupID(txns);
+  }
+
+  return { txns, chain, senderAddress };
 }
 
 /**
@@ -258,14 +301,14 @@ export async function buildAndSignPayment(
   // AssetTransfer transactions, not application calls with inner transactions.
 
   // ── Standard owner key path ──────────────────────────────────────────────
-  const { txn, senderAddress } = await buildPaymentTransaction(req);
+  const { txns, senderAddress } = await buildPaymentTransaction(req);
 
   const sk = await walletStore.getActiveSecretKey();
-  let signedBytes: Uint8Array;
+  let signedGroup: Uint8Array[];
   let txId: string;
   try {
-    signedBytes = txn.signTxn(sk);
-    txId = txn.txID();
+    signedGroup = txns.map((t) => t.signTxn(sk));
+    txId = txns[0].txID(); // merchant leg = the proof tx_id
   } finally {
     sk.fill(0); // XIV-1: wipe secret key after signing (always, even on error)
   }
@@ -279,33 +322,53 @@ export async function buildAndSignPayment(
       payer: senderAddress,
       // Included during rollout for backward compat with pre-production servers.
       // Remove once all servers verify via txId only.
-      transaction: btoa(String.fromCharCode(...signedBytes)),
+      transaction: btoa(String.fromCharCode(...signedGroup[0])),
     },
   };
   const paymentHeader = btoa(JSON.stringify(payload));
 
-  // Submit proactively — tx is in-flight when the server verifies.
+  // Submit proactively — tx (or atomic group) is in-flight when the server verifies.
   // M2: Swallow benign duplicate/already-submitted errors; propagate real failures.
   try {
-    await submitTransaction(chain, signedBytes);
+    if (signedGroup.length > 1) {
+      await submitTransactionGroup(chain, signedGroup);
+    } else {
+      await submitTransaction(chain, signedGroup[0]);
+    }
   } catch (err) {
     const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    // Use anchored patterns to avoid matching unrelated errors that happen to
-    // contain these substrings (e.g. "This is already the best transaction").
     const isDuplicate = /\b(already in ledger|txn already exists|duplicate transaction|transaction already)\b/i.test(errMsg);
     if (!isDuplicate) {
       throw new Error(
         `Transaction broadcast failed: ${err instanceof Error ? err.message : String(err)}`
       );
     }
-    // Duplicate/already-submitted is expected for retried x402 payments — not an error.
   }
 
   // Wait for algod confirmation, then poll the indexer until the transaction
   // is indexed. The indexer can lag several seconds behind algod even after
   // block confirmation — waitForIndexed eliminates the fixed-delay guesswork.
+  // For atomic groups, all legs confirm in the same round — only need to wait on merchant leg.
   await waitForConfirmation(chain, txId, 8);
   await waitForIndexed(chain, txId);
+
+  // x402 spec §4.3: if the PaymentRequirements include a facilitator URL,
+  // POST the payment proof to {facilitator}/settle for settlement confirmation.
+  // Non-fatal — a facilitator failure should not block the retried resource request.
+  if (pr.facilitator) {
+    const settlePayload = JSON.stringify({
+      x402Version: X402_VERSION,
+      scheme: pr.scheme,
+      network: pr.network,
+      payload: { txId, payer: senderAddress },
+    });
+    fetch(`${pr.facilitator}/settle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: settlePayload,
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => { /* best-effort — log silently */ });
+  }
 
   return { paymentHeader, txId };
 }
@@ -320,11 +383,13 @@ export async function buildAndSignPayment(
  */
 export async function buildPaymentTxnForWC(req: PendingX402Request): Promise<{
   unsignedTxnB64: string;
+  /** When an atomic group is built, this array holds all unsigned txn B64 strings. */
+  unsignedTxnsB64?: string[];
   chain: ChainId;
   signerAddress: string;
   sessionTopic: string;
 }> {
-  const { txn, chain, senderAddress } = await buildPaymentTransaction(req);
+  const { txns, chain, senderAddress } = await buildPaymentTransaction(req);
 
   const meta = await walletStore.getMeta();
   const activeAccount = meta.accounts.find((a) => a.id === meta.activeAccountId);
@@ -332,18 +397,20 @@ export async function buildPaymentTxnForWC(req: PendingX402Request): Promise<{
     throw new Error("Active account is not a WalletConnect account");
   }
 
-  const txnBytes = txn.toByte();
-  const unsignedTxnB64 = btoa(String.fromCharCode(...txnBytes));
+  // Encode all txns as base64 for the WC signing request.
+  const unsignedTxnsB64 = txns.map((t) => btoa(String.fromCharCode(...t.toByte())));
+  // Primary txn (merchant leg) = first in the group.
+  const unsignedTxnB64 = unsignedTxnsB64[0];
 
-  // Store expected bytes on the pending request so X402_WC_SIGNED can compare
-  // the unsigned txn extracted from the signed bytes against what we built.
+  // Store expected bytes on the pending request so X402_WC_SIGNED can compare.
+  // For atomic groups, store the full array; legacy single-tx code can still
+  // check the scalar expectedUnsignedTxnB64 field.
   req.expectedUnsignedTxnB64 = unsignedTxnB64;
-  // Store the account ID so X402_WC_SIGNED can assert the active account hasn't
-  // changed between the WC signing request and the signed-result callback.
   req.wcAccountId = activeAccount.id;
 
   return {
     unsignedTxnB64,
+    unsignedTxnsB64: unsignedTxnsB64.length > 1 ? unsignedTxnsB64 : undefined,
     chain,
     signerAddress: senderAddress,
     sessionTopic: activeAccount.wcSessionTopic,
