@@ -76,7 +76,6 @@ export async function signGroupIndexedWithWC(
     )
   );
 
-  console.log("[wc-sign-group] SignClient.init starting...");
   const client = await Promise.race([
     SignClient.init({
       projectId: WC_PROJECT_ID,
@@ -99,7 +98,6 @@ export async function signGroupIndexedWithWC(
   // messages; this delay gives the client time to process them and remove
   // the dead session from localStorage before we check it.
   await new Promise<void>((r) => setTimeout(r, SESSION_SETTLE_MS));
-  console.log("[wc-sign-group] SignClient ready — checking session...");
 
   // ── 3. Verify session is still live ───────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,11 +127,6 @@ export async function signGroupIndexedWithWC(
     signers: indexesToSign.includes(i) ? [signerAddress] : [],
   }));
 
-  console.log(
-    "[wc-sign-group] dispatching request — topic:", sessionTopic.slice(0, 16),
-    "txns:", txns.length, "signing:", indexesToSign
-  );
-
   // 2-minute timeout: swap requires the wallet app to be open (push notifications
   // don't fire for extension origins). If nothing responds after 2 min the
   // session is dead on the relay side — surface a re-pair message.
@@ -153,10 +146,6 @@ export async function signGroupIndexedWithWC(
     signTimeoutPromise,
   ]);
 
-  console.log(
-    "[wc-sign-group] wallet responded — result:",
-    typeof result, Array.isArray(result) ? `array[${(result as unknown[]).length}]` : ""
-  );
 
   // ── 5. Decode signed bytes ─────────────────────────────────────────────────
   // WC returns one element per txn; unsigned slots come back as null/"".

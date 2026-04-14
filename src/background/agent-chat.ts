@@ -41,12 +41,10 @@ export async function handleAgentChat(
   // 1. Try direct action (zero AI tokens)
   const action = parseDirectAction(current.content, chain);
   if (action) {
-    console.log(`[agent-chat] direct action (${chain}): ${action.type}`, action.params);
     return executeDirectAction(action, activeAddress, balance, chain);
   }
 
   // 2. Fall back to AI (conversational/ambiguous)
-  console.log(`[agent-chat] AI fallback (${chain}): "${current.content.slice(0, 50)}"`);
   const sessionId = await initSession();
   const history = messages.slice(0, -1);
 

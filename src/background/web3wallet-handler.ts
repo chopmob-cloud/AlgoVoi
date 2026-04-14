@@ -245,7 +245,6 @@ const MAX_PROPOSALS_PER_MINUTE = 5;
 async function handleSessionProposal(w3w: IWeb3Wallet, proposal: any): Promise<void> {
   const dbg = (msg: string) => {
     chrome.storage.local.set({ algovou_w3w_debug: { msg, ts: Date.now() } });
-    console.info("[AlgoVoi W3W debug]", msg);
   };
   try {
     const { id, params } = proposal;
@@ -353,7 +352,6 @@ async function handleSessionProposal(w3w: IWeb3Wallet, proposal: any): Promise<v
     // (Keep bridge running for session_request delivery — signing also uses push.)
     // stopRelayBridge(topic);
 
-    console.info(`[AlgoVoi W3W] Agent session approved: ${topic.slice(0, 8)}… (${session.peer.metadata.name})`);
   } catch (err) {
     chrome.storage.local.set({ algovou_w3w_debug: { msg: `handler error: ${err}`, ts: Date.now() } });
     console.error("[AlgoVoi W3W] session_proposal handler error:", err);
@@ -559,7 +557,6 @@ function registerEventHandlers(w3w: IWeb3Wallet): void {
     if (topic) {
       const topics = await getStoredTopics();
       await storeSessions(topics.filter((t) => t !== topic));
-      console.info(`[AlgoVoi W3W] Session deleted by peer: ${topic.slice(0, 8)}…`);
       // Stop keepalive only if no sessions AND no pending pairings remain
       const remaining = w3w.getActiveSessions();
       if (Object.keys(remaining).length === 0 && getActivePairings() === 0) {
@@ -601,7 +598,6 @@ export async function initWeb3Wallet(projectId: string): Promise<IWeb3Wallet> {
     if (signClient) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signClient.on("session_proposal", (proposal: any) => {
-        console.info("[AlgoVoi W3W] session_proposal via signClient direct listener");
         handleSessionProposal(w3w, proposal).catch(console.error);
       });
     }
@@ -615,7 +611,6 @@ export async function initWeb3Wallet(projectId: string): Promise<IWeb3Wallet> {
     const pending: any[] = (w3w as any).getPendingSessionProposals?.() ?? [];
     const items = Array.isArray(pending) ? pending : Object.values(pending);
     for (const proposal of items) {
-      console.info("[AlgoVoi W3W] Processing stored session proposal from init drain");
       await handleSessionProposal(w3w, proposal);
     }
   } catch {
@@ -926,7 +921,6 @@ export async function restoreWeb3WalletSessions(projectId: string): Promise<void
       if (validTopics.length > 0) {
         // Active sessions present — keep the alarm alive
         chrome.alarms.create("w3w-keepalive", { periodInMinutes: 1 });
-        console.info(`[AlgoVoi W3W] Restored ${validTopics.length} agent session(s)`);
       } else {
         // No active sessions — check for pending pairings (QR shown, awaiting scan)
         const pendingPairings = getActivePairings();
