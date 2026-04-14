@@ -33,7 +33,11 @@ if (!fs.existsSync('dist-firefox')) {
     mf.background = { scripts: [mf.background.service_worker], type: 'module' };
   }
   mf.browser_specific_settings = {
-    gecko: { id: 'algovoi@chopmob.cloud', strict_min_version: '128.0' },
+    gecko: {
+      id: 'algovoi@chopmob.cloud',
+      strict_min_version: '128.0',
+      data_collection_permissions: { required: [], optional: [] },
+    },
   };
   delete mf.side_panel;
   const sideIdx = (mf.permissions || []).indexOf('sidePanel');
