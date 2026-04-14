@@ -6,6 +6,7 @@ import SwapScreen from './components/SwapScreen'
 import BuyScreen from './components/BuyScreen'
 import VoiWalletScreen from './components/VoiWalletScreen'
 import X402Screen from './components/X402Screen'
+import X402ServiceSection from './components/X402ServiceSection'
 import MppScreen from './components/MppScreen'
 import AgentScreen from './components/AgentScreen'
 import VaultScreen from './components/VaultScreen'
@@ -23,20 +24,25 @@ export default function App() {
       <Header />
       <main>
         <HeroSection />
+
+        {/* ── eCommerce + Transactional Security ── */}
+        <EcommerceSection />
+        <MultiTenantSection />
+        <X402ServiceSection />
+        <SecuritySection />
+
+        {/* ── Extension + Tools & Services ── */}
+        <X402Screen />
+        <MppScreen />
+        <AgentScreen />
         <WalletScreen />
         <SendScreen />
         <SwapScreen />
         <BuyScreen />
         <VoiWalletScreen />
-        <X402Screen />
-        <MppScreen />
-        <AgentScreen />
         <VaultScreen />
         <GetStartedScreen />
         <VaultRecoveryScreen />
-        <EcommerceSection />
-        <MultiTenantSection />
-        <SecuritySection />
         <CTASection />
       </main>
       <Footer />
