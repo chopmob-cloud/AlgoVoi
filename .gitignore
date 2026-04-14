@@ -17,6 +17,36 @@ nul
 .env.local
 .env.*.local
 coinbase.txt
+
+# Keys, credentials, secrets — NEVER commit
+# (see no-secrets-in-git policy)
+*.pem
+*.p12
+*.pfx
+*.key
+*.ppk
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+id_ecdsa
+id_ecdsa.*
+id_dsa
+id_dsa.*
+keys.txt
+keys.json
+secrets.json
+secrets.yaml
+secrets.yml
+credentials
+credentials.json
+service-account*.json
+.aws/
+aws-credentials
+gcp-credentials.json
+azure-credentials.json
 .DS_Store
 Thumbs.db
 *.crx
