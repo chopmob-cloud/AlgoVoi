@@ -545,6 +545,7 @@ export async function buildSponsoredPayment(params: {
   amount: string;
   assetId: string;
   memo: string;
+  sponsorAddress?: string;
 }): Promise<{ signedTxB64: string; senderAddress: string; chain: string }> {
   const chain = resolveChain(params.chain);
   if (!chain) throw new Error(`Unsupported network: ${params.chain}`);
@@ -625,6 +626,25 @@ export async function buildSponsoredPayment(params: {
       note,
       suggestedParams,
     });
+  }
+
+  // If a sponsor address is provided, build a 2-tx atomic group so the user
+  // signs with the group ID already present.  The backend rebuilds the fee tx
+  // from the params embedded in the customer tx and signs it.
+  if (params.sponsorAddress && algosdk.isValidAddress(params.sponsorAddress)) {
+    // Build sponsor fee tx: sponsor pays self 2000 microunits fee, 0 amount.
+    // Uses same suggestedParams as the customer tx so fv/lv/gh/gen match exactly.
+    const feeSuggestedParams = { ...suggestedParams, fee: 2000, flatFee: true };
+    const feeTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: params.sponsorAddress,
+      receiver: params.sponsorAddress,
+      amount: 0,
+      suggestedParams: feeSuggestedParams,
+    });
+
+    // Assign atomic group ID to both transactions.
+    // algosdk modifies both in-place: each gets a .group field.
+    algosdk.assignGroupID([txn, feeTxn]);
   }
 
   // Sign with vault key (WalletConnect not supported for sponsored — needs popup flow)

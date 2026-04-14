@@ -101,7 +101,6 @@ async function migrateOldStorage(): Promise<void> {
   if (Object.keys(existing).length > 0) return; // already migrated or fresh pairing exists
 
   await new Promise<void>((resolve) => chrome.storage.local.set(toWrite, resolve));
-  console.log(`[wc-chrome-storage] migrated ${Object.keys(toWrite).length} keys from old storage`);
 }
 
 export const chromeStorage = {

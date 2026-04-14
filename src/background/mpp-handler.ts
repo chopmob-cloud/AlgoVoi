@@ -35,11 +35,32 @@ import type { ChainId } from "@shared/types/chain";
 
 // ── Network resolution ────────────────────────────────────────────────────────
 
-/** Map MPP avm network string → ChainId */
+/**
+ * Map any MPP avm network string variant → ChainId.
+ *
+ * Handles all formats in use across the AlgoVoi stack:
+ *   short:   "algorand" | "voi"
+ *   hyphen:  "algorand-mainnet" | "voi-mainnet"          (server adapter)
+ *   CAIP-2:  "algorand:mainnet" | "voi:mainnet"           (IETF spec)
+ *   CAIP-2+: "algorand:mainnet-v1.0" | "voi:voimain-v1.0" (full CAIP-2)
+ *   snake:   "algorand_mainnet" | "voi_mainnet"           (gateway)
+ */
 export function resolveMppChain(network: string): ChainId | null {
-  if (network === "algorand") return "algorand";
-  if (network === "voi") return "voi";
+  const n = network.toLowerCase();
+  if (n === "algorand" || n.startsWith("algorand:") || n.startsWith("algorand-") || n.startsWith("algorand_")) return "algorand";
+  if (n === "voi"       || n.startsWith("voi:")       || n.startsWith("voi-")       || n.startsWith("voi_"))       return "voi";
   return null;
+}
+
+/**
+ * Normalise an MPP avm network string to the canonical CAIP-2 identifier
+ * used in DID source fields: "algorand:mainnet" or "voi:mainnet".
+ */
+export function normalizeMppNetwork(network: string): string {
+  const chain = resolveMppChain(network);
+  if (chain === "algorand") return "algorand:mainnet";
+  if (chain === "voi")      return "voi:mainnet";
+  return network; // pass through unknown values unchanged
 }
 
 // ── base64url helpers ─────────────────────────────────────────────────────────
@@ -342,7 +363,7 @@ export async function buildAndSignMppPayment(
   // Build and encode the MPP credential
   const credential: MppCredential = {
     challenge: req.challenge,
-    source: `did:pkh:avm:${req.avmRequest.network}:${activeAccount.address}`,
+    source: `did:pkh:avm:${normalizeMppNetwork(req.avmRequest.network)}:${activeAccount.address}`,
     payload: {
       txId,
       transaction: btoa(String.fromCharCode(...signedBytes)),
@@ -431,7 +452,8 @@ export async function handleMpp(params: {
   if (!chain) {
     throw new Error(
       `Unsupported MPP avm network: "${avmRequest.network}". ` +
-      `Supported: "algorand", "voi".`
+      `Supported: "algorand" / "algorand-mainnet" / "algorand:mainnet", ` +
+      `"voi" / "voi-mainnet" / "voi:mainnet".`
     );
   }
 

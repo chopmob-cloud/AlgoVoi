@@ -6,7 +6,5 @@ chrome.devtools.panels.create(
   "AlgoVoi",
   "icons/icon16.png",
   "src/devtools/panel.html",
-  () => {
-    console.log("[AlgoVoi] DevTools panel created");
-  }
+  () => {}
 );

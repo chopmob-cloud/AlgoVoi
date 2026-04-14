@@ -268,7 +268,7 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   // MPP uses the standard HTTP auth header; x402 uses a custom PAYMENT-REQUIRED header.
   const wwwAuth = response.headers.get("WWW-Authenticate") ?? "";
   if (/Payment\s+/i.test(wwwAuth) && response.headers.get(HEADER_PAYMENT_REQUIRED)) {
-    console.warn("[AlgoVoi] Both MPP (WWW-Authenticate) and x402 (PAYMENT-REQUIRED) headers present; using MPP.");
+    // Both headers present — MPP takes precedence (disjoint header names)
   }
   if (/Payment\s+/i.test(wwwAuth)) {
     let authorizationHeader: string;
@@ -292,8 +292,7 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
           }
         }, 5 * 60 * 1000);
       });
-    } catch (err) {
-      console.warn("[AlgoVoi] MPP payment failed:", err);
+    } catch {
       return response;
     }
 
@@ -343,8 +342,7 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
         }
       }, 5 * 60 * 1000);
     });
-  } catch (err) {
-    console.warn("[AlgoVoi] x402 payment failed:", err);
+  } catch {
     return response; // Return the original 402 response to the caller
   }
 

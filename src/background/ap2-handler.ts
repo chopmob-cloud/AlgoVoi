@@ -153,6 +153,48 @@ export function verifyCartMandate(cartMandate: CartMandate): string | null {
     return "CartMandate: missing merchant_authorization";
   }
 
+  // JWT structure + claims validation.
+  // Full signature verification requires a merchant key registry (not yet available).
+  // We validate: 3-part structure, base64url payload, exp/nbf, and cross-field
+  // consistency between the JWT claims and CartMandateContents.
+  {
+    const parts = merchant_authorization.split(".");
+    if (parts.length !== 3) {
+      return "CartMandate: merchant_authorization is not a valid JWT (expected header.payload.signature)";
+    }
+    try {
+      const pad = (s: string) =>
+        s.replace(/-/g, "+").replace(/_/g, "/") +
+        "==".slice(0, (4 - (s.length % 4)) % 4);
+      const jwtPayload = JSON.parse(atob(pad(parts[1]))) as Record<string, unknown>;
+      // exp check
+      if (typeof jwtPayload.exp === "number" && Date.now() / 1000 > jwtPayload.exp) {
+        return "CartMandate: merchant_authorization JWT has expired";
+      }
+      // nbf (not-before) check — allow 30 s clock skew
+      if (typeof jwtPayload.nbf === "number" && Date.now() / 1000 < jwtPayload.nbf - 30) {
+        return "CartMandate: merchant_authorization JWT is not yet valid (nbf)";
+      }
+      // merchant_id consistency
+      if (
+        contents.merchant_id &&
+        typeof jwtPayload.merchant_id === "string" &&
+        jwtPayload.merchant_id !== contents.merchant_id
+      ) {
+        return "CartMandate: merchant_authorization JWT merchant_id does not match contents";
+      }
+      // transaction_id consistency
+      if (
+        typeof jwtPayload.transaction_id === "string" &&
+        jwtPayload.transaction_id !== contents.transaction_id
+      ) {
+        return "CartMandate: merchant_authorization JWT transaction_id does not match contents";
+      }
+    } catch {
+      return "CartMandate: merchant_authorization JWT payload is not valid base64url JSON";
+    }
+  }
+
   // Expiry check
   if (contents.expiry) {
     const expiresAt = new Date(contents.expiry).getTime();
@@ -332,16 +374,49 @@ export async function handleAp2Payment(params: {
     _pendingAp2Requests.delete(requestId);
   }, TTL_MS);
 
-  // ── Vault auto-approval: skip popup when agent key is available ───────────
+  // ── Vault auto-approval: skip popup when agent key + IntentMandate available ─
   // The agent key is a standard ed25519 key that can sign AP2 credentials
-  // autonomously. No AVM transaction needed — AP2 is credential-only.
-  // On failure, fall through to the approval popup so the user can still approve.
+  // autonomously. Auto-approval ONLY triggers when a stored IntentMandate covers
+  // this cart (matching network, address, merchant restrictions, max_amount, expiry).
+  // Without a matching IntentMandate the request falls through to the approval popup.
+  // On any failure, fall through to the approval popup so the user can still approve.
   if (agentSignerAddr) {
     try {
-      const intentMandateId = randomId();
-      const paymentMandate  = await buildPaymentMandate({
+      const intents = await getIntentMandates();
+      const now = Date.now();
+      const cartTotal = parseFloat(params.cartMandate.contents.total.value);
+      const cartCurrency = params.cartMandate.contents.total.currency;
+      const cartMerchantId = params.cartMandate.contents.merchant_id;
+
+      const matchingIntent = intents.find((intent) => {
+        // Must be for same network and agent address
+        if (intent.network !== network || intent.address !== agentSignerAddr) return false;
+        // Intent must not be expired
+        if (intent.intent_expiry && new Date(intent.intent_expiry).getTime() < now) return false;
+        // merchant_restrictions: if set, cartMandate's merchant_id must be in the list
+        if (intent.merchant_restrictions && intent.merchant_restrictions.length > 0) {
+          if (!cartMerchantId || !intent.merchant_restrictions.includes(cartMerchantId)) return false;
+        }
+        // max_amount: if set, cart total must not exceed intent cap (same currency only)
+        if (intent.max_amount && intent.currency) {
+          if (
+            cartCurrency.toUpperCase() === intent.currency.toUpperCase() &&
+            cartTotal > parseFloat(intent.max_amount)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (!matchingIntent) {
+        // No IntentMandate covers this cart — require explicit user approval
+        throw new Error("No matching IntentMandate for this cart");
+      }
+
+      const paymentMandate = await buildPaymentMandate({
         cartMandate: params.cartMandate,
-        intentMandateId,
+        intentMandateId: matchingIntent.id,
         network,
         address: agentSignerAddr,
       });
@@ -354,7 +429,7 @@ export async function handleAp2Payment(params: {
       }).catch(() => {});
       return requestId;
     } catch {
-      // Auto-sign failed — fall through to approval popup
+      // Auto-sign failed or no matching IntentMandate — fall through to approval popup
     }
   }
 

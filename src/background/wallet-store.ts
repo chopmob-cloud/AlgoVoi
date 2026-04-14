@@ -260,7 +260,6 @@ export const walletStore = {
         cleanMeta.activeAccountId = cleanMeta.accounts[0]?.id ?? null;
       }
       await saveMeta(cleanMeta);
-      console.log(`[wallet] removed ${expired.length} expired time-limited account(s)`);
     }
 
     // H2: One-time migration — move connectedSites from plaintext meta into the vault.

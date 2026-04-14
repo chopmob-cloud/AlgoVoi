@@ -322,6 +322,22 @@ export async function callTool(
       signal: AbortSignal.timeout(MCP_TIMEOUT_MS),
       body,
     });
+
+    // x402 spec §4.4: read PAYMENT-RESPONSE settlement header from the successful
+    // retry response. Best-effort — ignore if missing or malformed.
+    const settlementHeader = res.headers.get("PAYMENT-RESPONSE");
+    if (settlementHeader) {
+      try {
+        const settlement = JSON.parse(atob(settlementHeader)) as {
+          success?: boolean;
+          txHash?: string;
+          networkId?: string;
+        };
+        if (settlement.success && settlement.txHash) {
+          // settlement confirmed — txHash and networkId available in settlement object
+        }
+      } catch { /* ignore malformed settlement header */ }
+    }
   }
 
   if (!res.ok) throw new Error(`MCP tool call failed with status ${res.status}`);

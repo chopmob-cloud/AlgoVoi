@@ -81,7 +81,6 @@ export async function snapshotWCStorage(): Promise<void> {
 
   const snapshot: WCSnapshot = { keys, pairedAt: Date.now() };
   await chrome.storage.local.set({ [STORAGE_KEY_WC_SESSIONS]: snapshot });
-  console.log("[wc-storage] snapshot saved, pairedAt:", new Date(snapshot.pairedAt).toISOString());
 }
 
 /**
@@ -101,7 +100,6 @@ export async function restoreWCStorage(): Promise<boolean> {
   // Support old format (plain Record without pairedAt) — treat as expired.
   const typed = snapshot as WCSnapshot;
   if (!typed.pairedAt || !typed.keys) {
-    console.warn("[wc-storage] old snapshot format — clearing, re-pair required");
     await chrome.storage.local.remove(STORAGE_KEY_WC_SESSIONS);
     return false;
   }
@@ -109,7 +107,6 @@ export async function restoreWCStorage(): Promise<boolean> {
   // Enforce 30-day maximum session age.
   const ageMs = Date.now() - typed.pairedAt;
   if (ageMs > WC_SESSION_MAX_AGE_MS) {
-    console.warn("[wc-storage] snapshot expired after 30 days — clearing, re-pair required");
     await chrome.storage.local.remove(STORAGE_KEY_WC_SESSIONS);
     return false;
   }
@@ -121,8 +118,6 @@ export async function restoreWCStorage(): Promise<boolean> {
     }
   }
 
-  const daysOld = (ageMs / (24 * 60 * 60 * 1000)).toFixed(1);
-  console.log(`[wc-storage] restored (${daysOld}d old, expires in ${(30 - parseFloat(daysOld)).toFixed(1)}d)`);
   return true;
 }
 
@@ -144,5 +139,4 @@ export async function wcSnapshotAgeMs(): Promise<number | null> {
  */
 export async function clearWCStorage(): Promise<void> {
   await chrome.storage.local.remove(STORAGE_KEY_WC_SESSIONS);
-  console.log("[wc-storage] snapshot cleared");
 }
