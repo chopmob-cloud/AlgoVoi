@@ -6,7 +6,8 @@ export default function EcommerceSection() {
       url: 'https://woo.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'WordPress + WooCommerce plugin with hosted checkout redirect and in-page browser extension payment.',
     },
     {
@@ -15,7 +16,8 @@ export default function EcommerceSection() {
       url: 'https://opencart.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'OpenCart 4 extension with AJAX-powered checkout, chain selector, and dark-themed storefront.',
     },
     {
@@ -24,7 +26,8 @@ export default function EcommerceSection() {
       url: 'https://prestashop.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'PrestaShop 8 module with custom payment options, cookie-secured sessions, and full dark theme.',
     },
     {
@@ -33,7 +36,8 @@ export default function EcommerceSection() {
       url: 'https://shopware.ilovechicken.co.uk',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'Shopware 6 plugin with Symfony payment handlers, Twig chain selector, and webhook verification.',
     },
     {
@@ -42,7 +46,8 @@ export default function EcommerceSection() {
       url: '',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'Framework-free PHP adapter. Single-file drop-in for any custom PHP application — no dependencies, no composer required.',
     },
     {
@@ -51,7 +56,8 @@ export default function EcommerceSection() {
       url: '',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'Zero-dependency Python adapter using only the standard library. Works with Flask, Django, FastAPI, or plain WSGI.',
     },
     {
@@ -60,7 +66,8 @@ export default function EcommerceSection() {
       url: '',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'Idiomatic Go package using only the standard library. Includes http.HandlerFunc helpers for webhooks and chain selectors.',
     },
     {
@@ -69,7 +76,8 @@ export default function EcommerceSection() {
       url: '',
       hosted: true,
       extension: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: ['Algorand', 'VOI'] },
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
       desc: 'Zero-crate Rust library with pure-stdlib SHA-256, HMAC, and base64. Pluggable HttpClient trait for any TLS backend.',
     },
     {
@@ -78,17 +86,49 @@ export default function EcommerceSection() {
       url: '',
       hosted: false,
       extension: false,
+      cloud: false,
       chains: { hosted: ['Algorand', 'VOI'], extension: [] },
       desc: 'Machine Payments Protocol middleware. Gate your APIs behind WWW-Authenticate: Payment challenges. Flask, Django, WSGI.',
     },
     {
-      name: 'AP2 Server',
-      icon: '🛒',
+      name: 'AP2 / A2A Server',
+      icon: '🤝',
       url: '',
       hosted: false,
       extension: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar'], extension: [] },
-      desc: 'Google Agent Payments (AP2) middleware. Accept ed25519 signed mandates from AI agents. No on-chain tx at purchase time.',
+      cloud: false,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      desc: 'Agent payment middleware supporting AP2 (ed25519 mandates) and Google A2A v0.3 skills (verify-payment, create-checkout, check-status). AI-to-AI payment orchestration out of the box.',
+    },
+    {
+      name: 'X Bot',
+      icon: '𝕏',
+      url: '',
+      hosted: false,
+      extension: false,
+      cloud: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      desc: 'Multi-tenant X (Twitter) bot. Tweet "pay £X" in a reply and the bot generates a live checkout link. Preferred chain per tenant.',
+    },
+    {
+      name: 'Telegram Bot',
+      icon: '✈️',
+      url: '',
+      hosted: false,
+      extension: false,
+      cloud: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      desc: 'Cloud-hosted Telegram bot. Send a payment request in any chat and receive an instant AlgoVoi checkout link. Multi-tenant, webhook-driven.',
+    },
+    {
+      name: 'Viber Bot',
+      icon: '💬',
+      url: '',
+      hosted: false,
+      extension: false,
+      cloud: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      desc: 'Cloud-hosted Viber bot. Request a payment inside any Viber conversation and get a checkout link delivered in seconds.',
     },
   ]
 
@@ -97,6 +137,7 @@ export default function EcommerceSection() {
     VOI: 'text-voi',
     Hedera: 'text-emerald-400',
     Stellar: 'text-[#7C63D0]',
+    Base: 'text-[#0052FF]',
   }
 
   const securityFeatures = [
@@ -109,7 +150,7 @@ export default function EcommerceSection() {
   ]
 
   const flow = [
-    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera · Stellar' },
+    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera · Stellar · Base' },
     { step: '2', label: 'Plugin creates payment link', sub: 'POST /v1/payment-links' },
     { step: '3', label: 'Hosted: redirect to checkout', sub: 'Extension: pay in-page via wallet' },
     { step: '4', label: 'On-chain verification', sub: 'Webhook or API status check' },
@@ -140,10 +181,12 @@ export default function EcommerceSection() {
             <span className="text-emerald-400">Hedera</span>
             <span className="text-text"> · </span>
             <span className="text-[#7C63D0]">Stellar</span>
+            <span className="text-text"> · </span>
+            <span className="text-[#0052FF]">Base</span>
           </h2>
           <p className="text-gray max-w-2xl mx-auto leading-relaxed text-sm sm:text-base">
             Drop-in payment plugins for WooCommerce, OpenCart, PrestaShop, Shopware and more.
-            Hosted checkout supports all four chains — Algorand, Voi, Hedera &amp; Stellar.
+            Hosted checkout supports all five chains — Algorand, Voi, Hedera, Stellar &amp; Base.
             Browser extension payments available on Algorand and Voi.
           </p>
         </div>
@@ -167,6 +210,7 @@ export default function EcommerceSection() {
               <span className="text-[10px] bg-voi/10 text-voi border border-voi/20 rounded-full px-2.5 py-0.5">VOI</span>
               <span className="text-[10px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 rounded-full px-2.5 py-0.5">Hedera</span>
               <span className="text-[10px] bg-[#7C63D0]/10 text-[#7C63D0] border border-[#7C63D0]/20 rounded-full px-2.5 py-0.5">Stellar</span>
+              <span className="text-[10px] bg-[#0052FF]/10 text-[#0052FF] border border-[#0052FF]/20 rounded-full px-2.5 py-0.5">Base</span>
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5 sm:p-6">
@@ -218,7 +262,8 @@ export default function EcommerceSection() {
                   <div className="flex gap-1.5 mt-1">
                     {p.hosted && <span className="text-[10px] bg-surf2 border border-border rounded-full px-2 py-0.5 text-gray">Hosted</span>}
                     {p.extension && <span className="text-[10px] bg-surf2 border border-border rounded-full px-2 py-0.5 text-gray">Extension</span>}
-                    {!p.hosted && !p.extension && <span className="text-[10px] bg-voi/10 border border-voi/20 rounded-full px-2 py-0.5 text-voi">Agent Protocol</span>}
+                    {p.cloud && <span className="text-[10px] bg-[#0052FF]/10 border border-[#0052FF]/20 rounded-full px-2 py-0.5 text-[#0052FF]">Cloud</span>}
+                    {!p.hosted && !p.extension && !p.cloud && <span className="text-[10px] bg-voi/10 border border-voi/20 rounded-full px-2 py-0.5 text-voi">Agent Protocol</span>}
                   </div>
                 </div>
               </div>
@@ -272,7 +317,7 @@ export default function EcommerceSection() {
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start accepting crypto payments today</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
             Sign up with your wallet — testnet is live instantly. Add your business name, country,
-            and contact to unlock capped mainnet. Drop an adapter into your store. Full KYB for live mode.
+            and contact to unlock capped mainnet. Drop an adapter into your store. KYC/KYB required for live — individuals are auto-approved on upload.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -296,7 +341,7 @@ export default function EcommerceSection() {
             <span>✓ 60-day free trial</span>
             <span>✓ No platform fees in trial</span>
             <span>✓ Testnet instant</span>
-            <span>✓ 4 chains supported</span>
+            <span>✓ 5 chains supported</span>
             <span>✓ Mainnet with business details</span>
           </div>
         </div>

@@ -4,6 +4,7 @@ export default function HeroSection() {
     { name: 'Voi',      color: '#8B5CF6', dot: 'bg-voi' },
     { name: 'Hedera',   color: '#10b981', dot: 'bg-emerald-400' },
     { name: 'Stellar',  color: '#7C63D0', dot: 'bg-[#7C63D0]' },
+    { name: 'Base',     color: '#0052FF', dot: 'bg-[#0052FF]' },
   ]
 
   return (
@@ -53,8 +54,10 @@ export default function HeroSection() {
         <div className="flex flex-wrap justify-center gap-2 mb-10">
           {[
             '🔒 Non-custodial wallet',
-            '🛒 eCommerce on 4 chains',
+            '🛒 eCommerce on 5 chains',
             '⚡ x402 · MPP · AP2',
+            '🤝 Google A2A v0.3',
+            '🪪 KYC / KYB onboarding',
             '💱 Algorand + Voi swaps',
             '🤖 AI Agent Wallet',
             '📱 WalletConnect',
