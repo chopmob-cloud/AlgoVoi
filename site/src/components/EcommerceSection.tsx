@@ -7,7 +7,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'WordPress + WooCommerce plugin with hosted checkout redirect and in-page browser extension payment.',
     },
     {
@@ -17,7 +17,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'OpenCart 4 extension with AJAX-powered checkout, chain selector, and dark-themed storefront.',
     },
     {
@@ -27,7 +27,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'PrestaShop 8 module with custom payment options, cookie-secured sessions, and full dark theme.',
     },
     {
@@ -37,7 +37,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'Shopware 6 plugin with Symfony payment handlers, Twig chain selector, and webhook verification.',
     },
     {
@@ -47,7 +47,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'Framework-free PHP adapter. Single-file drop-in for any custom PHP application — no dependencies, no composer required.',
     },
     {
@@ -57,7 +57,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'Zero-dependency Python adapter using only the standard library. Works with Flask, Django, FastAPI, or plain WSGI.',
     },
     {
@@ -67,7 +67,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'Idiomatic Go package using only the standard library. Includes http.HandlerFunc helpers for webhooks and chain selectors.',
     },
     {
@@ -77,7 +77,7 @@ export default function EcommerceSection() {
       hosted: true,
       extension: true,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: ['Algorand', 'VOI'] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: ['Algorand', 'VOI'] },
       desc: 'Zero-crate Rust library with pure-stdlib SHA-256, HMAC, and base64. Pluggable HttpClient trait for any TLS backend.',
     },
     {
@@ -97,7 +97,7 @@ export default function EcommerceSection() {
       hosted: false,
       extension: false,
       cloud: false,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: [] },
       desc: 'Agent payment middleware supporting AP2 (ed25519 mandates) and Google A2A v0.3 skills (verify-payment, create-checkout, check-status). AI-to-AI payment orchestration out of the box.',
     },
     {
@@ -107,7 +107,7 @@ export default function EcommerceSection() {
       hosted: false,
       extension: false,
       cloud: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: [] },
       desc: 'Multi-tenant X (Twitter) bot. Tweet "pay £X" in a reply and the bot generates a live checkout link. Preferred chain per tenant.',
     },
     {
@@ -117,7 +117,7 @@ export default function EcommerceSection() {
       hosted: false,
       extension: false,
       cloud: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: [] },
       desc: 'Cloud-hosted Telegram bot. Send a payment request in any chat and receive an instant AlgoVoi checkout link. Multi-tenant, webhook-driven.',
     },
     {
@@ -127,8 +127,18 @@ export default function EcommerceSection() {
       hosted: false,
       extension: false,
       cloud: true,
-      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base'], extension: [] },
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: [] },
       desc: 'Cloud-hosted Viber bot. Request a payment inside any Viber conversation and get a checkout link delivered in seconds.',
+    },
+    {
+      name: 'Discord Bot',
+      icon: '🎮',
+      url: '',
+      hosted: false,
+      extension: false,
+      cloud: true,
+      chains: { hosted: ['Algorand', 'VOI', 'Hedera', 'Stellar', 'Base', 'Solana', 'Tempo'], extension: [] },
+      desc: 'Shared multi-tenant Discord bot. Invite once, type "pay £X" in any claimed guild and AlgoVoi replies with a live checkout link. Per-guild preferred network, auto-refreshed guild map.',
     },
   ]
 
@@ -138,6 +148,8 @@ export default function EcommerceSection() {
     Hedera: 'text-emerald-400',
     Stellar: 'text-[#7C63D0]',
     Base: 'text-[#0052FF]',
+    Solana: 'text-[#9945FF]',
+    Tempo: 'text-[#F97316]',
   }
 
   const securityFeatures = [
@@ -150,7 +162,7 @@ export default function EcommerceSection() {
   ]
 
   const flow = [
-    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera · Stellar · Base' },
+    { step: '1', label: 'Customer selects chain', sub: 'Algorand · VOI · Hedera · Stellar · Base · Solana · Tempo' },
     { step: '2', label: 'Plugin creates payment link', sub: 'POST /v1/payment-links' },
     { step: '3', label: 'Hosted: redirect to checkout', sub: 'Extension: pay in-page via wallet' },
     { step: '4', label: 'On-chain verification', sub: 'Webhook or API status check' },
@@ -183,10 +195,14 @@ export default function EcommerceSection() {
             <span className="text-[#7C63D0]">Stellar</span>
             <span className="text-text"> · </span>
             <span className="text-[#0052FF]">Base</span>
+            <span className="text-text"> · </span>
+            <span className="text-[#9945FF]">Solana</span>
+            <span className="text-text"> · </span>
+            <span className="text-[#F97316]">Tempo</span>
           </h2>
           <p className="text-gray max-w-2xl mx-auto leading-relaxed text-sm sm:text-base">
             Drop-in payment plugins for WooCommerce, OpenCart, PrestaShop, Shopware and more.
-            Hosted checkout supports all five chains — Algorand, Voi, Hedera, Stellar &amp; Base.
+            Hosted checkout supports all seven chains — Algorand, Voi, Hedera, Stellar, Base, Solana &amp; Tempo.
             Browser extension payments available on Algorand and Voi.
           </p>
         </div>
@@ -203,7 +219,7 @@ export default function EcommerceSection() {
             </div>
             <p className="text-xs text-gray leading-relaxed mb-3">
               Customer is redirected to a secure AlgoVoi-hosted payment page.
-              Works with any wallet on four chains — Pera, Defly, Lute, HashPack, Freighter, LOBSTR. Payment confirmed via webhook + API status check.
+              Works with any wallet on seven chains — Pera, Defly, Lute, HashPack, Freighter, LOBSTR, MetaMask, Phantom, Trust. Payment confirmed via webhook + API status check.
             </p>
             <div className="flex flex-wrap gap-1.5">
               <span className="text-[10px] bg-algo/10 text-algo border border-algo/20 rounded-full px-2.5 py-0.5">Algorand</span>
@@ -211,6 +227,8 @@ export default function EcommerceSection() {
               <span className="text-[10px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 rounded-full px-2.5 py-0.5">Hedera</span>
               <span className="text-[10px] bg-[#7C63D0]/10 text-[#7C63D0] border border-[#7C63D0]/20 rounded-full px-2.5 py-0.5">Stellar</span>
               <span className="text-[10px] bg-[#0052FF]/10 text-[#0052FF] border border-[#0052FF]/20 rounded-full px-2.5 py-0.5">Base</span>
+              <span className="text-[10px] bg-[#9945FF]/10 text-[#9945FF] border border-[#9945FF]/20 rounded-full px-2.5 py-0.5">Solana</span>
+              <span className="text-[10px] bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20 rounded-full px-2.5 py-0.5">Tempo</span>
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5 sm:p-6">
@@ -312,12 +330,13 @@ export default function EcommerceSection() {
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-[#7C63D0]/10 border border-algo/20 rounded-2xl p-6 sm:p-8 text-center">
           <div className="inline-flex items-center gap-2 bg-surf1 border border-border rounded-full px-3 py-1 text-[11px] text-gray mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            60-day free trial · Testnet instant · Mainnet with business details
+            60 days testnet · KYC unlocks $1,000 free mainnet · 0.50% after
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start accepting crypto payments today</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
-            Sign up with your wallet — testnet is live instantly. Add your business name, country,
-            and contact to unlock capped mainnet. Drop an adapter into your store. KYC/KYB required for live — individuals are auto-approved on upload.
+            Sign up with your wallet — testnet is live instantly. Pass our quick ID check
+            (individuals auto-approved in minutes; companies typically within 1 business day) and
+            your first $1,000 of mainnet payments are free across all 7 chains. After that, just 0.50% per payment.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -338,11 +357,11 @@ export default function EcommerceSection() {
             </a>
           </div>
           <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
-            <span>✓ 60-day free trial</span>
-            <span>✓ No platform fees in trial</span>
-            <span>✓ Testnet instant</span>
-            <span>✓ 5 chains supported</span>
-            <span>✓ Mainnet with business details</span>
+            <span>✓ 60 days free testnet</span>
+            <span>✓ $1,000 free mainnet after KYC</span>
+            <span>✓ All 7 chains</span>
+            <span>✓ 0.50% after trial</span>
+            <span>✓ UK-regulated · MLRs 2017</span>
           </div>
         </div>
 

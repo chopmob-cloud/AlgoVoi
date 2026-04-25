@@ -161,10 +161,21 @@
     }
 
     /* ─── Responsive ─── */
-    @media (max-width: 600px) {
+    @media (max-width: 640px) {
+      main { padding: 2rem 1rem 4rem; }
+      header { padding: 0.75rem 1rem; }
+      header a.cta { font-size: 0.7rem; padding: 0.4rem 0.75rem; }
       .cards, .server-grid { grid-template-columns: 1fr; }
-      th, td { padding: 0.6rem 0.75rem; }
+      .toc { padding: 1rem; }
       .toc ol { gap: 0.5rem; }
+      .callout, .warning-box, .highlight-box, .notice { padding: 1rem; }
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      th, td { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
+      code { word-break: break-all; }
+      pre { overflow-x: auto; }
+      .footer-inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      footer { padding: 1.5rem 1rem; }
+      footer a { margin: 0 0.4rem; }
     }
   </style>
 </head>
@@ -188,7 +199,7 @@
       operated under ilovechicken.co.uk, including payment gateway APIs, MCP servers,
       and ecommerce platform adapters.
     </p>
-    <p class="last-updated">Last updated: 12 April 2026 &nbsp;·&nbsp; Version 1.3</p>
+    <p class="last-updated">Last updated: 21 April 2026 &nbsp;·&nbsp; Version 1.4</p>
   </div>
 
   <!-- TOC -->
@@ -232,6 +243,8 @@
       <li><strong>Payment Gateway API</strong> — Ecommerce platform adapters and tenant management (api1.ilovechicken.co.uk)</li>
       <li><strong>UluMCP Server</strong> — AI agent MCP tool server (mcp.ilovechicken.co.uk)</li>
       <li><strong>ilovechicken.co.uk websites</strong> — All pages, documentation, and web properties</li>
+      <li><strong>AlgoVoi Cloud</strong> — Hosted merchant dashboard and KYC onboarding portal (<code>cloud.algovoi.co.uk</code> / <code>dash.algovoi.co.uk</code>)</li>
+      <li><strong>A2A Agent Protocol</strong> — Google A2A v0.3 agent skills for AI-to-AI payment orchestration (<code>api1.ilovechicken.co.uk</code>)</li>
       <li><strong>Platform Adapters</strong> — WooCommerce, OpenCart, PrestaShop, Shopware, and native language adapters</li>
     </ul>
   </section>
@@ -318,14 +331,23 @@
   <section id="aml-kyb">
     <h2>6. AML / KYB Requirements for Merchants</h2>
 
-    <p>Merchants accessing the AlgoVoi-Hand payment gateway in live mode are subject to the following obligations under the UK Money Laundering Regulations 2017 (MLRs), SAMLA 2018, and related legislation.</p>
+    <p>Merchants and individuals accessing AlgoVoi services in live mode are subject to the following obligations under the UK Money Laundering Regulations 2017 (MLRs), SAMLA 2018, and related legislation.</p>
 
-    <p><strong>Know Your Business (KYB):</strong></p>
+    <p><strong>Know Your Customer (KYC) — Individual &amp; Sole Trader Accounts:</strong></p>
+    <ul class="terms-list">
+      <li>Individuals and sole traders onboarding via <code>cloud.algovoi.co.uk</code> must complete a KYC document submission before accessing live payments</li>
+      <li>Required documents: government-issued photo ID, selfie, proof of address, and source of funds declaration. Sole traders must additionally provide a business registration document</li>
+      <li>Documents are <strong>automatically accepted and verified</strong> upon upload. Once all required documents are submitted, the account is <strong>automatically approved</strong> without manual MLRO review — subject to our automated risk assessment</li>
+      <li>We reserve the right to suspend automatic approval and revert to manual review for any account where risk indicators are present</li>
+      <li>KYC documents are retained for a minimum of 5 years after the relationship ends, as required by MLRs Reg 40</li>
+    </ul>
+
+    <p style="margin-top:1rem;"><strong>Know Your Business (KYB) — Company Accounts:</strong></p>
     <ul class="terms-list">
       <li><strong>Simplified CDD (trial accounts):</strong> Before processing any mainnet payment during the trial period, merchants must provide their business name, country of incorporation, and primary contact name. This is required under UK MLRs 2017 Reg 37 and is enforced automatically at the payment gateway</li>
-      <li><strong>Full KYB (live mode):</strong> All merchants must complete full KYB document verification before accessing live mode. KYB requires submission of business identity documents appropriate to the merchant's legal entity type</li>
+      <li><strong>Full KYB (live mode):</strong> All company merchants must complete full KYB document verification before accessing live mode. KYB requires submission of business identity documents appropriate to the merchant's legal entity type</li>
       <li>Required documents for UK limited companies include: Certificate of Incorporation, Proof of Business Address, PSC / UBO Register, Director Passport or equivalent ID, and Source of Funds declaration</li>
-      <li>Documents are reviewed by our compliance team. KYB approval is at our sole discretion</li>
+      <li>Documents are reviewed by our MLRO. KYB approval is at our sole discretion</li>
       <li>We reserve the right to request additional documents, conduct enhanced due diligence, or decline onboarding without providing a reason, in accordance with our risk-based approach under MLRs Reg 18</li>
       <li>Merchant identity documents are retained for a minimum of 5 years after the business relationship ends, as required by MLRs Reg 40</li>
     </ul>
@@ -372,7 +394,7 @@
       <li><strong>Forks and derivatives:</strong> Must carry the same BSL licence and copyright notice</li>
     </ul>
     <p>The MCP server, payment gateway APIs, and platform adapters are proprietary. No licence is granted to copy, modify, or redistribute server-side code without explicit written permission from the copyright holder.</p>
-    <p>For commercial licensing enquiries contact: <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a></p>
+    <p>For commercial licensing enquiries contact: <a href="mailto:support@algovoi.co.uk" style="color:#8B5CF6;">support@algovoi.co.uk</a></p>
   </section>
 
   <!-- 8. Payments -->
@@ -400,20 +422,27 @@
 
     <p><strong>Trial period:</strong></p>
     <ul class="terms-list">
-      <li>New merchants receive a <strong>60-day free trial</strong>. Testnet access is granted immediately on wallet signup — no review required</li>
-      <li>Mainnet payments are unlocked by completing a brief business profile at signup or via the dashboard: <strong>legal business name, country of incorporation, primary contact name, and registered address</strong>. This satisfies simplified customer due diligence under UK MLRs 2017 Reg 37. Full KYB document verification is required before upgrading to live (unlimited) mode</li>
-      <li>Trial accounts are subject to volume caps: <strong>$1,000/day</strong> and <strong>$5,000/week</strong> (USD equivalent at current market price)</li>
-      <li>No platform fees are charged during the trial period</li>
-      <li>At the end of the trial period, the account is frozen until upgraded to a paid plan</li>
+      <li>New merchants receive a <strong>60-day free trial on testnet</strong>. Testnet access is granted immediately on wallet signup — no identity verification or platform fees required during this period</li>
+      <li>Mainnet payments require completed identity verification:
+        <ul>
+          <li><strong>Individuals / sole-traders:</strong> auto-approved via document and selfie ID check (typically completes within minutes)</li>
+          <li><strong>Companies:</strong> KYB document review by our MLRO (typically approved within 1 business day)</li>
+        </ul>
+      </li>
+      <li>Once verified, merchants receive a <strong>$1,000 free mainnet allowance</strong> (USD equivalent at current market price). This is a single dollar budget shared across all 7 supported chains (Algorand, VOI, Hedera, Stellar, Base, Solana, Tempo) and across every AlgoVoi channel (hosted checkout, e-commerce adapters, chat bots, MCP, A2A, x402, MPP, AP2)</li>
+      <li>No platform fees are charged on payments processed within this $1,000 mainnet allowance. Merchants keep 100% of these payments (less network gas, paid by the payer)</li>
+      <li>The standard <strong>0.50% platform fee</strong> applies automatically once the merchant's cumulative mainnet volume exceeds $1,000. The transition is instant and requires no action by the merchant — fees begin being deducted at settlement on the next payment</li>
+      <li>Self-payments — where the payer wallet matches the merchant's payout wallet — are not eligible for the free allowance and are rejected at the gateway. A minimum payment value of <strong>$1.00 USD equivalent</strong> applies during the free allowance to prevent automated micro-payment exhaustion of the trial budget</li>
+      <li>The free mainnet allowance is non-transferable, expires when the merchant's account is closed, and may be reduced or suspended if abuse is detected</li>
     </ul>
 
-    <p style="margin-top:1rem;"><strong>Paid plan:</strong></p>
+    <p style="margin-top:1rem;"><strong>Paid plan (after trial):</strong></p>
     <ul class="terms-list">
-      <li>Platform fee: <strong>0.5%</strong> (50 basis points) per verified payment</li>
+      <li>Platform fee: <strong>0.50%</strong> (50 basis points) per verified payment</li>
       <li>The fee is deducted from the merchant's settlement — customers pay the listed price with no surcharge</li>
-      <li>Fees are collected atomically at settlement via an on-chain multi-output transaction (atomic group on Algorand/Voi, multi-party CryptoTransfer on Hedera, multi-operation transaction on Stellar)</li>
+      <li>Fees are collected atomically at settlement via an on-chain multi-output transaction (atomic group on Algorand/Voi, multi-party CryptoTransfer on Hedera, multi-operation transaction on Stellar, ERC-20 multi-call on Base/Tempo)</li>
       <li>No monthly minimums, no setup fees, no cancellation fees</li>
-      <li>Volume caps are removed on the paid plan</li>
+      <li>High-volume tiers (documented for transparency, applied on request when sustained volume thresholds are met): $10K–$100K/month at 0.40%, $100K+/month at 0.30% or by negotiation</li>
     </ul>
 
     <p style="margin-top:1rem;"><strong>Fee transparency:</strong></p>
@@ -450,7 +479,7 @@
       <li>No PII is included in audit log lines</li>
       <li><strong>AML retention override:</strong> Where a payment record is subject to an AML hold — due to a sanctions hit, a transaction monitoring escalation, or a manual compliance hold — that record and its associated data are retained for a minimum of <strong>5 years</strong> from the date of the transaction, as required by UK MLRs 2017 Reg 40(1)(b). This retention overrides the standard 90-day purge. The legal basis for this extended retention is our obligation to comply with anti-money laundering legislation, which takes precedence over erasure requests under UK GDPR (ICO guidance 2020)</li>
       <li>KYB documents are retained for a minimum of 5 years after the business relationship ends, as required by MLRs Reg 40(2)</li>
-      <li>We comply with UK GDPR. Data subjects may exercise their rights (access, rectification, erasure, portability, objection) by contacting support@ilovechicken.co.uk — we will respond within 30 days. Note that erasure requests may be refused or deferred where retention is required by AML legislation</li>
+      <li>We comply with UK GDPR. Data subjects may exercise their rights (access, rectification, erasure, portability, objection) by contacting support@algovoi.co.uk — we will respond within 30 days. Note that erasure requests may be refused or deferred where retention is required by AML legislation</li>
       <li>Data may be disclosed to law enforcement to the extent required or permitted by applicable law, in accordance with Section 5 of these terms</li>
       <li>Where we act as a data processor on behalf of merchants, a Data Processing Agreement (DPA) is available on request</li>
     </ul>
@@ -514,12 +543,12 @@
       <strong>General enquiries, licensing, and data protection:</strong>
       <br><br>
       Christopher Hopley — ilovechicken.co.uk<br>
-      <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a>
+      <a href="mailto:support@algovoi.co.uk" style="color:#8B5CF6;">support@algovoi.co.uk</a>
       <br><br>
       <strong>Money Laundering Reporting Officer (MLRO):</strong>
       <br>
       Christopher Hopley — designated MLRO<br>
-      <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a>
+      <a href="mailto:support@algovoi.co.uk" style="color:#8B5CF6;">support@algovoi.co.uk</a>
       <br><br>
       <span style="color:#484F58;">Law enforcement and regulatory authorities (including FCA, OFSI, UKFIU, and NCA) may contact us at the above address. We will respond to all lawful requests promptly and without reservation. For SAR-related matters, please mark correspondence <strong style="color:#8B949E;">Private &amp; Confidential — MLRO</strong>.</span>
     </div>

@@ -12,13 +12,13 @@ export default function MultiTenantSection() {
     },
     {
       icon: '⛓️',
-      title: 'Algorand, VOI, Hedera & Stellar',
-      desc: 'Accept payments on Algorand, VOI, Hedera, or Stellar mainnet. Multi-chain checkout with chain picker — customers choose their preferred network.',
+      title: 'Seven chains supported',
+      desc: 'Accept payments on Algorand, VOI, Hedera, Stellar, Base, Solana, or Tempo mainnet. Multi-chain checkout with chain picker — customers choose their preferred network.',
     },
     {
       icon: '🤖',
-      title: 'Browser & agent ready',
-      desc: 'Human users pay via the AlgoVoi extension. AI agents parse 402 challenges and retry programmatically — identical backend, same flow.',
+      title: 'Browser, agent & A2A ready',
+      desc: 'Human users pay via the AlgoVoi extension. AI agents use x402/MPP/AP2 or Google A2A v0.3 skills (verify-payment, create-checkout, check-status) — identical backend, same flow.',
     },
     {
       icon: '🛡️',
@@ -30,18 +30,21 @@ export default function MultiTenantSection() {
       title: 'Full audit trail',
       desc: 'Every challenge, verification, limit change, and key event is logged per tenant with typed event codes and no PII in log lines.',
     },
+    {
+      icon: '🪪',
+      title: 'KYC auto-approval for individuals',
+      desc: 'Individual and sole-trader accounts are verified and approved automatically on document upload — no MLRO wait. Company KYB follows the standard compliance review.',
+    },
   ]
 
   const onboarding = [
-    { step: '1', label: 'Wallet signup', sub: 'Instant testnet access' },
+    { step: '1', label: 'Wallet signup', sub: 'Instant testnet · 60 days free' },
     { arrow: true },
-    { step: '2', label: 'Add business details', sub: 'Name · country · contact' },
+    { step: '2', label: 'KYC / KYB', sub: 'Individuals: auto-approved · Companies: ~1 business day' },
     { arrow: true },
-    { step: '3', label: 'Mainnet unlocked', sub: 'Capped mainnet · 60-day trial' },
+    { step: '3', label: '$1,000 free mainnet', sub: 'All 7 chains · keep every penny' },
     { arrow: true },
-    { step: '4', label: 'KYB docs', sub: 'Submit required documents' },
-    { arrow: true },
-    { step: '5', label: 'Activate live', sub: 'No caps · full production' },
+    { step: '4', label: 'Standard plan', sub: '0.50% per payment · auto-deducted' },
   ]
 
   return (
@@ -66,7 +69,7 @@ export default function MultiTenantSection() {
           <p className="text-gray max-w-xl mx-auto leading-relaxed">
             AlgoVoi-Hand is a managed, compliance-ready crypto payment gateway.
             Register as a tenant, pass a compliance review, and accept payments on
-            four chains — without running nodes, facilitators, or verification servers.
+            seven chains — without running nodes, facilitators, or verification servers.
           </p>
         </div>
 
@@ -142,18 +145,18 @@ POST /tenants/{id}/apikeys
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14">
           <div className="bg-surf1 border border-border rounded-2xl p-5">
             <div className="text-lg mb-2">🧪</div>
-            <div className="text-sm font-bold text-text mb-1">60-day free trial</div>
+            <div className="text-sm font-bold text-text mb-1">60 days free on testnet</div>
             <div className="text-xs text-gray leading-relaxed">
-              Full testnet access plus capped mainnet ($1k/day) during your trial.
-              Identical API surface, zero code change when you go live. No platform fees.
+              Full testnet access on day one — no review, no fees, no card.
+              Identical API surface to mainnet, zero code change when you go live.
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
             <div className="text-lg mb-2">✅</div>
-            <div className="text-sm font-bold text-text mb-1">KYB required for live</div>
+            <div className="text-sm font-bold text-text mb-1">KYC unlocks $1,000 free mainnet</div>
             <div className="text-xs text-gray leading-relaxed">
-              Submit KYB documents for a compliance review before live mode.
-              UK-regulated under MLRs 2017 and SAMLA 2018 — no shortcuts.
+              Individuals &amp; sole traders are <strong className="text-text">auto-approved</strong> in minutes.
+              Companies typically approved within 1 business day. UK-regulated under MLRs 2017 and SAMLA 2018.
             </div>
           </div>
           <div className="bg-surf1 border border-border rounded-2xl p-5">
@@ -168,11 +171,11 @@ POST /tenants/{id}/apikeys
 
         {/* Trial CTA */}
         <div className="bg-gradient-to-r from-algo/10 via-voi/10 to-emerald-400/10 border border-algo/20 rounded-2xl p-8 text-center mt-4">
-          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start your free trial</h3>
+          <h3 className="text-xl sm:text-2xl font-black text-text mb-2">Start free, settle real money</h3>
           <p className="text-sm text-gray mb-6 max-w-lg mx-auto">
             Sign up with your wallet — testnet access is instant, no review needed.
-            Add your business name, country, and contact to unlock capped mainnet payments.
-            60 days, zero platform fees.
+            Pass our quick ID check and get <strong className="text-text">$1,000 of real USDC payments</strong> across
+            Solana, Base, Algorand, Hedera, Stellar, VOI, and Tempo with zero platform fees. After that, just 0.50% per payment.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
@@ -193,10 +196,10 @@ POST /tenants/{id}/apikeys
             </a>
           </div>
           <div className="flex flex-wrap gap-4 justify-center mt-5 text-[11px] text-gray">
-            <span>✓ 60-day free trial</span>
-            <span>✓ No platform fees in trial</span>
-            <span>✓ Testnet instant</span>
-            <span>✓ Mainnet with business details</span>
+            <span>✓ 60 days free testnet</span>
+            <span>✓ $1,000 free mainnet after KYC</span>
+            <span>✓ All 7 chains</span>
+            <span>✓ 0.50% after trial</span>
             <span>✓ UK-regulated · MLRs 2017</span>
           </div>
         </div>
