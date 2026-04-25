@@ -14,6 +14,7 @@ import GetStartedScreen from './components/GetStartedScreen'
 import VaultRecoveryScreen from './components/VaultRecoveryScreen'
 import EcommerceSection from './components/EcommerceSection'
 import MultiTenantSection from './components/MultiTenantSection'
+import NotificationsSection from './components/NotificationsSection'
 import SecuritySection from './components/SecuritySection'
 import CTASection from './components/CTASection'
 import Footer from './components/Footer'
@@ -28,6 +29,7 @@ export default function App() {
         {/* ── eCommerce + Transactional Security ── */}
         <EcommerceSection />
         <MultiTenantSection />
+        <NotificationsSection />
         <X402ServiceSection />
         <SecuritySection />
 

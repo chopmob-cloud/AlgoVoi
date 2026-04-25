@@ -410,6 +410,20 @@
       <li>Test mode transactions use testnet only — no real funds are moved</li>
       <li>Payments may be declined or blocked at any time without notice where required by our AML/CTF obligations, sanctions screening results, or risk management policies. No reason will be provided where disclosure would breach tipping-off provisions</li>
     </ul>
+
+    <p style="margin-top:1.5rem;"><strong>8.1 Outbound Notifications &amp; Webhooks</strong></p>
+    <p>Merchants may configure outbound notification destinations from the dashboard at <code>dash.algovoi.co.uk/connect</code>. Currently supported: Slack, Discord, Microsoft Teams, Mattermost, Rocket.Chat, Google Chat, Zulip, Telegram, and a generic HTTPS webhook destination. The following conditions apply to all outbound notifications:</p>
+    <ul class="terms-list">
+      <li><strong>Event triggers:</strong> Notifications are dispatched on the <code>payment.confirmed</code> event after on-chain settlement is verified. Additional event types may be added without prior notice; merchants can opt in or out of any event from the dashboard</li>
+      <li><strong>Payload integrity:</strong> Every outbound POST carries an <code>X-AlgoVoi-Signature</code> header containing a Stripe-style timestamp and HMAC-SHA256 of <code>{timestamp}.{raw_body}</code>, signed with a per-destination secret. Merchants <strong>should</strong> verify this signature on the receiving end and reject requests where the timestamp is more than five minutes old to prevent replay attacks</li>
+      <li><strong>Signing secret:</strong> A unique <code>algvw_*</code> signing secret is generated when a destination is connected and shown <strong>once</strong> in the dashboard. Merchants are responsible for storing the secret securely. The secret can be rotated at any time from the dashboard, which immediately invalidates the previous secret</li>
+      <li><strong>Retry policy:</strong> Failed deliveries are retried automatically with exponential backoff (30 seconds → 2 minutes → 10 minutes → 1 hour → 6 hours → dead-letter), up to six attempts over approximately 32 hours. Merchants can manually retry any delivery from the dashboard at <code>dash.algovoi.co.uk/notifications</code></li>
+      <li><strong>Audit log:</strong> Every dispatch attempt is recorded in the merchant's account with the destination, status (pending / delivered / failed), HTTP status code, error message, and a payload preview. Audit log entries are retained for 90 days under our standard log retention policy, or 5 years where the related payment is subject to an AML hold</li>
+      <li><strong>Receiver responsibilities:</strong> Merchants are solely responsible for the security, availability, and correctness of any URL they configure as a notification destination. AlgoVoi-Hand makes no warranty that a notification will be delivered, processed, or persisted by the receiving system; the on-chain settlement is the canonical record of payment</li>
+      <li><strong>Third-party platforms:</strong> Where a destination is a third-party platform (Slack, Discord, Microsoft Teams, etc.), the merchant is responsible for compliance with that platform's own terms of service. AlgoVoi-Hand is not affiliated with any third-party platform and provides no warranty of compatibility, uptime, or feature parity</li>
+      <li><strong>Data transmitted:</strong> Outbound notifications include payment metadata (chain, asset, amount, transaction ID, payer address, resource ID, optional tenant label). They do not include personal data of customers beyond a truncated on-chain wallet address. Merchants who configure receiving systems handling personal data are responsible for their own UK GDPR / data protection obligations</li>
+      <li><strong>Discontinuation:</strong> AlgoVoi-Hand may add, modify, or discontinue support for any destination type with reasonable notice. Existing destinations of a discontinued type will continue to operate until the merchant disconnects them or the destination provider becomes unavailable</li>
+    </ul>
   </section>
 
   <!-- 9. Fees & Pricing -->
