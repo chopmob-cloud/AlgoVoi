@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Compliance — AlgoVoi</title>
-  <meta name="description" content="AlgoVoi-Hand compliance summary — PSR 2017/PSD2, UK MLRs 2017, SAMLA 2018, PoCA 2002 alignment for the x402 payment gateway." />
+  <meta name="description" content="AlgoVoi compliance summary — UK MLRs 2017, UK GDPR, SAMLA 2018, PoCA 2002, FSMA 2023 monitoring, KYC at-rest encryption, Document Binder Status." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -55,6 +55,23 @@
     .subtitle { color: #8B949E; font-size: 1rem; max-width: 640px; }
     .last-updated { font-size: 0.75rem; color: #484F58; margin-top: 0.75rem; }
 
+    /* ─── Status Badge Dashboard ─── */
+    .status-dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.5rem;
+      margin: 1.25rem 0 1rem;
+    }
+    .status-pill {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.6rem;
+      background: #161B22; border: 1px solid #30363D; border-radius: 999px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.75rem;
+    }
+    .status-pill .label { color: #E6EDF3; font-weight: 600; }
+    .status-pill .pill { white-space: nowrap; }
+
     /* ─── Sections & headings ─── */
     section { margin-bottom: 2.5rem; }
     h2 {
@@ -76,14 +93,6 @@
       background: #161B22; border: 1px solid #30363D; border-radius: 4px;
       padding: 0.1rem 0.35rem; color: #00C8FF;
     }
-
-    /* ─── TOC ─── */
-    .toc { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 3rem; }
-    .toc-title { font-size: 0.75rem; font-weight: 700; color: #8B949E; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
-    .toc ol { list-style: decimal; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem; }
-    .toc ol li { font-size: 0.8rem; }
-    .toc ol li a { color: #8B5CF6; text-decoration: none; }
-    .toc ol li a:hover { color: #E6EDF3; }
 
     /* ─── Terms list ─── */
     ul.terms-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; }
@@ -114,6 +123,7 @@
     .pill-yellow { background: rgba(210,153,34,0.15); color: #D29922; border: 1px solid rgba(210,153,34,0.3); }
     .pill-blue   { background: rgba(0,200,255,0.1);   color: #00C8FF; border: 1px solid rgba(0,200,255,0.25); }
     .pill-purple { background: rgba(139,92,246,0.12); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3); }
+    .pill-grey   { background: rgba(139,148,158,0.12); color: #8B949E; border: 1px solid rgba(139,148,158,0.25); }
 
     /* ─── Server grid (security infrastructure) ─── */
     .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
@@ -126,8 +136,6 @@
     .check-list li { font-size: 0.75rem; color: #8B949E; display: flex; align-items: flex-start; gap: 0.4rem; }
     .check-list li::before { content: '✓'; color: #3FB950; font-weight: 700; flex-shrink: 0; }
     .check-list li.warn::before { content: '·'; color: #D29922; }
-    .audit-meta { font-size: 0.75rem; color: #484F58; margin-top: 1rem; }
-    .test-table-wrap { background: #161B22; border: 1px solid #30363D; border-radius: 12px; overflow: hidden; }
     .test-label { font-size: 0.7rem; color: #8B949E; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 
     /* ─── Callout box ─── */
@@ -155,6 +163,22 @@
     .notice { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 1.25rem 1.5rem; font-size: 0.875rem; color: #8B949E; }
     .notice strong { color: #E6EDF3; }
 
+    /* ─── DD Pack floating CTA ─── */
+    .dd-cta-float {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 60;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      color: #0D1117; font-size: 0.8rem; font-weight: 700;
+      padding: 0.7rem 1.1rem; border-radius: 999px; text-decoration: none;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45), 0 2px 6px rgba(0,200,255,0.18);
+    }
+    .dd-cta-float:hover { color: #0D1117; transform: translateY(-1px); }
+    .dd-cta-inline {
+      display: inline-block; margin-top: 0.75rem;
+      background: linear-gradient(135deg, #00C8FF, #8B5CF6);
+      color: #0D1117; font-size: 0.8rem; font-weight: 700;
+      padding: 0.55rem 1rem; border-radius: 8px; text-decoration: none;
+    }
+
     /* ─── Footer ─── */
     footer { border-top: 1px solid #30363D; padding: 2rem 1.5rem; text-align: center; font-size: 0.75rem; color: #484F58; }
     footer a { color: #8B949E; text-decoration: none; margin: 0 0.75rem; }
@@ -169,10 +193,21 @@
     }
 
     /* ─── Responsive ─── */
-    @media (max-width: 600px) {
+    @media (max-width: 640px) {
+      main { padding: 2rem 1rem 4rem; }
+      header { padding: 0.75rem 1rem; }
+      header a.cta { font-size: 0.7rem; padding: 0.4rem 0.75rem; }
       .cards, .server-grid, .stat-grid { grid-template-columns: 1fr; }
-      th, td { padding: 0.6rem 0.75rem; }
-      .toc ol { gap: 0.5rem; }
+      .status-dashboard { grid-template-columns: repeat(2, 1fr); }
+      .callout, .warning-box, .highlight-box, .notice { padding: 1rem; }
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      th, td { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
+      code { word-break: break-all; }
+      pre { overflow-x: auto; }
+      .footer-inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      footer { padding: 1.5rem 1rem; }
+      footer a { margin: 0 0.4rem; }
+      .dd-cta-float { right: 0.75rem; bottom: 0.75rem; font-size: 0.7rem; padding: 0.55rem 0.85rem; }
     }
   </style>
 </head>
@@ -190,13 +225,25 @@
 
   <div class="hero">
     <div class="badge">Compliance</div>
-    <h1>AlgoVoi-Hand<br><span>Compliance Summary</span></h1>
+    <h1>AlgoVoi<br><span>Compliance Summary</span></h1>
     <p class="subtitle">
-      AlgoVoi-Hand operates as an x402 payment gateway. This page summarises its alignment with
-      UK PSR&nbsp;2017/PSD2, UK MLRs&nbsp;2017, SAMLA&nbsp;2018, PoCA&nbsp;2002, and related frameworks.
-      Full audit documentation is available on request under NDA.
+      AlgoVoi is a non-custodial cryptoasset payment-message gateway. This page summarises its alignment
+      with UK MLRs&nbsp;2017, UK GDPR, SAMLA&nbsp;2018, PoCA&nbsp;2002, FSMA&nbsp;2023 monitoring posture,
+      and FCA PS19/22 self-assessment. Full audit documentation is available on request under NDA.
     </p>
-    <p class="last-updated">Last updated: 2026-04-12</p>
+
+    <!-- Status Badge Dashboard -->
+    <div class="status-dashboard" aria-label="Compliance status badges">
+      <div class="status-pill"><span class="label">KYC/KYB Encryption at Rest</span><span class="pill pill-green">✓ Active</span></div>
+      <div class="status-pill"><span class="label">UK-Only Operating Perimeter</span><span class="pill pill-green">✓ Enforced</span></div>
+      <div class="status-pill"><span class="label">FCA MLR Scope</span><span class="pill pill-blue">Out of scope — PS19/22 self-assessment</span></div>
+      <div class="status-pill"><span class="label">ICO Registration</span><span class="pill pill-yellow">In preparation</span></div>
+      <div class="status-pill"><span class="label">Cyber Essentials</span><span class="pill pill-yellow">Planned Q3 2026</span></div>
+      <div class="status-pill"><span class="label">SOC 2 Type I</span><span class="pill pill-yellow">Targeted Q3 2026</span></div>
+      <div class="status-pill"><span class="label">FSMA 2023 SI Regime</span><span class="pill pill-purple">Monitoring (~2027)</span></div>
+    </div>
+
+    <p class="last-updated">Last updated: 2026-04-26</p>
   </div>
 
   <!-- Key Alignments -->
@@ -206,7 +253,7 @@
       <div class="card">
         <div class="card-icon">🔐</div>
         <div class="card-title">No Custody</div>
-        <div class="card-desc">Crypto settles direct on-chain. No fiat funds are held or pooled by AlgoVoi-Hand at any point.</div>
+        <div class="card-desc">Crypto settles direct on-chain customer-wallet → merchant-wallet. No fiat funds are held or pooled by AlgoVoi at any point.</div>
       </div>
       <div class="card">
         <div class="card-icon">✍️</div>
@@ -216,29 +263,39 @@
       <div class="card">
         <div class="card-icon">🏗️</div>
         <div class="card-title">Tenant Isolation</div>
-        <div class="card-desc">5-layer row-level security with opaque tokens. Payment data, API keys, and receipts are fully isolated per tenant at the database level.</div>
+        <div class="card-desc">Multi-layer row-level security with opaque tokens. Payment data, API keys, and receipts are fully isolated per tenant at the database level.</div>
       </div>
       <div class="card">
         <div class="card-icon">🛡️</div>
         <div class="card-title">Security</div>
-        <div class="card-desc">TLS 1.3, MFA enforcement, immutable audit logs, and per-tenant kill switches. Security is enforced at the gateway, not just documented.</div>
+        <div class="card-desc">TLS 1.2+ everywhere, MFA on admin surfaces, immutable audit logs, and per-tenant kill switches. Security is enforced at the gateway, not just documented.</div>
       </div>
       <div class="card">
         <div class="card-icon">🪪</div>
         <div class="card-title">AML / CTF</div>
-        <div class="card-desc">Live OFAC + OFSI sanctions screening on every payment. KYB document workflow. Transaction monitoring rules engine. Designated MLRO. SAR filing tools. 5-year AML data retention.</div>
+        <div class="card-desc">Sanctions screening (UK/EU/US/UN), PEP screening, transaction monitoring rules engine, designated MLRO, SAR-capable workflow, and 5-year AML data retention.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗝️</div>
+        <div class="card-title">Encrypted KYC at Rest</div>
+        <div class="card-desc">All KYC/KYB documents are encrypted at the application layer with a versioned <code>AVK1</code> Fernet scheme using a key separate from the general database key. Plaintext exists only in process memory during reviewer access.</div>
       </div>
       <div class="card">
         <div class="card-icon">📋</div>
         <div class="card-title">Audit Trail</div>
         <div class="card-desc">Every challenge, verification, limit change, and key event is logged per tenant with typed event codes. Write-once Postgres RULE on compliance records prevents tampering.</div>
       </div>
+      <div class="card">
+        <div class="card-icon">📚</div>
+        <div class="card-title">Public Docs &amp; Community</div>
+        <div class="card-desc">Live developer documentation at <a href="https://docs.algovoi.co.uk">docs.algovoi.co.uk</a>, conversational support on Discord/Telegram/X/Viber, and 27 upstream contributions across the protocol ecosystem.</div>
+      </div>
     </div>
   </section>
 
-  <!-- Regulatory Frameworks -->
+  <!-- Regulatory Scope -->
   <section id="frameworks">
-    <h2>Regulatory Frameworks</h2>
+    <h2>Regulatory Scope</h2>
     <div style="background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden;">
       <table>
         <thead>
@@ -250,34 +307,49 @@
         </thead>
         <tbody>
           <tr>
-            <td><strong>PSR 2017 / PSD2</strong></td>
-            <td style="color:#8B949E;">x402 gateway — safeguarding N/A (no fiat held)</td>
-            <td><span class="pill pill-green">Aligned</span></td>
+            <td><strong>UK MLRs 2017</strong><br><span style="font-size:0.75rem;color:#484F58;">Regs 18–21, 28, 33, 35, 40</span></td>
+            <td style="color:#8B949E;">Risk-tiered CDD/EDD; KYB/KYC document workflow; PEP screening; ongoing transaction monitoring; 5-year AML data retention enforced</td>
+            <td><span class="pill pill-green">Voluntary alignment</span></td>
           </tr>
           <tr>
-            <td><strong>SCA RTS</strong></td>
-            <td style="color:#8B949E;">Wallet-signature SCA with dynamic linking; low-value exemptions apply</td>
-            <td><span class="pill pill-green">Aligned</span></td>
+            <td><strong>FCA MLR Sch 6A</strong><br><span style="font-size:0.75rem;color:#484F58;">Cryptoasset registration regime</span></td>
+            <td style="color:#8B949E;">Self-assessment against FCA PS19/22 ("core business proposition" test) concludes activity is out of scope as registration is required only for cryptoasset exchange providers and custodian wallet providers; AlgoVoi is neither</td>
+            <td><span class="pill pill-blue">Out of scope — formal legal opinion in preparation</span></td>
           </tr>
           <tr>
-            <td><strong>UK GDPR</strong></td>
-            <td style="color:#8B949E;">90-day PII purge policy; no PII in audit log lines; AML hold overrides GDPR erasure per ICO guidance 2020</td>
-            <td><span class="pill pill-green">Aligned</span></td>
+            <td><strong>UK MLR Reg 18</strong><br><span style="font-size:0.75rem;color:#484F58;">Business-Wide Risk Assessment</span></td>
+            <td style="color:#8B949E;">BWRA documenting customer / geography / product / channel / transaction risk; reviewed annually and on material change</td>
+            <td><span class="pill pill-yellow">In preparation — public summary available</span></td>
           </tr>
           <tr>
-            <td><strong>UK MLRs 2017</strong><br><span style="font-size:0.75rem;color:#484F58;">Regs 18–21, 28(2), 28(12), 40</span></td>
-            <td style="color:#8B949E;">Risk-tiered CDD; KYB document workflow; ongoing transaction monitoring; 5-year AML data retention enforced</td>
-            <td><span class="pill pill-green">Implemented</span></td>
+            <td><strong>UK GDPR / DPA 2018</strong></td>
+            <td style="color:#8B949E;">Article 30 RoPA; DPA template (UK IDTA-aligned); 72-hour breach notification (Art. 33); KYC/KYB encrypted at rest; data minimisation principle applied at design</td>
+            <td><span class="pill pill-green">Aligned</span></td>
           </tr>
           <tr>
             <td><strong>SAMLA 2018 / OFSI</strong><br><span style="font-size:0.75rem;color:#484F58;">s.20 tipping-off</span></td>
-            <td style="color:#8B949E;">Live OFSI + OFAC SDN wallet screening on every payment; generic 402/403 on match (tipping-off compliant); daily feed refresh</td>
+            <td style="color:#8B949E;">UK OFSI + EU + US OFAC + UN sanctions screening at onboarding and on counterparty; generic 402/403 on match (tipping-off compliant); regular feed refresh</td>
             <td><span class="pill pill-green">Active</span></td>
           </tr>
           <tr>
-            <td><strong>PoCA 2002</strong><br><span style="font-size:0.75rem;color:#484F58;">s.330 — failure to disclose</span></td>
-            <td style="color:#8B949E;">Designated MLRO; internal SAR draft/submit workflow; escalation auto-alerts to MLRO; write-once SAR records</td>
+            <td><strong>PoCA 2002 / TA 2000</strong><br><span style="font-size:0.75rem;color:#484F58;">s.330 / s.21A / s.333A</span></td>
+            <td style="color:#8B949E;">Designated MLRO; internal SAR draft/submit workflow with restricted records; tipping-off prohibition observed across customer-facing surfaces</td>
             <td><span class="pill pill-green">Implemented</span></td>
+          </tr>
+          <tr>
+            <td><strong>HMT Cryptoasset Travel Rule</strong></td>
+            <td style="color:#8B949E;">Travel Rule applies to FCA-registered cryptoasset businesses making transfers above £1,000. AlgoVoi is not registered and does not initiate or receive transfers on its own account; settlement is wallet-to-wallet on public blockchains</td>
+            <td><span class="pill pill-blue">Not in scope under current architecture</span></td>
+          </tr>
+          <tr>
+            <td><strong>FSMA 2023 SI regime</strong><br><span style="font-size:0.75rem;color:#484F58;">Future cryptoasset perimeter</span></td>
+            <td style="color:#8B949E;">Designated activities (issuance, custody, exchange, intermediation) expected to bite under secondary legislation circa 2027. AlgoVoi self-assessment indicates current architecture remains outside the proposed perimeter; monitored for change</td>
+            <td><span class="pill pill-purple">Monitoring</span></td>
+          </tr>
+          <tr>
+            <td><strong>HMRC CARF</strong><br><span style="font-size:0.75rem;color:#484F58;">Cryptoasset Reporting Framework</span></td>
+            <td style="color:#8B949E;">CARF imposes reporting obligations on Reporting Cryptoasset Service Providers (RCASPs). AlgoVoi's RCASP status is being assessed as part of the same legal opinion that addresses MLR Sch 6A scope</td>
+            <td><span class="pill pill-yellow">Assessment in progress</span></td>
           </tr>
         </tbody>
       </table>
@@ -290,24 +362,16 @@
 
     <div class="stat-grid">
       <div class="stat-card">
-        <div class="stat-value">3</div>
-        <div class="stat-label">Sanctions feeds</div>
+        <div class="stat-value">UK / EU / US / UN</div>
+        <div class="stat-label">Sanctions lists screened</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">773+</div>
-        <div class="stat-label">OFAC SDN entries</div>
+        <div class="stat-value">PEP</div>
+        <div class="stat-label">Screening at onboarding</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">&lt;3ms</div>
-        <div class="stat-label">Screening latency</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">24h</div>
-        <div class="stat-label">Feed refresh cadence</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">6</div>
-        <div class="stat-label">Monitoring rules</div>
+        <div class="stat-value">7</div>
+        <div class="stat-label">Monitoring rule families</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">5yr</div>
@@ -315,75 +379,133 @@
       </div>
     </div>
 
-    <h3>Sanctions Screening (C1)</h3>
+    <h3>Sanctions &amp; PEP Screening (C1)</h3>
     <p>
-      Every payment is screened against a locally cached, indexed database of sanctions entries before
-      the transaction is persisted. Feeds are refreshed daily from three public sources:
-      <strong>OFSI</strong> (HM Treasury — UK SAMLA 2018 designations),
-      <strong>OFAC SDN</strong> (US Treasury), and
-      <strong>EU Consolidated</strong> sanctions list.
-      Wallet addresses are normalised and matched in a single indexed lookup. Hits result in an
-      automatic <code>ScreeningHit</code> record with action taken (<code>blocked</code> or <code>escalated</code>)
-      and MLRO notification. Generic error responses prevent tipping-off (SAMLA 2018 s.20).
-    </p>
-    <p>
-      Tenant wallet addresses are also screened on KYB approval and on risk tier changes.
-      Risk tier enforcement gates all payments: <strong>restricted</strong> tenants receive a
-      generic 403 with no disclosure; <strong>high-risk</strong> tenants have daily volume caps
-      reduced by 50%.
+      Every merchant, beneficial owner, and director is screened at onboarding and on material update
+      against the consolidated <strong>UK OFSI</strong>, <strong>EU</strong>, <strong>US OFAC</strong>,
+      and <strong>UN</strong> sanctions lists, plus PEP and adverse-media data. Wallet addresses are
+      screened in normalised form against on-chain risk lists. Confirmed positive matches block mainnet
+      activation, are escalated to the MLRO, and trigger consideration of an OFSI report and SAR
+      filing. Generic error responses prevent tipping off (SAMLA 2018 s.20; POCA 2002 s.333A). The full
+      provider stack and match-handling logic are held under NDA; see the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/SANCTIONS_PROCEDURE.md">Sanctions Screening Procedure</a> and
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/PEP_SCREENING_PROCEDURE.md">PEP Screening Procedure</a> public summaries.
     </p>
 
     <h3>Transaction Monitoring (C2)</h3>
     <p>
-      A configurable rules engine evaluates each payment post-confirmation against six seeded rules:
-      large single transaction (≥ $10k), high 24h volume (≥ $50k), high frequency per hour (≥ 100 tx),
-      high payer frequency (structuring signal — ≥ 20 tx/hour), plus two additional configurable thresholds.
-      Rule matches produce <code>ComplianceEvent</code> records with action <code>alert</code>,
-      <code>block</code>, or <code>escalate</code>. Escalations automatically notify the MLRO and
-      set <code>aml_hold=TRUE</code> on the linked payment. Monitoring is post-commit and wrapped
-      in a try/except — it never crashes the payment path.
+      Payment activity is evaluated against seven rule families covering structuring, velocity
+      anomalies, counterparty exposure, round-tripping, geographic concentration, anomalous chain
+      choice, and adverse counterparty signals. Rule values (thresholds, weights) are operationally
+      sensitive and held under NDA. Alert disposition is segregated from rule authorship.
+      Monitoring runs post-commit and never blocks the payment path. See the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/TRANSACTION_MONITORING_PROCEDURE.md">Transaction Monitoring Procedure</a> public summary.
     </p>
 
     <h3>AML Data Retention (C3)</h3>
     <p>
-      Payment records linked to a <code>ScreeningHit</code> or an escalation <code>ComplianceEvent</code>
-      are flagged <code>aml_hold=TRUE</code> via a Postgres trigger and application-layer enforcement.
-      These records are excluded from the 90-day GDPR purge reaper. <code>aml_retention_until</code>
-      is set to <code>verified_at + 5 years</code>, satisfying UK MLRs Reg 40(1)(b). High-risk tenant
-      payments are also held by default per <code>AML_AUTO_HOLD_HIGH_RISK_TENANTS</code>.
+      Records linked to a screening hit, an escalation event, or AML-relevant activity are retained
+      for <strong>five years</strong> from end of business relationship, and excluded from the
+      general data-purge schedule. Retention satisfies UK MLRs Reg 40. See the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/RETENTION_PROCEDURE.md">Retention Procedure</a>.
     </p>
 
-    <h3>KYB Document Workflow (C4)</h3>
+    <h3>KYB / KYC Document Workflow (C4)</h3>
     <p>
-      Merchants onboard via a structured KYB document checklist tailored to their legal entity type.
-      Required documents for UK limited companies include: Certificate of Incorporation, Proof of Address,
-      PSC / UBO Register, Director Passport, and Source of Funds declaration. Documents are uploaded
-      directly to Cloudflare R2 (zero-egress, UK/EU data residency) via presigned PUT URLs with
-      15-minute TTL — file bytes never transit the application server.
+      Onboarding is split by legal entity type. Individual and sole-trader accounts complete a
+      streamlined KYC flow. UK Limited Companies follow the full KYB checklist (Certificate of
+      Incorporation, proof of business address, PSC / UBO register, director ID, source of funds)
+      and are reviewed by the MLRO. The <strong>KYC-unlocks-mainnet</strong> gate is the principal
+      preventive control: no merchant transacts on mainnet until CDD has been completed.
     </p>
     <p>
-      An approval gate (<code>KYB_ENFORCE_DOCUMENT_GATE</code>) prevents <code>kyb_status=approved</code>
-      unless all required documents have been accepted. All KYB documents are retained under
-      <code>aml_hold=TRUE</code> until the business relationship ends + 5 years (MLRs Reg 40(2)).
+      <strong>KYC at-rest encryption.</strong> All KYC/KYB documents are encrypted at the application
+      layer using a versioned MultiFernet scheme (<code>AVK1</code> magic prefix) with a key
+      separate from the general database key. Plaintext exists only in process memory during
+      authorised reviewer access. The encryption layer is independent of disk-level encryption and
+      protects against database-snapshot exposure scenarios. Already in production for new uploads
+      with a backfill of historical documents complete.
     </p>
 
     <h3>MLRO &amp; SAR Workflow (C5)</h3>
     <p>
       A designated Money Laundering Reporting Officer (MLRO) is assigned at the platform level.
-      Escalation events and sanctions hits trigger immediate MLRO notification by email and webhook.
-      Internal SAR draft/submit/acknowledge records are maintained with full audit trail and
-      <code>restricted=TRUE</code> flag — SAR existence is never exposed to tenants or payers,
-      satisfying PoCA 2002 s.330 non-disclosure requirements. Actual submission is via UKFIU
-      SARs Online (no public API available).
+      Escalation events and confirmed sanctions matches trigger immediate MLRO notification.
+      Internal SAR records are maintained with full audit trail and a restricted flag — SAR
+      existence is never exposed to tenants or payers, satisfying PoCA 2002 s.333A. Submission
+      is via the UKFIU SAR Online portal.
     </p>
 
     <div class="highlight-box" style="margin-top:1.25rem;">
       <div class="highlight-title">✓ Designated MLRO</div>
       <p>
         <strong>Christopher Hopley</strong> — Money Laundering Reporting Officer<br>
-        Contact: <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>
+        Contact: <a href="mailto:compliance@algovoi.co.uk">compliance@algovoi.co.uk</a>
       </p>
     </div>
+  </section>
+
+  <!-- Data Protection & Privacy -->
+  <section id="data-protection">
+    <h2>Data Protection &amp; Privacy</h2>
+    <p>
+      AlgoVoi processes personal data as a <strong>controller</strong> for its own personnel,
+      vendor, and onboarding records, and as a <strong>processor</strong> for end-customer
+      payment data passed via merchant integrations. Lawful bases, retention windows, and
+      international-transfer instruments are documented in the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/ROPA.md">Record of Processing Activities (RoPA) — public summary</a>.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">Article 30 RoPA</div>
+        <div class="card-desc">Activity-level inventory of every processing activity, lawful basis, data category, retention, and recipient. Public summary; full RoPA under NDA.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">DPA Template</div>
+        <div class="card-desc">Standard Article 28 Data Processing Agreement aligned to UK GDPR, DPA 2018, UK IDTA / UK Addendum to EU SCCs. <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/DPA_TEMPLATE.md">Read the template</a>.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">72-hour Breach Notification</div>
+        <div class="card-desc">Defined detection-to-notification path with 48-hour Controller notification and 72-hour ICO notification (Article 33). <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/DATA_BREACH_PROCEDURE.md">Read the procedure</a>.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Subject Access &amp; Erasure</div>
+        <div class="card-desc">Article 15–22 rights supported. Erasure subject to AML statutory minima per the <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/RETENTION_PROCEDURE.md">Retention Procedure</a>; backups age out within 30 days.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">ICO Registration</div>
+        <div class="card-desc">Data-controller registration with the UK Information Commissioner's Office is in preparation.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Privacy Contact</div>
+        <div class="card-desc">Privacy queries: <a href="mailto:privacy@algovoi.co.uk">privacy@algovoi.co.uk</a>. Complaints: see the <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/COMPLAINTS_PROCEDURE.md">Complaints Procedure</a>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Travel Rule & A2A Position -->
+  <section id="travel-rule">
+    <h2>Travel Rule &amp; Agent-to-Agent (A2A) Position</h2>
+    <p>
+      <strong>UK Cryptoasset Travel Rule.</strong> The UK HMT Travel Rule applies to FCA-registered
+      cryptoasset businesses making cryptoasset transfers above £1,000, requiring the sharing of
+      originator and beneficiary information with the receiving institution. AlgoVoi is not an
+      FCA-registered cryptoasset business and does not initiate or receive transfers on its own
+      account; settlement is direct wallet-to-wallet on public blockchains between a customer and
+      a merchant. AlgoVoi is consequently not a Travel Rule originator or beneficiary institution.
+      Should architecture or regulatory scope change, AlgoVoi will adopt one of the established
+      Travel Rule protocols (e.g. TRP, IVMS101) before activation.
+    </p>
+    <p>
+      <strong>Agent-to-Agent (A2A) payments.</strong> AlgoVoi supports the Google A2A v0.3 protocol
+      and the AP2 specification, allowing AI agents to discover, request, and verify payments
+      programmatically. The platform applies the same KYC-unlocks-mainnet gate, sanctions and PEP
+      screening, and transaction monitoring to A2A-initiated payments as to human-initiated ones.
+      AI agents acting on behalf of a tenant inherit that tenant's risk tier and limits; no AI
+      agent can transact on behalf of a tenant whose mainnet access is not active. The
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/BWRA.md">BWRA — public summary</a>
+      identifies AI-agent-initiated payment as a residual risk under continuing review.
+    </p>
   </section>
 
   <!-- Security Infrastructure -->
@@ -412,7 +534,6 @@
           <li>Path traversal → 404</li>
           <li>SQL injection → 400</li>
           <li>Internal suite: 24/24 PASS</li>
-          <li>Allbridge: per-chain address regex, txId + amount validation</li>
         </ul>
       </div>
 
@@ -463,106 +584,337 @@
         </ul>
       </div>
 
+      <!-- Cloud API -->
+      <div class="server-card">
+        <div class="server-header">
+          <div class="server-name">AlgoVoi Cloud API</div>
+          <div class="server-score">10/10</div>
+        </div>
+        <div class="server-host">cloud.algovoi.co.uk</div>
+        <ul class="check-list">
+          <li>HSTS preload — max-age=31536000</li>
+          <li>X-Content-Type-Options: nosniff</li>
+          <li>X-Frame-Options: DENY</li>
+          <li>CSP: default-src 'none'; connect-src 'self'; frame-ancestors 'none'</li>
+          <li>Permissions-Policy: camera/mic/geo/payment disabled</li>
+          <li>Referrer-Policy: strict-origin-when-cross-origin</li>
+          <li>Cloudflare WAF + DDoS in front</li>
+          <li>Multi-layer rate limiting</li>
+          <li>Signup endpoint capped per IP</li>
+          <li>AP2 mutations capped per IP</li>
+          <li>Unauth API → 401; wrong methods → 405</li>
+          <li>Fernet-encrypted session tokens</li>
+        </ul>
+      </div>
+
+      <!-- Cloud Dashboard -->
+      <div class="server-card">
+        <div class="server-header">
+          <div class="server-name">AlgoVoi Cloud Dashboard</div>
+          <div class="server-score">10/10</div>
+        </div>
+        <div class="server-host">dash.algovoi.co.uk</div>
+        <ul class="check-list">
+          <li>HSTS preload — max-age=31536000</li>
+          <li>X-Content-Type-Options: nosniff</li>
+          <li>X-Frame-Options: DENY</li>
+          <li>CSP: connect-src restricted to self + cloud.algovoi.co.uk</li>
+          <li>frame-ancestors 'none' · form-action 'self' · object-src 'none'</li>
+          <li>Permissions-Policy: camera/mic/geo/payment disabled</li>
+          <li>Referrer-Policy: strict-origin-when-cross-origin</li>
+          <li>Cloudflare WAF + DDoS in front</li>
+          <li>Admin API rate-limited per session</li>
+          <li>GitHub-OAuth only (no passwords stored)</li>
+          <li>Secrets shown once, never re-displayed</li>
+          <li>All mutations go through authenticated Cloud API (separate origin)</li>
+        </ul>
+      </div>
+
     </div>
 
-    <!-- Test results table -->
-    <div class="test-table-wrap">
+  </section>
+
+  <!-- Policy Library -->
+  <section id="policies">
+    <h2>Policy Library</h2>
+    <p style="color:#8B949E; margin-bottom:1rem;">
+      Internal security, AML, and privacy policies are public by design. Tier B documents
+      (NDA-tier full text) carry a public summary in the same repository. Documents listed
+      here live in the AlgoVoi-Platform-Adapters repository and update with every commit —
+      the Git history is the audit trail.
+    </p>
+    <h3>Security (Tier A — fully public)</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">📜</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/INFORMATION_SECURITY_POLICY.md" style="color:#E6EDF3;">Information Security Policy</a></div>
+        <div class="card-desc">Defence in depth, data classification, encryption standards, vulnerability management.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔑</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/ACCESS_CONTROL_POLICY.md" style="color:#E6EDF3;">Access Control Policy</a></div>
+        <div class="card-desc">Least privilege, MFA mandates, SSH key management, quarterly access reviews.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔁</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/CHANGE_MANAGEMENT_POLICY.md" style="color:#E6EDF3;">Change Management</a></div>
+        <div class="card-desc">Git-based workflow, code review, rollback requirements, emergency-change discipline.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚨</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/INCIDENT_RESPONSE_PLAN.md" style="color:#E6EDF3;">Incident Response Plan</a></div>
+        <div class="card-desc">Severity levels, containment playbook, blameless post-mortems.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛟</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/BUSINESS_CONTINUITY_PLAN.md" style="color:#E6EDF3;">Business Continuity &amp; DR</a></div>
+        <div class="card-desc">RTO/RPO targets, backup strategy, disaster scenarios, annual DR drills.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔗</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/VENDOR_MANAGEMENT_POLICY.md" style="color:#E6EDF3;">Vendor Management</a></div>
+        <div class="card-desc">Subprocessor register, onboarding criteria, breach notification obligations.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">👤</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/ACCEPTABLE_USE_POLICY.md" style="color:#E6EDF3;">Acceptable Use</a></div>
+        <div class="card-desc">Confidentiality, device hygiene, AI tooling rules, reporting obligations.</div>
+      </div>
+    </div>
+
+    <h3>AML / Privacy (Tier A — fully public)</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">⚖️</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/AML_POLICY.md" style="color:#E6EDF3;">AML / CTF Policy</a></div>
+        <div class="card-desc">Three-line-of-defence model, MLRO accountability, regulatory position, BWRA-driven risk approach.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📃</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/DPA_TEMPLATE.md" style="color:#E6EDF3;">DPA Template</a></div>
+        <div class="card-desc">Article 28 Data Processing Agreement template aligned to UK GDPR.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚒</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/DATA_BREACH_PROCEDURE.md" style="color:#E6EDF3;">Data Breach Procedure</a></div>
+        <div class="card-desc">6-step detect → contain → assess → notify → remediate → review with 72-hour ICO path.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📨</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/COMPLAINTS_PROCEDURE.md" style="color:#E6EDF3;">Complaints Procedure</a></div>
+        <div class="card-desc">Channels, acknowledgement timelines, escalation routes (ICO, FCA, OFSI, Action Fraud).</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗄️</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/RETENTION_PROCEDURE.md" style="color:#E6EDF3;">Retention Procedure</a></div>
+        <div class="card-desc">Per-category retention schedule, erasure handling, backup ageing, destruction methods.</div>
+      </div>
+    </div>
+
+    <h3>AML / Privacy (Tier B — public summary, full document under NDA)</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🧭</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/BWRA.md" style="color:#E6EDF3;">Business-Wide Risk Assessment</a></div>
+        <div class="card-desc">UK MLR Reg 18 BWRA — risk dimensions, headline conclusions, residual-risk discussion.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔍</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/CDD_EDD_PROCEDURE.md" style="color:#E6EDF3;">CDD / EDD Procedure</a></div>
+        <div class="card-desc">Standard CDD, EDD triggers, KYC-unlocks-mainnet gate, ongoing monitoring.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📡</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/TRANSACTION_MONITORING_PROCEDURE.md" style="color:#E6EDF3;">Transaction Monitoring Procedure</a></div>
+        <div class="card-desc">Rule families, alert handling, segregation of duties, tuning cadence.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗂️</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/ROPA.md" style="color:#E6EDF3;">Record of Processing Activities</a></div>
+        <div class="card-desc">Article 30 RoPA — controller / processor split, lawful bases, retention, transfers.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/CUSTOMER_RISK_SCORING_MATRIX.md" style="color:#E6EDF3;">Customer Risk Scoring Matrix</a></div>
+        <div class="card-desc">Risk dimensions, banding, decision overrides, re-scoring cadence.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛂</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/SANCTIONS_PROCEDURE.md" style="color:#E6EDF3;">Sanctions Screening Procedure</a></div>
+        <div class="card-desc">UK / EU / US / UN list coverage, match handling, OFSI reporting trigger.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🏛️</div>
+        <div class="card-title"><a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/PEP_SCREENING_PROCEDURE.md" style="color:#E6EDF3;">PEP Screening Procedure</a></div>
+        <div class="card-desc">PEP definition, FCA FG17/6 risk-based handling, EDD checklist.</div>
+      </div>
+    </div>
+
+    <h3>Tier C — statement only</h3>
+    <ul class="terms-list" style="margin-top:0.5rem;">
+      <li><strong style="color:#E6EDF3;">SAR Procedure</strong> — operational; not published in detail per UKFIU guidance. Capability statement: AlgoVoi has an internal SAR draft / submit / acknowledge workflow with restricted records and observes the tipping-off prohibition.</li>
+      <li><strong style="color:#E6EDF3;">MLRO Designation</strong> — Christopher Hopley; contact <a href="mailto:compliance@algovoi.co.uk">compliance@algovoi.co.uk</a>.</li>
+      <li><strong style="color:#E6EDF3;">IP Assignment</strong> — all platform IP is fully assigned to the operating company; assignment documentation held internally and disclosable under NDA in a sale process.</li>
+      <li><strong style="color:#E6EDF3;">Training Log</strong> — annual AML / security awareness training is performed; the log is held internally.</li>
+    </ul>
+  </section>
+
+  <!-- Document Binder Status -->
+  <section id="binder">
+    <h2>Document Binder Status</h2>
+    <p>
+      A live status table for the full compliance binder, including documents not yet authored or
+      not authored to a publishable form. Tier A documents are public; Tier B documents are
+      published as a public summary with the full document available on request under NDA;
+      Tier C documents exist as one-line statements only. The binder maps to a 24-document
+      sale-readiness pack.
+    </p>
+    <div style="background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden;">
       <table>
         <thead>
           <tr>
-            <th>Test Category</th>
-            <th>mcp.ilovechicken.co.uk</th>
-            <th>api1.ilovechicken.co.uk</th>
-            <th>api.ilovechicken.co.uk</th>
+            <th>Document</th>
+            <th>Status</th>
+            <th>Tier</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>HSTS preload</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Security headers</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Authentication enforcement</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Payment bypass attempts</td>
-            <td><span class="pill pill-blue">N/A</span></td>
-            <td><span class="pill pill-blue">N/A</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>HTTP method restrictions</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Injection attacks</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Path traversal</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>CORS origin enforcement</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Info disclosure</td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-            <td><span class="pill pill-green">Pass</span></td>
-          </tr>
-          <tr>
-            <td>Internal test suite</td>
-            <td><span class="pill pill-green">24/24</span></td>
-            <td><span class="pill pill-blue">N/A</span></td>
-            <td><span class="pill pill-blue">N/A</span></td>
-          </tr>
-          <tr>
-            <td>Overall score</td>
-            <td><span class="pill pill-green">10 / 10</span></td>
-            <td><span class="pill pill-green">10 / 10</span></td>
-            <td><span class="pill pill-green">10 / 10</span></td>
-          </tr>
+          <tr><td><strong>Information Security Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Access Control Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Change Management Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Incident Response Plan</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Business Continuity &amp; DR Plan</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Vendor Management Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Acceptable Use Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>AML / CTF Policy</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>DPA Template</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Data Breach Procedure</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Complaints Procedure</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Retention Procedure</strong></td><td><span class="pill pill-green">✓ Published</span></td><td><span class="pill pill-blue">A — public</span></td></tr>
+          <tr><td><strong>Business-Wide Risk Assessment (BWRA)</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>CDD / EDD Procedure</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>Transaction Monitoring Procedure</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>Record of Processing Activities (RoPA)</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>Customer Risk Scoring Matrix</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>Sanctions Screening Procedure</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>PEP Screening Procedure</strong></td><td><span class="pill pill-green">✓ Summary published</span> · <span class="pill pill-purple">NDA on request</span></td><td><span class="pill pill-yellow">B</span></td></tr>
+          <tr><td><strong>SAR Procedure</strong></td><td><span class="pill pill-grey">Statement only — operational</span></td><td><span class="pill pill-grey">C</span></td></tr>
+          <tr><td><strong>MLRO Designation</strong></td><td><span class="pill pill-green">✓ On this page</span></td><td><span class="pill pill-grey">C</span></td></tr>
+          <tr><td><strong>IP Assignment</strong></td><td><span class="pill pill-grey">Statement only — internal</span></td><td><span class="pill pill-grey">C</span></td></tr>
+          <tr><td><strong>Training Log</strong></td><td><span class="pill pill-grey">Statement only — internal</span></td><td><span class="pill pill-grey">C</span></td></tr>
+          <tr><td><strong>External legal opinion (FCA MLR / CARF scope)</strong></td><td><span class="pill pill-yellow">In preparation</span></td><td><span class="pill pill-purple">NDA on completion</span></td></tr>
         </tbody>
       </table>
     </div>
-    <div class="audit-meta">Independent validation by Comet CDP &nbsp;·&nbsp; 2026-04-09 &nbsp;·&nbsp; All servers 10/10 — production-ready</div>
+    <p style="margin-top:1rem;">
+      <strong>Request the full DD pack under NDA</strong> — covers every Tier B document in full,
+      sample-tested cases, the BWRA with residual risk scores, the executed legal opinion when
+      delivered, and the SOC 2 evidence package as it builds.
+    </p>
+    <a class="dd-cta-inline" href="mailto:security@algovoi.co.uk?subject=DD%20Pack%20Request%20%E2%80%94%20AlgoVoi&amp;body=Please%20send%20the%20AlgoVoi%20compliance%20DD%20pack%20under%20NDA.%0A%0AOrganisation%3A%20%0AContact%3A%20%0A">Request the full DD pack →</a>
   </section>
 
-  <!-- Notice -->
-  <section>
-    <div class="notice">
-      <strong>Full audit available under NDA.</strong> This summary is provided for
-      prospective partners during initial due diligence. Detailed technical
-      security documentation, penetration test reports, KYB document checklists, and the complete
-      AML/CTF compliance framework are available on request.
-      <br><br>
-      <span style="color:#484F58;">Audit v2.0 &nbsp;·&nbsp; Q2 2026 &nbsp;·&nbsp;
-      Contact: <a href="mailto:support@ilovechicken.co.uk" style="color:#8B5CF6;">support@ilovechicken.co.uk</a></span>
+  <!-- Subprocessors -->
+  <section id="subprocessors">
+    <h2>Subprocessors</h2>
+    <p style="color:#8B949E; margin-bottom:1rem;">
+      Third parties that process AlgoVoi data or host production infrastructure.
+      Reviewed at least annually. Full list with breach-notification clauses and data
+      flow diagrams available under NDA.
+    </p>
+    <div style="background:#161B22; border:1px solid #30363D; border-radius:12px; overflow:hidden;">
+      <table>
+        <thead>
+          <tr><th>Vendor</th><th>Purpose</th><th>Data scope</th><th>Attestation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Cloudflare</strong></td><td style="color:#8B949E;">CDN, DDoS, WAF, TLS termination</td><td style="color:#8B949E;">All transit (encrypted)</td><td><span class="pill pill-green">SOC 2 · ISO 27001 · PCI-DSS</span></td></tr>
+          <tr><td><strong>Vultr</strong></td><td style="color:#8B949E;">Production compute + database hosting</td><td style="color:#8B949E;">All AlgoVoi data at rest (encrypted disk + application-layer KYC encryption)</td><td><span class="pill pill-green">SOC 2 Type II</span></td></tr>
+          <tr><td><strong>GitHub</strong></td><td style="color:#8B949E;">Source code, CI</td><td style="color:#8B949E;">Code + build artefacts (no production secrets)</td><td><span class="pill pill-green">SOC 2 · ISO 27001</span></td></tr>
+          <tr><td><strong>npm / PyPI</strong></td><td style="color:#8B949E;">Package distribution</td><td style="color:#8B949E;">Public package artefacts only</td><td><span class="pill pill-green">SOC 2</span></td></tr>
+          <tr><td><strong>Let's Encrypt</strong></td><td style="color:#8B949E;">TLS certificate issuance</td><td style="color:#8B949E;">Domain names only</td><td><span class="pill pill-green">ISO 27001 (ISRG)</span></td></tr>
+          <tr><td><strong>Mintlify</strong></td><td style="color:#8B949E;">Public docs hosting (docs.algovoi.co.uk)</td><td style="color:#8B949E;">Public documentation content only</td><td><span class="pill pill-green">SOC 2</span></td></tr>
+          <tr><td><strong>Sanctions list providers</strong></td><td style="color:#8B949E;">UK / EU / US / UN sanctions data</td><td style="color:#8B949E;">List data only — no AlgoVoi data sent</td><td><span class="pill pill-blue">Government data</span></td></tr>
+          <tr><td><strong>Blockchain public RPCs</strong></td><td style="color:#8B949E;">On-chain verification across supported chains</td><td style="color:#8B949E;">Public chain data only</td><td><span class="pill pill-blue">Protocol-level</span></td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
+  <!-- SOC 2 Roadmap -->
+  <section id="soc2">
+    <h2>SOC 2 &amp; Enterprise Certifications</h2>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value" style="color:#3FB950;">Active</div>
+        <div class="stat-label">Policy framework</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#F0B429;">Q3 2026</div>
+        <div class="stat-label">SOC 2 Type I target</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#F0B429;">Q1 2027</div>
+        <div class="stat-label">SOC 2 Type II target</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#F0B429;">Q3 2026</div>
+        <div class="stat-label">Cyber Essentials target</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:#3FB950;">N/A</div>
+        <div class="stat-label">PCI-DSS *</div>
+      </div>
+    </div>
+    <p style="color:#8B949E; margin-top:1rem;">
+      <span style="color:#E6EDF3;"><strong>PCI-DSS is Not Applicable</strong></span> — AlgoVoi processes zero
+      cardholder data. We do not store, process, or transmit primary account numbers (PANs), CVVs, or
+      magnetic-stripe data. All settlement is on-chain via customer crypto wallets. This structurally
+      eliminates the entire cardholder-data attack surface that PCI-DSS exists to protect.
+    </p>
+    <p style="color:#8B949E;">
+      <strong style="color:#E6EDF3;">SOC 2 Type II is in progress.</strong> The policy framework (above) is
+      operational today. Type I (point-in-time attestation) is targeted for Q3 2026; Type II (sustained
+      operation over 6 months) is targeted for Q1 2027 with a recognised startup-specialist auditor. Merchants
+      with enterprise procurement requirements can request interim security questionnaires and pre-audit
+      evidence packages via <a href="mailto:security@algovoi.co.uk">security@algovoi.co.uk</a>.
+    </p>
+    <p style="color:#8B949E;">
+      <strong style="color:#E6EDF3;">FCA MLR Schedule 6A registration.</strong> AlgoVoi has self-assessed
+      against FCA Policy Statement PS19/22 ("Guidance on Cryptoassets"), which states that cryptoasset
+      registration is required only where the firm's <em>core business proposition</em> is a regulated
+      cryptoasset activity. AlgoVoi's core business proposition is the provision of payment-message
+      infrastructure between self-custodial wallets on public blockchains — not cryptoasset exchange or
+      custody. On this basis, the activity is considered out of scope of MLR Schedule 6A registration.
+      A formal external legal opinion confirming this position is in preparation. The UK-only operating
+      perimeter is enforced as a corroborating control. AlgoVoi monitors the FSMA 2023 cryptoasset
+      perimeter (expected to bite circa 2027) and the HMT cryptoasset Travel Rule for changes that
+      could alter this position.
+    </p>
+    <p style="color:#8B949E;">
+      <strong style="color:#E6EDF3;">Cyber Essentials</strong> certification is planned for Q3 2026.
+      <strong style="color:#E6EDF3;">ISO 27001</strong> is on the roadmap after SOC 2 Type II and
+      typically runs on an overlapping timeline with the same auditor.
+    </p>
+  </section>
+
+  <!-- Security Disclosure -->
+  <section id="disclosure">
+    <h2>Security Disclosure</h2>
+    <p>
+      Responsible disclosure is welcome and encouraged. Submit reports to
+      <a href="mailto:security@algovoi.co.uk">security@algovoi.co.uk</a>
+      or consult our <a href="/.well-known/security.txt">/.well-known/security.txt</a>
+      file for structured contact information. We aim to acknowledge within 1 business day
+      and provide a triage outcome within 3 business days. Researchers acting in good faith
+      will not be pursued through legal channels for activity consistent with our
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/INCIDENT_RESPONSE_PLAN.md">Incident Response Plan</a>.
+    </p>
+  </section>
+
 </main>
+
+<a class="dd-cta-float" href="mailto:security@algovoi.co.uk?subject=DD%20Pack%20Request%20%E2%80%94%20AlgoVoi&amp;body=Please%20send%20the%20AlgoVoi%20compliance%20DD%20pack%20under%20NDA.%0A%0AOrganisation%3A%20%0AContact%3A%20%0A" aria-label="Request full DD pack under NDA">Request full DD pack →</a>
 
 <footer>
   <div class="footer-inner">
@@ -575,7 +927,7 @@
       <a href="https://chromewebstore.google.com/detail/algovoi/ofmgegnkjdmbeakjbmfaagigmhagdcbl" target="_blank" rel="noopener noreferrer">Chrome</a>
       <a href="https://addons.mozilla.org/en-GB/firefox/addon/algovoi/" target="_blank" rel="noopener noreferrer">Firefox</a>
       <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener noreferrer">GitHub</a>
-      <a href="https://x402.ilovechicken.co.uk" target="_blank" rel="noopener noreferrer">x402 Demo</a>
+      <a href="https://docs.algovoi.co.uk" target="_blank" rel="noopener noreferrer">Docs</a>
       <a href="/AlgoVoi/privacy-policy.html">Privacy Policy</a>
       <a href="/AlgoVoi/compliance.html">Compliance</a>
       <a href="/AlgoVoi/terms.html">Terms</a>

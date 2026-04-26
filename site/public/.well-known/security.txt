@@ -1,0 +1,23 @@
+# AlgoVoi — security contact
+# Per RFC 9116 (https://securitytxt.org/)
+
+Contact: mailto:security@algovoi.co.uk
+Contact: https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/issues
+Expires: 2027-04-26T00:00:00Z
+Preferred-Languages: en
+Canonical: https://algovoi.co.uk/.well-known/security.txt
+Policy: https://algovoi.co.uk/AlgoVoi/compliance.html#disclosure
+Acknowledgments: https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/README.md
+
+# Scope
+# In scope:
+#   *.algovoi.co.uk
+#   *.ilovechicken.co.uk (operational subdomains)
+# Out of scope:
+#   - Customer-controlled wallets
+#   - Public on-chain data
+#   - Third-party services we depend on (report directly to that vendor)
+
+# Please give us a reasonable time to respond before public disclosure.
+# Acknowledgement target: 1 business day.
+# Triage outcome target: 3 business days.
