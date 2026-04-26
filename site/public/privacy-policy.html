@@ -161,10 +161,21 @@
     }
 
     /* ─── Responsive ─── */
-    @media (max-width: 600px) {
+    @media (max-width: 640px) {
+      main { padding: 2rem 1rem 4rem; }
+      header { padding: 0.75rem 1rem; }
+      header a.cta { font-size: 0.7rem; padding: 0.4rem 0.75rem; }
       .cards, .server-grid { grid-template-columns: 1fr; }
-      th, td { padding: 0.6rem 0.75rem; }
+      .toc { padding: 1rem; }
       .toc ol { gap: 0.5rem; }
+      .callout, .warning-box, .highlight-box, .notice { padding: 1rem; }
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      th, td { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
+      code { word-break: break-all; }
+      pre { overflow-x: auto; }
+      .footer-inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      footer { padding: 1.5rem 1rem; }
+      footer a { margin: 0 0.4rem; }
     }
   </style>
 </head>
@@ -187,7 +198,7 @@
       How AlgoVoi and ilovechicken.co.uk handle your data — what we collect, what we don't,
       and how your wallet keys stay on your device.
     </p>
-    <p class="last-updated">Last updated: 9 April 2026 &nbsp;·&nbsp; Version 1.0</p>
+    <p class="last-updated">Last updated: 26 April 2026 &nbsp;·&nbsp; Version 1.2</p>
   </div>
 
   <!-- Callout -->
@@ -220,7 +231,7 @@
     <h2>1. Who We Are</h2>
     <p>AlgoVoi is a browser extension developed by <strong>Christopher Hopley — ilovechicken.co.uk</strong>. It provides a non-custodial Web3 wallet for the Algorand and Voi blockchain networks, along with native support for the x402, MPP (Machine Payments Protocol), and AP2 (Agent Payments Protocol) HTTP payment standards.</p>
     <p>The source code is publicly available at <a href="https://github.com/chopmob-cloud/AlgoVoi" target="_blank" rel="noopener">github.com/chopmob-cloud/AlgoVoi</a> under the Business Source Licence 1.1.</p>
-    <p>For the purposes of UK GDPR, the data controller is Christopher Hopley, ilovechicken.co.uk. Contact: <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a></p>
+    <p>For the purposes of UK GDPR, the data controller is Christopher Hopley, ilovechicken.co.uk. Contact: <a href="mailto:support@algovoi.co.uk">support@algovoi.co.uk</a></p>
   </section>
 
   <!-- 2 -->
@@ -260,6 +271,8 @@
       <li><strong>enVoi name resolution</strong> (<code>mcp.ilovechicken.co.uk</code>) — when you resolve a <code>.voi</code> human-readable name, the name is sent to the MCP endpoint to retrieve the corresponding address. A small VOI payment accompanies this request. Your private key is never transmitted; only the signed payment transaction (containing your public address) and the name to resolve are sent.</li>
       <li><strong>x402 / MPP payment endpoints</strong> — when you approve an x402 or MPP payment, the extension constructs and submits a signed transaction directly to the blockchain node, then presents proof of payment to the merchant's server. Only the signed transaction (containing your public address) and on-chain transaction ID are transmitted to the merchant. Your private key never leaves your device.</li>
       <li><strong>AP2 (Agent Payments Protocol) merchants</strong> — when you approve an AP2 payment credential request, the extension signs a PaymentMandate using your private key and returns the signed credential to the requesting page. The credential contains your public wallet address and a cryptographic signature. Your private key never leaves your device.</li>
+      <li><strong>A2A (Google Agent-to-Agent) skills</strong> (<code>api1.ilovechicken.co.uk</code>) — AI agents may invoke AlgoVoi A2A skills (verify-payment, create-checkout, check-status) over the Google A2A v0.3 protocol. These calls originate from the agent runtime, not the extension; only public payment token and status data are exchanged. No wallet keys or personal data are transmitted.</li>
+      <li><strong>AlgoVoi Cloud API</strong> (<code>cloud.algovoi.co.uk</code>) — cloud dashboard interactions (signup, KYC document upload, payment status) are sent to the cloud gateway, which proxies them to the primary API over a private VPC link. Standard server-side data handling applies (see §8).</li>
       <li><strong>Allbridge bridge</strong> (<code>mcp.ilovechicken.co.uk</code>) — when you use the bridge tab to transfer USDC cross-chain, unsigned transactions are built server-side and returned to the extension for local signing. Your public address is transmitted to construct the transaction; your private key never leaves your device.</li>
       <li><strong>Wallet icon CDNs</strong> (<code>https://static.defly.app</code>, <code>https://*.walletconnect.com</code>) — wallet application icons may be loaded from these CDNs to display in the pairing and approval UI.</li>
     </ul>
@@ -312,6 +325,8 @@
       <li><strong>No PII in audit logs</strong> — structured audit event logs (payment challenges, verifications, key events) contain no personally identifiable information</li>
       <li><strong>Public wallet addresses</strong> — your public Algorand/Voi address is used to construct and verify on-chain transactions. It is not considered private data as it is publicly visible on the blockchain</li>
       <li><strong>Law enforcement disclosure</strong> — data may be disclosed to law enforcement authorities to the extent required or permitted by applicable law. See our <a href="/AlgoVoi/terms.html">Terms &amp; Conditions</a> Section 5</li>
+      <li><strong>KYC/KYB documents</strong> — individuals and sole traders who complete KYC onboarding via <code>cloud.algovoi.co.uk</code> submit identity documents (government ID, selfie, proof of address, source of funds) which are stored on our primary server <strong>encrypted at rest</strong>. Encryption uses Fernet symmetric authenticated encryption (AES-128-CBC with HMAC-SHA256) applied before any file touches disk; plaintext exists only in memory while a request is being processed. The encryption key for KYC/KYB documents is held separately from the key used for tenant secrets, so a compromise of one class of data cannot expose the other. Multi-key rotation is supported for zero-downtime key rolls. Documents are reviewed automatically for individual accounts and manually for company accounts. All KYC/KYB documents are retained under AML hold for a minimum of 5 years after the relationship ends (MLRs Reg 40(2)) and are never used for any purpose other than compliance verification</li>
+      <li><strong>Cloud gateway</strong> — the AlgoVoi Cloud API (<code>cloud.algovoi.co.uk</code>) processes signup, login, KYC uploads, and payment status queries on behalf of cloud-registered tenants. All data is forwarded to the primary API over a private VPC link and stored on the primary platform database. The cloud gateway itself retains no separate copy of personal data beyond session tokens</li>
       <li><strong>Merchant data processors</strong> — where we act as a data processor on behalf of merchants using the payment gateway, a Data Processing Agreement (DPA) is available on request</li>
     </ul>
   </section>
@@ -334,7 +349,7 @@
       <li><strong>Objection</strong> — object to processing of your data</li>
       <li><strong>Restriction</strong> — request that we restrict processing of your data</li>
     </ul>
-    <p>To exercise any of these rights, contact us at <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>. We will respond within 30 days. You also have the right to lodge a complaint with the <a href="https://ico.org.uk" target="_blank" rel="noopener">Information Commissioner's Office (ICO)</a>.</p>
+    <p>To exercise any of these rights, contact us at <a href="mailto:support@algovoi.co.uk">support@algovoi.co.uk</a>. We will respond within 30 days. You also have the right to lodge a complaint with the <a href="https://ico.org.uk" target="_blank" rel="noopener">Information Commissioner's Office (ICO)</a>.</p>
   </section>
 
   <!-- 11 -->
@@ -350,7 +365,7 @@
       <strong>Data controller &amp; privacy enquiries:</strong>
       <br><br>
       Christopher Hopley — ilovechicken.co.uk<br>
-      <a href="mailto:support@ilovechicken.co.uk">support@ilovechicken.co.uk</a>
+      <a href="mailto:support@algovoi.co.uk">support@algovoi.co.uk</a>
       <br><br>
       <span style="color:#484F58;">For data subject access requests, erasure requests, or DPA enquiries please use the email above. We will respond within 30 days. You may also raise a complaint with the <a href="https://ico.org.uk" target="_blank" rel="noopener" style="color:#8B5CF6;">ICO</a>.</span>
     </div>

@@ -199,7 +199,7 @@
       operated under ilovechicken.co.uk, including payment gateway APIs, MCP servers,
       and ecommerce platform adapters.
     </p>
-    <p class="last-updated">Last updated: 21 April 2026 &nbsp;·&nbsp; Version 1.4</p>
+    <p class="last-updated">Last updated: 26 April 2026 &nbsp;·&nbsp; Version 1.5</p>
   </div>
 
   <!-- TOC -->
@@ -493,6 +493,7 @@
       <li>No PII is included in audit log lines</li>
       <li><strong>AML retention override:</strong> Where a payment record is subject to an AML hold — due to a sanctions hit, a transaction monitoring escalation, or a manual compliance hold — that record and its associated data are retained for a minimum of <strong>5 years</strong> from the date of the transaction, as required by UK MLRs 2017 Reg 40(1)(b). This retention overrides the standard 90-day purge. The legal basis for this extended retention is our obligation to comply with anti-money laundering legislation, which takes precedence over erasure requests under UK GDPR (ICO guidance 2020)</li>
       <li>KYB documents are retained for a minimum of 5 years after the business relationship ends, as required by MLRs Reg 40(2)</li>
+      <li><strong>KYC/KYB documents are encrypted at rest</strong> using Fernet symmetric authenticated encryption (AES-128-CBC with HMAC-SHA256) before any file is written to disk. The encryption key is held separately from the key used for tenant secrets, supports multi-key rotation, and is never exposed to merchants or third parties. Plaintext exists only in memory while a document is being uploaded or reviewed by an authorised compliance reviewer</li>
       <li>We comply with UK GDPR. Data subjects may exercise their rights (access, rectification, erasure, portability, objection) by contacting support@algovoi.co.uk — we will respond within 30 days. Note that erasure requests may be refused or deferred where retention is required by AML legislation</li>
       <li>Data may be disclosed to law enforcement to the extent required or permitted by applicable law, in accordance with Section 5 of these terms</li>
       <li>Where we act as a data processor on behalf of merchants, a Data Processing Agreement (DPA) is available on request</li>
