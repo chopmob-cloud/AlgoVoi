@@ -58,18 +58,20 @@
     /* ─── Status Badge Dashboard ─── */
     .status-dashboard {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 0.5rem;
       margin: 1.25rem 0 1rem;
     }
     .status-pill {
       display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; row-gap: 0.35rem;
       gap: 0.6rem;
-      background: #161B22; border: 1px solid #30363D; border-radius: 999px;
-      padding: 0.4rem 0.85rem;
+      background: #161B22; border: 1px solid #30363D;
+      border-radius: 14px;
+      padding: 0.55rem 0.9rem;
       font-size: 0.75rem;
     }
-    .status-pill .label { color: #E6EDF3; font-weight: 600; }
+    .status-pill .label { color: #E6EDF3; font-weight: 600; white-space: nowrap; }
     .status-pill .pill { white-space: nowrap; }
 
     /* ─── Sections & headings ─── */
@@ -235,10 +237,10 @@
     <!-- Status Badge Dashboard -->
     <div class="status-dashboard" aria-label="Compliance status badges">
       <div class="status-pill"><span class="label">KYC/KYB Encryption at Rest</span><span class="pill pill-green">✓ Active</span></div>
-      <div class="status-pill"><span class="label">FCA MLR Scope</span><span class="pill pill-blue">Out of scope — PS19/22 self-assessment</span></div>
+      <div class="status-pill"><span class="label">FCA MLR Scope</span><span class="pill pill-blue">Out of scope (PS19/22)</span></div>
       <div class="status-pill"><span class="label">ICO Registration</span><span class="pill pill-yellow">In preparation</span></div>
       <div class="status-pill"><span class="label">Cyber Essentials</span><span class="pill pill-yellow">Planned Q3 2026</span></div>
-      <div class="status-pill"><span class="label">SOC 2 Type I</span><span class="pill pill-yellow">Targeted Q3 2026</span></div>
+      <div class="status-pill"><span class="label">SOC 2 Type I</span><span class="pill pill-yellow">Targeted Q2 2027</span></div>
       <div class="status-pill"><span class="label">FSMA 2023 SI Regime</span><span class="pill pill-purple">Monitoring (~2027)</span></div>
     </div>
 
@@ -849,11 +851,11 @@
         <div class="stat-label">Policy framework</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color:#F0B429;">Q3 2026</div>
+        <div class="stat-value" style="color:#F0B429;">Q2 2027</div>
         <div class="stat-label">SOC 2 Type I target</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" style="color:#F0B429;">Q1 2027</div>
+        <div class="stat-value" style="color:#F0B429;">Q4 2027</div>
         <div class="stat-label">SOC 2 Type II target</div>
       </div>
       <div class="stat-card">
@@ -873,8 +875,8 @@
     </p>
     <p style="color:#8B949E;">
       <strong style="color:#E6EDF3;">SOC 2 Type II is in progress.</strong> The policy framework (above) is
-      operational today. Type I (point-in-time attestation) is targeted for Q3 2026; Type II (sustained
-      operation over 6 months) is targeted for Q1 2027 with a recognised startup-specialist auditor. Merchants
+      operational today. Type I (point-in-time attestation) is targeted for Q2 2027; Type II (sustained
+      operation over 6 months) is targeted for Q4 2027 with a recognised startup-specialist auditor. Merchants
       with enterprise procurement requirements can request interim security questionnaires and pre-audit
       evidence packages via <a href="mailto:security@algovoi.co.uk">security@algovoi.co.uk</a>.
     </p>
