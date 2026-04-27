@@ -252,6 +252,7 @@
     <!-- Status Badge Dashboard -->
     <div class="status-dashboard" aria-label="Compliance status badges">
       <div class="status-pill"><span class="label">KYC/KYB Encryption at Rest</span><span class="pill pill-green">✓ Active</span></div>
+      <div class="status-pill"><span class="label">URL / IP Screening</span><span class="pill pill-green">✓ Active</span></div>
       <div class="status-pill"><span class="label">FCA MLR Scope</span><span class="pill pill-blue">Out of scope (PS19/22)</span></div>
       <div class="status-pill"><span class="label">ICO Registration</span><span class="pill pill-yellow">In preparation</span></div>
       <div class="status-pill"><span class="label">Cyber Essentials</span><span class="pill pill-yellow">Planned Q3 2026</span></div>
@@ -528,6 +529,58 @@
       agent can transact on behalf of a tenant whose mainnet access is not active. The
       <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/BWRA.md">BWRA — public summary</a>
       identifies AI-agent-initiated payment as a residual risk under continuing review.
+    </p>
+  </section>
+
+  <!-- URL / IP Screening -->
+  <section id="url-screening">
+    <h2>URL / IP Screening</h2>
+    <p>
+      Four enforcement points, each running synchronously before the
+      operation completes. Failed checks are routed to the MLRO with audited
+      reason codes; hard-block responses include a human-review appeal path
+      via <a href="mailto:security@algovoi.co.uk">security@algovoi.co.uk</a>
+      to satisfy UK GDPR Article 22 obligations.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🛂</div>
+        <div class="card-title">Signup IP gate</div>
+        <div class="card-desc">Tor exit nodes, SpamHaus DROP/EDROP CIDR ranges, and GeoIP for OFSI-comprehensive-sanctions jurisdictions (DPRK / Iran / Syria / Cuba) hard-block at the door. FATF grey-list jurisdictions escalate to MLRO.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔗</div>
+        <div class="card-title">Checkout redirect URL</div>
+        <div class="card-desc">Sanctioned-jurisdiction TLD; URLhaus / PhishTank / OpenPhish / ThreatFox feeds; UK bank-brand homograph detection; RDAP-based newly-registered-domain (&lt;30 days) escalation; redirect-chain following up to 5 hops with per-hop screening.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">Webhook destination</div>
+        <div class="card-desc">SSRF defense always on: blocks RFC 1918, link-local, cloud-metadata IPs, RFC 6761 reserved suffixes (.local, .internal, .invalid), and any non-HTTPS scheme. Defense applies regardless of feature flags — a security control, not a compliance toggle.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧬</div>
+        <div class="card-title">DNS-rebinding guard at delivery</div>
+        <div class="card-desc">Webhook hostnames are re-resolved at every delivery attempt and re-checked against the private-IP deny list. Catches TTL-0 rebinding attacks where a destination passed registration but now resolves to <code>169.254.169.254</code> or similar.</div>
+      </div>
+    </div>
+    <p style="margin-top:1rem;">
+      Threat-intelligence feeds are refreshed hourly by an in-process reaper.
+      Maintained sources: Tor Project public exit list, SpamHaus DROP / EDROP,
+      abuse.ch URLhaus + ThreatFox, OpenPhish, PhishTank, MaxMind GeoLite2
+      Country. No vendor lock-in — every signal is on a public feed an
+      acquirer or successor operator can continue to consume directly. No
+      AlgoVoi data is ever transmitted to these feed providers; they are
+      read-only.
+    </p>
+    <p>
+      Lawful basis for IP processing: UK GDPR Art. 6(1)(f) legitimate
+      interests, with an LIA balancing test and Article 22 mitigation
+      documented in the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/AML_POLICY.md">AML / CTF Policy</a>
+      §8a and a per-activity entry in the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/ROPA.md">RoPA — public summary</a>
+      §3.7.
     </p>
   </section>
 
