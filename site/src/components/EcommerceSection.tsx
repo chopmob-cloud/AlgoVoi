@@ -270,7 +270,7 @@ export default function EcommerceSection() {
         </div>
 
         {/* Platform cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {platforms.map(p => (
             <div key={p.name} className="bg-surf1 border border-border rounded-2xl p-5 sm:p-6 hover:border-algo/40 transition-colors">
               <div className="flex items-center gap-3 mb-3">

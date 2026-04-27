@@ -113,7 +113,7 @@ export default function MultiTenantSection() {
               <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
               <span className="text-[11px] text-gray ml-2">Register your tenant — control plane API</span>
             </div>
-            <pre className="text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono">
+            <pre className="text-[11px] sm:text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono whitespace-pre-wrap break-all sm:whitespace-pre sm:break-normal">
 {`# Control plane — create tenant (after KYB application approved)
 POST https://cp.ilovechicken.co.uk/tenants
 Authorization: Bearer <admin-key>

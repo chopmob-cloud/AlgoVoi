@@ -102,7 +102,7 @@ export default function NotificationsSection() {
               <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
               <span className="text-[11px] text-gray ml-2">POST your-backend.example.com  ·  X-AlgoVoi-Signature: t=1777200000,v1=…</span>
             </div>
-            <pre className="text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono">
+            <pre className="text-[11px] sm:text-xs leading-relaxed p-4 overflow-x-auto text-text font-mono whitespace-pre-wrap break-all sm:whitespace-pre sm:break-normal">
 {`{
   "id":          "evt_a3f7c192-d8e1-4b6c-9f0a-7b1e2c4d8e3f",
   "type":        "payment.confirmed",

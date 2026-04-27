@@ -44,7 +44,7 @@ export default function SecuritySection() {
         'HMAC-SHA256 signed internal requests',
         '60-second replay protection window',
         'Direct indexer/Mirror Node verification',
-        'Supports Algorand, VOI, and Hedera',
+        'Supports Algorand, VOI, Hedera, Stellar, Base, Solana, and Tempo',
         'Integer-only arithmetic (no float rounding)',
       ],
     },
@@ -142,9 +142,9 @@ export default function SecuritySection() {
         </div>
 
         {/* Payment flow trace */}
-        <div className="bg-surf1/50 border border-border/50 rounded-2xl p-6 mb-12">
+        <div className="bg-surf1/50 border border-border/50 rounded-2xl p-4 sm:p-6 mb-12">
           <h3 className="text-sm font-bold text-gray uppercase tracking-wider mb-4">Payment Flow Security Trace</h3>
-          <div className="flex flex-wrap gap-2 items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center sm:justify-center">
             {[
               'Token validated',
               'Link from DB',

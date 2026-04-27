@@ -98,7 +98,7 @@ def premium_data():
               <span className="text-[11px] text-gray font-mono">x402_example.py</span>
               <span className="text-[10px] text-voi bg-voi/10 border border-voi/20 rounded px-2 py-0.5">10 lines</span>
             </div>
-            <pre className="text-[11px] sm:text-xs text-gray leading-relaxed p-5 overflow-x-auto font-mono whitespace-pre">
+            <pre className="text-[11px] sm:text-xs text-gray leading-relaxed p-5 overflow-x-auto font-mono whitespace-pre-wrap break-all sm:whitespace-pre sm:break-normal">
 {codeSnippet}
             </pre>
           </div>
