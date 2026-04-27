@@ -289,7 +289,7 @@
       <div class="card">
         <div class="card-icon">🪪</div>
         <div class="card-title">AML / CTF</div>
-        <div class="card-desc">Sanctions screening (UK/EU/US/UN), PEP screening, transaction monitoring rules engine, designated MLRO, SAR-capable workflow, and 5-year AML data retention.</div>
+        <div class="card-desc">Wallet-level sanctions screening live (UK / EU / US / UN consolidated lists). Name-level sanctions + PEP screening framework defined (FCA FG17/6); operational data feed in preparation. Transaction monitoring rules engine, designated MLRO, SAR-capable workflow, 5-year AML data retention.</div>
       </div>
       <div class="card">
         <div class="card-icon">🗝️</div>
@@ -324,7 +324,7 @@
         <tbody>
           <tr>
             <td><strong>UK MLRs 2017</strong><br><span style="font-size:0.75rem;color:#484F58;">Regs 18–21, 28, 33, 35, 40</span></td>
-            <td style="color:#8B949E;">Risk-tiered CDD/EDD; KYB/KYC document workflow; PEP screening; ongoing transaction monitoring; 5-year AML data retention enforced</td>
+            <td style="color:#8B949E;">Risk-tiered CDD/EDD; KYB/KYC document workflow; wallet-level sanctions screening live; name-level + PEP screening framework defined, data feed in preparation; ongoing transaction monitoring; 5-year AML data retention enforced</td>
             <td><span class="pill pill-green">Voluntary alignment</span></td>
           </tr>
           <tr>
@@ -382,8 +382,8 @@
         <div class="stat-label">Sanctions lists screened</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">PEP</div>
-        <div class="stat-label">Screening at onboarding</div>
+        <div class="stat-value" style="color:#F0B429;">In prep</div>
+        <div class="stat-label">Name + PEP data feed</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">7</div>
@@ -397,15 +397,21 @@
 
     <h3>Sanctions &amp; PEP Screening (C1)</h3>
     <p>
-      Every merchant, beneficial owner, and director is screened at onboarding and on material update
+      <strong>Wallet-level sanctions screening is live.</strong> Every payment is checked in real time
       against the consolidated <strong>UK OFSI</strong>, <strong>EU</strong>, <strong>US OFAC</strong>,
-      and <strong>UN</strong> sanctions lists, plus PEP and adverse-media data. Wallet addresses are
-      screened in normalised form against on-chain risk lists. Confirmed positive matches block mainnet
+      and <strong>UN</strong> sanctions lists, ingested directly from the public XML feeds and refreshed
+      daily. Wallet addresses are normalised before lookup. Confirmed positive matches block mainnet
       activation, are escalated to the MLRO, and trigger consideration of an OFSI report and SAR
-      filing. Generic error responses prevent tipping off (SAMLA 2018 s.20; POCA 2002 s.333A). The full
-      provider stack and match-handling logic are held under NDA; see the
-      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/SANCTIONS_PROCEDURE.md">Sanctions Screening Procedure</a> and
-      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/PEP_SCREENING_PROCEDURE.md">PEP Screening Procedure</a> public summaries.
+      filing. Generic error responses prevent tipping off (SAMLA 2018 s.20; POCA 2002 s.333A).
+    </p>
+    <p>
+      <strong>Name-level sanctions and PEP screening: in preparation.</strong> The policy framework is
+      defined (FCA FG17/6 risk-based handling; PEP definition per UK MLR 2017 reg 35) and the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/PEP_SCREENING_PROCEDURE.md">PEP Screening Procedure</a> describes the operational handling. The commercial data feed
+      (e.g. ComplyAdvantage / Acuris) for name-based PEP and adverse-media screening is being
+      evaluated; for UK Limited Companies, MLRO review at onboarding currently performs this check
+      manually against public sources. See the
+      <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/SANCTIONS_PROCEDURE.md">Sanctions Screening Procedure</a> public summary.
     </p>
 
     <h3>Transaction Monitoring (C2)</h3>
@@ -515,8 +521,9 @@
     <p>
       <strong>Agent-to-Agent (A2A) payments.</strong> AlgoVoi supports the Google A2A v0.3 protocol
       and the AP2 specification, allowing AI agents to discover, request, and verify payments
-      programmatically. The platform applies the same KYC-unlocks-mainnet gate, sanctions and PEP
-      screening, and transaction monitoring to A2A-initiated payments as to human-initiated ones.
+      programmatically. The platform applies the same KYC-unlocks-mainnet gate, wallet-level
+      sanctions screening, and transaction monitoring to A2A-initiated payments as to human-initiated
+      ones (name-level + PEP screening data feed in preparation, applies equally once live).
       AI agents acting on behalf of a tenant inherit that tenant's risk tier and limits; no AI
       agent can transact on behalf of a tenant whose mainnet access is not active. The
       <a href="https://github.com/chopmob-cloud/AlgoVoi-Platform-Adapters/blob/master/compliance/BWRA.md">BWRA — public summary</a>
